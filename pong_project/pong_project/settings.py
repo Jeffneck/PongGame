@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+import os
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -43,13 +45,13 @@ INSTALLED_APPS = [
 
 # [Added] tout le contenu de cette Macro a ete cree pour que django gere le cache avec Redis (necessite import os)
 # (django-redis ou channels_redis) => cela change quoi
-import os
+# Djang-redis cache (optionnel)
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': f"redis://{os.environ.get('REDIS_HOST', 'localhost')}:{os.environ.get('REDIS_PORT', '6379')}/1",
+        'LOCATION': f"redis://{os.environ.get('REDIS_HOST','redis')}:{os.environ.get('REDIS_PORT','6379')}/1",
         'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient'
         }
     }
 }

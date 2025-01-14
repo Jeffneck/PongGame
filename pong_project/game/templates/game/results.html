@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Liste des parties terminées</title>
+</head>
+<body>
+  <h1>Historique des parties</h1>
+  <table border="1">
+    <tr>
+      <th>Game ID</th>
+      <th>Winner</th>
+      <th>Score</th>
+      <th>Date</th>
+    </tr>
+    {% for r in results %}
+    <tr>
+      <td>{{ r.game.id }}</td>
+      <td>{{ r.winner }}</td>
+      <td>{{ r.score_left }} - {{ r.score_right }}</td>
+      <td>{{ r.ended_at }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p><a href="{% url 'index' %}">Retour accueil</a></p>
+</body>
+</html>

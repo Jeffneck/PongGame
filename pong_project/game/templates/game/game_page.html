@@ -1,91 +1,86 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <title>Game</title>
   <style>
-    body { background: #333; margin: 0; padding: 0; }
     #gameCanvas {
+      background: black;
+      border: 2px solid white;
       display: block;
       margin: 0 auto;
-      background: #000;
-      border: 2px solid #fff;
     }
   </style>
 </head>
 <body>
-<canvas id="gameCanvas" width="600" height="400"></canvas>
+  <h1>Pong Game - ID : {{ game_id }}</h1>
+  <canvas id="gameCanvas" width="600" height="400"></canvas>
 
-<script>
-  const canvas = document.getElementById("gameCanvas");
-  const ctx = canvas.getContext("2d");
+  <script>
+    const gameId = "{{ game_id }}";
+    const protocol = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
+    const wsUrl = protocol + '//' + window.location.host + '/ws/pong/' + gameId + '/';
+    const socket = new WebSocket(wsUrl);
 
-  // WebSocket
-  const protocol = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
-  const wsUrl = protocol + '//' + window.location.host + '/ws/pong/';
-  const socket = new WebSocket(wsUrl);
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
 
-  let gameState = {
-    ball_x: 300, 
-    ball_y: 200,
-    left: 150,
-    right: 150,
-    score_left: 0,
-    score_right: 0,
-  };
+    let gameState = {
+      ball_x: 300, ball_y: 200,
+      left: 150, right: 150,
+      score_left: 0, score_right: 0
+    };
 
-  socket.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    if(data.type === 'game_state') {
-      gameState = data;
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'game_state') {
+        gameState = data;
+      } else if (data.type === 'game_over') {
+        alert("Game Over! Winner = " + data.winner);
+        socket.close();
+      }
+    };
+
+    document.addEventListener('keydown', (evt) => {
+      let action = null, player=null, direction=null;
+      if(evt.key === 'w' || evt.key === 'W'){
+        player='left'; direction='up';
+      } else if(evt.key === 's' || evt.key === 'S'){
+        player='left'; direction='down';
+      } else if(evt.key === 'ArrowUp'){
+        player='right'; direction='up';
+      } else if(evt.key === 'ArrowDown'){
+        player='right'; direction='down';
+      }
+      if(player && direction){
+        socket.send(JSON.stringify({
+          action: 'move',
+          player,
+          direction
+        }));
+      }
+    });
+
+    function draw(){
+      ctx.clearRect(0,0, canvas.width, canvas.height);
+
+      // Score
+      ctx.fillStyle='white';
+      ctx.font="20px Arial";
+      ctx.fillText(`${gameState.score_left}`, 20, 30);
+      ctx.fillText(`${gameState.score_right}`, canvas.width-40, 30);
+
+      // Balle
+      ctx.beginPath();
+      ctx.arc(gameState.ball_x, gameState.ball_y, 7, 0, 2*Math.PI);
+      ctx.fill();
+
+      // Raquettes
+      ctx.fillRect(10, gameState.left, 10, 60);
+      ctx.fillRect(canvas.width-20, gameState.right, 10, 60);
+
+      requestAnimationFrame(draw);
     }
-  };
-
-  document.addEventListener('keydown', (evt) => {
-    // W/S => left, Up/Down => right
-    let player, direction;
-    if(evt.key === 'w' || evt.key === 'W') {
-      player = 'left';
-      direction = 'up';
-    } else if(evt.key === 's' || evt.key === 'S') {
-      player = 'left';
-      direction = 'down';
-    } else if(evt.key === 'ArrowUp') {
-      player = 'right';
-      direction = 'up';
-    } else if(evt.key === 'ArrowDown') {
-      player = 'right';
-      direction = 'down';
-    }
-    if(player && direction) {
-      socket.send(JSON.stringify({
-        action: 'move',
-        player,
-        direction
-      }));
-    }
-  });
-
-  function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Dessin score
-    ctx.fillStyle = '#FFF';
-    ctx.font = "20px Arial";
-    ctx.fillText(`${gameState.score_left}`, 20, 20);
-    ctx.fillText(`${gameState.score_right}`, canvas.width - 40, 20);
-
-    // Dessin raquettes
-    ctx.fillRect(10, gameState.left, 10, 60);
-    ctx.fillRect(canvas.width - 20, gameState.right, 10, 60);
-
-    // Dessin balle
-    ctx.beginPath();
-    ctx.arc(gameState.ball_x, gameState.ball_y, 7, 0, 2*Math.PI, false);
-    ctx.fill();
-
     requestAnimationFrame(draw);
-  }
-
-  requestAnimationFrame(draw);
-</script>
+  </script>
 </body>
 </html>

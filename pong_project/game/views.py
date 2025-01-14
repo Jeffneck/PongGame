@@ -1,79 +1,55 @@
-from django.shortcuts import render
-from django.http import JsonResponse
-from django.conf import settings
 import redis
+import uuid
+import asyncio
+from django.shortcuts import render, redirect
+from django.http import HttpResponse
+from django.conf import settings
+from .models import GameSession, GameResult
+from .tasks import start_game_loop, is_game_running
 
-# On initialise un client Redis
-# Assure-toi d'avoir REDIS_HOST et REDIS_PORT dans tes settings
-r = redis.Redis(
-    host=settings.REDIS_HOST,
-    port=settings.REDIS_PORT,
-    db=0
-)
+r = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=0)
 
-def game_page(request):
+def index(request):
     """
-    Renvoie la page principale de jeu (HTML).
+    Page d'accueil -> bouton pour créer une partie
     """
-    return render(request, 'game/game_page.html')
+    return render(request, 'game/index.html')
 
-
-def get_positions(request):
+def create_game(request):
     """
-    Récupère la position des deux raquettes (dans Redis) et renvoie un JSON.
-    Ex: { "left": 150, "right": 150 }
+    Crée un GameSession (UUID), init Redis, lance la loop
     """
-    left_y = r.get('paddle_left_y')
-    if left_y is None:
-        left_y = 150  # Valeur par défaut
-    else:
-        left_y = int(left_y)
+    session = GameSession.objects.create()
+    game_id = str(session.id)  # UUID en string
 
-    right_y = r.get('paddle_right_y')
-    if right_y is None:
-        right_y = 150
-    else:
-        right_y = int(right_y)
+    # Init Redis
+    r.set(f"{game_id}:score_left", 0)
+    r.set(f"{game_id}:score_right", 0)
+    r.set(f"{game_id}:paddle_left_y", 150)
+    r.set(f"{game_id}:paddle_right_y", 150)
+    r.set(f"{game_id}:ball_x", 300)
+    r.set(f"{game_id}:ball_y", 200)
+    r.set(f"{game_id}:ball_vx", 3)
+    r.set(f"{game_id}:ball_vy", 2)
 
-    data = {
-        'left': left_y,
-        'right': right_y
-    }
-    return JsonResponse(data)
+    # Lancer la boucle asynchrone
+    loop = asyncio.get_event_loop()
+    loop.create_task(start_game_loop(game_id))
+
+    # Rediriger vers la page de jeu
+    return redirect('game_page', game_id=game_id)
 
 
-def update_position(request):
+def game_page(request, game_id):
     """
-    Met à jour la position d'une raquette en fonction d'un POST
-    contenant "player" = ('left' ou 'right') et "direction" = ('up' ou 'down').
-    Renvoie un JSON confirmant la nouvelle position.
+    Affiche la page HTML (canvas + websocket) pour la partie <game_id>
     """
-    if request.method == 'POST':
-        player = request.POST.get('player')    # 'left' ou 'right'
-        direction = request.POST.get('direction')  # 'up' ou 'down'
+    return render(request, 'game/game.html', {'game_id': game_id})
 
-        # Clé pour Redis : "paddle_left_y" ou "paddle_right_y"
-        key = f"paddle_{player}_y"
-        current_value = r.get(key)
-        if current_value is None:
-            current_value = 150
-        else:
-            current_value = int(current_value)
 
-        # On déplace la raquette de 5 pixels
-        step = 5
-        if direction == 'up':
-            new_value = current_value - step
-        else:
-            new_value = current_value + step
-
-        # Optionnel : limiter la position pour ne pas sortir du terrain
-        # (si le terrain fait 400 px de haut et la raquette 60 px)
-        new_value = max(0, min(340, new_value))
-
-        # On stocke la nouvelle valeur en Redis
-        r.set(key, new_value)
-
-        return JsonResponse({'status': 'ok', 'new_value': new_value})
-    else:
-        return JsonResponse({'error': 'Must POST'}, status=400)
+def list_results(request):
+    """
+    Affiche la liste des parties terminées.
+    """
+    results = GameResult.objects.select_related('game').order_by('-ended_at')[:20]
+    return render(request, 'game/results.html', {'results': results})

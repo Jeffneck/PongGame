@@ -1,114 +1,199 @@
-# game/game_loop.py
-import asyncio
-import time
 import redis
+import asyncio
+import django
+import os
 from django.conf import settings
+from channels.layers import get_channel_layer
+from .models import GameSession, GameResult
+import uuid
+import time
 
 r = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=0)
 
-TICK_RATE = 60  # 60 fps ?
+FIELD_WIDTH = 600
+FIELD_HEIGHT = 400
+PADDLE_HEIGHT = 60
+BALL_RADIUS = 7
+WIN_SCORE = 2
 
-async def game_loop():
+async def game_loop(game_id):
     """
-    Boucle principale asynchrone qui met à jour la balle ~60 fois par seconde
+    Boucle principale pour UNE partie identifiée par game_id.
+    Tourne ~60 fois/s tant que la partie est "running".
     """
-    dt = 1 / TICK_RATE
+    channel_layer = get_channel_layer()
+
+    # S'assurer que Django est ready (si on n'est pas dans un context manage.py)
+    # django.setup() -> seulement si besoin
+
+    dt = 1/60
     while True:
-        update_ball()
-        # broadcast aux clients WebSocket
-        await broadcast_game_state()
+        # Vérifier si la partie est encore "running"
+        session_status = get_game_status(game_id)
+        if session_status != 'running':
+            break
+
+        update_ball(game_id)
+
+        # Broadcast l'état
+        await broadcast_game_state(game_id, channel_layer)
+
+        # Checker si un joueur a gagné
+        if check_game_finished(game_id):
+            # On arrête
+            finish_game(game_id, channel_layer)
+            break
+
         await asyncio.sleep(dt)
 
-def update_ball():
-    ball_x = float(r.get('ball_x') or 300)
-    ball_y = float(r.get('ball_y') or 200)
-    ball_vx = float(r.get('ball_vx') or 3)
-    ball_vy = float(r.get('ball_vy') or 2)
 
-    # Mettre à jour la position
-    ball_x += ball_vx
-    ball_y += ball_vy
+def update_ball(game_id):
+    """Met à jour la balle pour la partie <game_id> (rebonds, collisions, etc.)."""
+    ball_x_key = f"{game_id}:ball_x"
+    ball_y_key = f"{game_id}:ball_y"
+    vx_key = f"{game_id}:ball_vx"
+    vy_key = f"{game_id}:ball_vy"
 
-    # Gérer rebonds sur le haut/bas (disons terrain H=400)
-    if ball_y <= 0:
-        ball_y = 0
-        ball_vy = abs(ball_vy)
-    elif ball_y >= 400:
-        ball_y = 400
-        ball_vy = -abs(ball_vy)
+    ball_x = float(r.get(ball_x_key) or 300)
+    ball_y = float(r.get(ball_y_key) or 200)
+    vx = float(r.get(vx_key) or 3)
+    vy = float(r.get(vy_key) or 2)
 
-    # Gérer collisions avec raquettes (simplifié)
-    # terrain W=600, raquette W=10, si balle arrive en x=0...
-    # On lit paddle_left_y:
-    paddle_left_y = float(r.get('paddle_left_y') or 150)
-    # On teste si la balle est proche de x=10
-    if ball_x <= 20:  # collision gauche
-        # Vérifier la collision avec la raquette
-        if paddle_left_y <= ball_y <= paddle_left_y + 60:
-            # collision => rebond
-            ball_x = 20
-            ball_vx = abs(ball_vx)
+    # Positions raquettes
+    left_y = float(r.get(f"{game_id}:paddle_left_y") or 150)
+    right_y = float(r.get(f"{game_id}:paddle_right_y") or 150)
+
+    # Scores
+    score_left_key = f"{game_id}:score_left"
+    score_right_key = f"{game_id}:score_right"
+    score_left = int(r.get(score_left_key) or 0)
+    score_right = int(r.get(score_right_key) or 0)
+
+    # Move ball
+    ball_x += vx
+    ball_y += vy
+
+    # Rebonds haut/bas
+    if ball_y - BALL_RADIUS <= 0:
+        ball_y = BALL_RADIUS
+        vy = abs(vy)
+    elif ball_y + BALL_RADIUS >= FIELD_HEIGHT:
+        ball_y = FIELD_HEIGHT - BALL_RADIUS
+        vy = -abs(vy)
+
+    # Collision gauche
+    if ball_x - BALL_RADIUS <= 20:  # ~ (x=10) + 10
+        if left_y <= ball_y <= left_y + PADDLE_HEIGHT:
+            # rebond
+            ball_x = 20 + BALL_RADIUS
+            vx = abs(vx)
         else:
-            # but à gauche => score player right
-            score_right = int(r.get('score_right') or 0) + 1
-            r.set('score_right', score_right)
-            # reset la balle
-            ball_x = 300
-            ball_y = 200
-            ball_vx = 3
-            ball_vy = 2
+            # but pr right
+            score_right += 1
+            # reset
+            ball_x = FIELD_WIDTH/2
+            ball_y = FIELD_HEIGHT/2
+            vx, vy = 3, 2
 
-    # pareil pour la raquette de droite, x=580 environ
-    paddle_right_y = float(r.get('paddle_right_y') or 150)
-    if ball_x >= 580:
-        # collision
-        if paddle_right_y <= ball_y <= paddle_right_y + 60:
-            ball_x = 580
-            ball_vx = -abs(ball_vx)
+    # Collision droite
+    if ball_x + BALL_RADIUS >= FIELD_WIDTH - 20:
+        if right_y <= ball_y <= right_y + PADDLE_HEIGHT:
+            ball_x = FIELD_WIDTH - 20 - BALL_RADIUS
+            vx = -abs(vx)
         else:
-            # but pour left
-            score_left = int(r.get('score_left') or 0) + 1
-            r.set('score_left', score_left)
-            ball_x = 300
-            ball_y = 200
-            ball_vx = -3
-            ball_vy = 2
+            # but pr left
+            score_left += 1
+            ball_x = FIELD_WIDTH/2
+            ball_y = FIELD_HEIGHT/2
+            vx, vy = -3, 2
 
-    # stocker
-    r.set('ball_x', ball_x)
-    r.set('ball_y', ball_y)
-    r.set('ball_vx', ball_vx)
-    r.set('ball_vy', ball_vy)
+    # Store
+    r.set(ball_x_key, ball_x)
+    r.set(ball_y_key, ball_y)
+    r.set(vx_key, vx)
+    r.set(vy_key, vy)
+    r.set(score_left_key, score_left)
+    r.set(score_right_key, score_right)
 
-async def broadcast_game_state():
-    """
-    Envoie l'état du jeu (ball, raquettes, scores) via le channel layer
-    (pour que chaque client WebSocket reçoive l'update en temps réel).
-    """
-    from channels.layers import get_channel_layer
-    channel_layer = get_channel_layer()
-    # Récup state
-    ball_x = float(r.get('ball_x') or 300)
-    ball_y = float(r.get('ball_y') or 200)
-    paddle_left_y = float(r.get('paddle_left_y') or 150)
-    paddle_right_y = float(r.get('paddle_right_y') or 150)
-    score_left = int(r.get('score_left') or 0)
-    score_right = int(r.get('score_right') or 0)
+def get_game_status(game_id):
+    try:
+        from .models import GameSession
+        session = GameSession.objects.get(pk=game_id)
+        return session.status
+    except GameSession.DoesNotExist:
+        return 'finished'
+
+async def broadcast_game_state(game_id, channel_layer):
+    """Envoie l'état à tous via group_send("pong_{game_id}", ...)."""
+    group_name = f"pong_{game_id}"
+
+    ball_x = float(r.get(f"{game_id}:ball_x") or 300)
+    ball_y = float(r.get(f"{game_id}:ball_y") or 200)
+    left_y = float(r.get(f"{game_id}:paddle_left_y") or 150)
+    right_y = float(r.get(f"{game_id}:paddle_right_y") or 150)
+    score_left = int(r.get(f"{game_id}:score_left") or 0)
+    score_right = int(r.get(f"{game_id}:score_right") or 0)
 
     data = {
-        'type': 'game_state',  # custom type
-        'ball_x': ball_x,
-        'ball_y': ball_y,
-        'left': paddle_left_y,
-        'right': paddle_right_y,
-        'score_left': score_left,
-        'score_right': score_right,
+        'type': 'broadcast_game_state',
+        'data': {
+            'type': 'game_state',
+            'ball_x': ball_x,
+            'ball_y': ball_y,
+            'left': left_y,
+            'right': right_y,
+            'score_left': score_left,
+            'score_right': score_right,
+        }
     }
-    # group_send => envoi à tous les clients du groupe "pong_room"
-    await channel_layer.group_send(
-        'pong_room',  # nom du groupe
+    await channel_layer.group_send(group_name, data)
+
+def check_game_finished(game_id):
+    """
+    Retourne True si un score >= WIN_SCORE
+    """
+    score_left = int(r.get(f"{game_id}:score_left") or 0)
+    score_right = int(r.get(f"{game_id}:score_right") or 0)
+    return (score_left >= WIN_SCORE) or (score_right >= WIN_SCORE)
+
+def finish_game(game_id, channel_layer):
+    """
+    Met la session en 'finished', enregistre GameResult, notifie 'game_over', supprime les clés Redis...
+    """
+    from .models import GameSession, GameResult
+
+    # Récup final
+    score_left = int(r.get(f"{game_id}:score_left") or 0)
+    score_right = int(r.get(f"{game_id}:score_right") or 0)
+    winner = 'left' if score_left >= WIN_SCORE else 'right'
+
+    # Mettre la session en finished
+    try:
+        session = GameSession.objects.get(pk=game_id)
+        session.status = 'finished'
+        session.save()
+
+        # Créer un GameResult
+        GameResult.objects.create(
+            game=session,
+            winner=winner,
+            score_left=score_left,
+            score_right=score_right
+        )
+    except GameSession.DoesNotExist:
+        pass
+
+    # Broadcast "game_over"
+    # (channels layers group_send synchrones => on peut recourir à async_to_sync)
+    from asgiref.sync import async_to_sync
+    async_to_sync(channel_layer.group_send)(
+        f"pong_{game_id}",
         {
-            'type': 'broadcast_game_state',
-            'data': data
+            'type': 'game_over',
+            'winner': winner
         }
     )
+
+    # Supprimer les clés Redis
+    for key in r.scan_iter(f"{game_id}:*"):
+        r.delete(key)

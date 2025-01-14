@@ -1,46 +1,36 @@
 version: '3.8'
 services:
-  django:
-    build: 
-      context: .
-      dockerfile: Dockerfile
-    container_name: pong_django
-    depends_on:
-      - redis
-      - db
+  web:
+    build: .
+    container_name: pong_web
+    volumes:
+      - .:/app
     environment:
       - DJANGO_SETTINGS_MODULE=pong_project.settings
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
+      - POSTGRES_DB=pong_db
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-    volumes:
-      - .:/app
-    # Pas besoin de publier 8000 sur l'hôte si on passe par nginx
-
-  nginx:
-    build:
-      context: ./nginx
-      dockerfile: Dockerfile
-    container_name: pong_nginx
     depends_on:
-      - django
+      - db
+      - redis
     ports:
-      - "8080:80"
-    volumes:
-      - .:/app  # Si tu as besoin de lire /app/static
+      - "8080:8080"
+
   db:
     image: postgres:15
-    container_name: pong_postgres
+    container_name: pong_db
     environment:
       POSTGRES_DB: pong_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"
+
   redis:
     image: redis:alpine
     container_name: pong_redis
-    # ports: ["6379:6379"] # si tu veux accéder en dehors du container
+    # ports: ["6379:6379"]  # inutile si on n'a pas besoin d'accès hors docker

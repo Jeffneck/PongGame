@@ -1,20 +1,23 @@
 # Dockerfile
-
 FROM python:3.10
+
+# On évite les *.pyc
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Copier requirements
 COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copier le code
 COPY . /app/
 
-# Collecte statique (si tu veux que /app/static/ soit prêt)
-RUN python manage.py collectstatic --noinput
+# Collect static, au cas où
+RUN python manage.py collectstatic --noinput || true
 
-EXPOSE 8000
+# Rendre entrypoint.sh exécutable
+RUN chmod +x /app/entrypoint.sh
 
-# Lancer daphne (ou uvicorn)
-CMD ["daphne", "--bind", "0.0.0.0", "--port", "8000", "pong_project.asgi:application"]
+EXPOSE 8080
+
+CMD ["/app/entrypoint.sh"]

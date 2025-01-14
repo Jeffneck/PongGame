@@ -1,4 +1,6 @@
 Django==4.2
+django-redis==5.2.0
+
 channels==4.0.0
 channels-redis==4.0.0
 gunicorn==20.1.0      # Optionnel si tu veux Gunicorn pour la partie HTTP "classique"

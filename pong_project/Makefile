@@ -6,7 +6,7 @@ COMPOSE_FILE = docker-compose.yml
 
 # Par défaut, on peut définir une cible "up"
 up:
-	docker compose -f $(COMPOSE_FILE) up -d
+	docker compose -f $(COMPOSE_FILE) up 
 
 # Stopper et supprimer les conteneurs, réseaux et volumes
 down:
@@ -33,4 +33,4 @@ reset: clean build up
 # Shortcut : on peut remettre "docker compose down" si on veut juste effacer vite
 re:
 	docker compose -f $(COMPOSE_FILE) down --volumes --remove-orphans
-	docker compose -f $(COMPOSE_FILE) up -d
+	docker compose -f $(COMPOSE_FILE) up 

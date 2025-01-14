@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Pong WebSocket</title>
+  <style>
+    #gameField {
+      width: 600px;
+      height: 400px;
+      background-color: black;
+      border: 2px solid white;
+      position: relative;
+      margin: 20px auto;
+    }
+    .paddle {
+      width: 10px;
+      height: 60px;
+      background-color: white;
+      position: absolute;
+    }
+    #paddleLeft {
+      left: 10px;
+    }
+    #paddleRight {
+      right: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="gameField">
+  <div id="paddleLeft" class="paddle"></div>
+  <div id="paddleRight" class="paddle"></div>
+</div>
+
+<script>
+  const leftPaddle = document.getElementById('paddleLeft');
+  const rightPaddle = document.getElementById('paddleRight');
+
+  // Ouvrir le WebSocket
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = protocol + '//' + window.location.host + '/ws/pong/';
+  const socket = new WebSocket(wsUrl);
+
+  socket.onopen = () => {
+    console.log("WebSocket connecté !");
+  };
+
+  socket.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    // data = { type: "positions", left: 150, right: 150 } par ex.
+    if(data.type === 'positions') {
+      leftPaddle.style.top = data.left + 'px';
+      rightPaddle.style.top = data.right + 'px';
+    }
+  };
+
+  socket.onclose = () => {
+    console.log("WebSocket fermé.");
+  };
+
+  // Gérer les touches W/S pour la raquette gauche, Flèche Haut/Bas pour la raquette droite
+  document.addEventListener('keydown', (evt) => {
+    let player = null;
+    let direction = null;
+
+    if (evt.key === 'w' || evt.key === 'W') {
+      player = 'left';
+      direction = 'up';
+    } else if (evt.key === 's' || evt.key === 'S') {
+      player = 'left';
+      direction = 'down';
+    } else if (evt.key === 'ArrowUp') {
+      player = 'right';
+      direction = 'up';
+    } else if (evt.key === 'ArrowDown') {
+      player = 'right';
+      direction = 'down';
+    }
+
+    if(player && direction) {
+      // Envoyer un message "move"
+      const message = {
+        action: 'move',
+        player: player,
+        direction: direction
+      };
+      socket.send(JSON.stringify(message));
+    }
+  });
+</script>
+</body>
+</html>

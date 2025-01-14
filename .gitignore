@@ -1,3 +1,9 @@
+# .gitignore
+# [added] on ignore le dossier de destination staticfile puisqu’il est généré au moment du build ou du déploiement (collectstatic)
+staticfiles/
+
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

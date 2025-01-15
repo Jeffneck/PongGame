@@ -1,3 +1,20 @@
-from django.contrib import admin
+# game/admin.py
 
-# Register your models here.
+from django.contrib import admin
+from .models import GameSession, GameResult, GameParameters, GameInvitation
+
+@admin.register(GameSession)
+class GameSessionAdmin(admin.ModelAdmin):
+    list_display = ('id', 'player_left', 'player_right', 'status', 'created_at')
+
+@admin.register(GameResult)
+class GameResultAdmin(admin.ModelAdmin):
+    list_display = ('game', 'winner', 'score_left', 'score_right', 'ended_at')
+
+@admin.register(GameParameters)
+class GameParametersAdmin(admin.ModelAdmin):
+    list_display = ('game_session', 'ball_speed', 'racket_size', 'bonus_malus_activation', 'bumpers_activation')
+
+@admin.register(GameInvitation)
+class GameInvitationAdmin(admin.ModelAdmin):
+    list_display = ('from_user', 'to_user', 'status', 'created_at')

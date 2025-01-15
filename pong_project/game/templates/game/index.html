@@ -1,11 +1,16 @@
+<!-- game/templates/game/index.html -->
+
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Pong Multi-Game</title>
+    <title>Pong Multi-Game</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
 </head>
 <body>
-  <h1>Accueil Pong</h1>
-  <a href="{% url 'create_game' %}">Créer une nouvelle partie</a> <br>
-  <a href="{% url 'list_results' %}">Voir les résultats</a>
+    <div class="container mt-5">
+        <h1>Accueil Pong</h1>
+        <a href="{% url 'create_game' %}" class="btn btn-primary">Créer une Nouvelle Partie Personnalisée</a> <br><br>
+        <a href="{% url 'list_results' %}" class="btn btn-secondary">Voir les Résultats</a>
+    </div>
 </body>
 </html>

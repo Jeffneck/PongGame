@@ -39,7 +39,7 @@ class PongConsumer(AsyncWebsocketConsumer):
         if action == 'move':
             player = data['player']
             direction = data['direction']
-            update_paddle(self.game_id, player, direction)
+            await update_paddle_position(self.game_id, player, direction)
             print(f"[PongConsumer] Received move: player={player}, direction={direction} for game_id={self.game_id}")
 
     async def broadcast_game_state(self, event):
@@ -60,23 +60,51 @@ class PongConsumer(AsyncWebsocketConsumer):
         }))
         print(f"[PongConsumer] Broadcast game_over to game_id={self.game_id}, winner={event['winner']}")
 
-def update_paddle(game_id, player, direction):
+async def update_paddle_position(game_id, player, direction):
     """
     Met à jour la position de la raquette dans Redis.
     """
-    # Ex: paddle_left_y => f"{game_id}:paddle_left_y"
     key = f"{game_id}:paddle_{player}_y"
     current = r.get(key)
     if current is None:
         current = 150
     else:
         current = float(current)
-    step = 5
+
+    # Récupérer les effets appliqués au joueur
+    inverted = bool(r.get(f"{game_id}:player_{player}_inverted"))
+    shrink = r.get(f"{game_id}:player_{player}_paddle_height")
+    ice = bool(r.get(f"{game_id}:player_{player}_ice"))
+    speed_boost = r.get(f"{game_id}:player_{player}_speed_boost")
+
+    direction_value = 0
     if direction == 'up':
-        current -= step
-    else:
-        current += step
-    # Limites
-    current = max(0, min(340, current))
-    r.set(key, current)
-    print(f"[update_paddle] Updated {key} to {current}")
+        direction_value = -1
+    elif direction == 'down':
+        direction_value = 1
+
+    # Appliquer l'inversion des contrôles si nécessaire
+    if inverted:
+        direction_value = -direction_value
+
+    # Calculer la nouvelle position
+    speed = 6  # Vitesse de base
+    if speed_boost:
+        speed = int(speed_boost)  # Vitesse boostée stockée dans Redis
+
+    velocity = direction_value * speed
+
+    # Appliquer la physique de glace si activée
+    if ice:
+        acceleration = 0.5
+        friction = 0.02
+        velocity += direction_value * acceleration
+        velocity *= (1 - friction)
+
+    new_y = current + velocity
+
+    # Limites de mouvement
+    new_y = max(50, min(350 - (int(shrink) if shrink else 60), new_y))
+
+    # Stocker la nouvelle position dans Redis
+    r.set(key, new_y)

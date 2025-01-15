@@ -1,26 +1,33 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Liste des parties terminées</title>
+    <title>Liste des Parties Terminées</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
 </head>
 <body>
-  <h1>Historique des parties</h1>
-  <table border="1">
-    <tr>
-      <th>Game ID</th>
-      <th>Winner</th>
-      <th>Score</th>
-      <th>Date</th>
-    </tr>
-    {% for r in results %}
-    <tr>
-      <td>{{ r.game.id }}</td>
-      <td>{{ r.winner }}</td>
-      <td>{{ r.score_left }} - {{ r.score_right }}</td>
-      <td>{{ r.ended_at }}</td>
-    </tr>
-    {% endfor %}
-  </table>
-  <p><a href="{% url 'index' %}">Retour accueil</a></p>
+    <div class="container mt-5">
+        <h1>Historique des Parties</h1>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Game ID</th>
+                    <th>Winner</th>
+                    <th>Score</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in results %}
+                <tr>
+                    <td>{{ r.game.id }}</td>
+                    <td>{{ r.winner }}</td>
+                    <td>{{ r.score_left }} - {{ r.score_right }}</td>
+                    <td>{{ r.ended_at }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <p><a href="{% url 'index' %}" class="btn btn-secondary">Retour Accueil</a></p>
+    </div>
 </body>
 </html>

@@ -1,13 +1,11 @@
+# game/views.py
+
+from django.shortcuts import render, redirect
+from .models import GameSession, GameResult
+from .manager import schedule_game
+from django.conf import settings
 import redis
 import uuid
-import asyncio
-from django.shortcuts import render, redirect
-from django.conf import settings
-from .models import GameSession, GameResult
-# from .tasks import start_game_loop
-# from asgiref.sync import async_to_sync  # Pour appeler une fonction async depuis une vue sync
-from .manager import schedule_game
-
 
 r = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=0)
 
@@ -24,7 +22,7 @@ def create_game(request):
     session = GameSession.objects.create(status='running') 
     game_id = str(session.id)
 
-    # init Redis
+    # Init Redis
     r.set(f"{game_id}:score_left", 0)
     r.set(f"{game_id}:score_right", 0)
     r.set(f"{game_id}:paddle_left_y", 150)

@@ -5,5 +5,6 @@ channels==4.0.0
 channels-redis==4.0.0
 gunicorn==20.1.0      # Optionnel si tu veux Gunicorn pour la partie HTTP "classique"
 redis==4.5.5     # Optionnell client python pour redis, si besoin
-daphne==4.0.0
+# daphne==4.0.0
+uvicorn[standard]>=0.23.0
 psycopg2==2.9.6

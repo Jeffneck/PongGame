@@ -8,5 +8,7 @@ echo "==> Applying migrations"
 python manage.py makemigrations --noinput && echo "makemigration"
 ./wait-for-postgres.sh db python manage.py migrate && echo "migrate"
 
-echo "==> Starting Daphne ASGI server on port 8080"
-daphne -b 0.0.0.0 -p 8080 pong_project.asgi:application
+# echo "==> Starting Daphne ASGI server on port 8080"
+# daphne -b 0.0.0.0 -p 8080 pong_project.asgi:application
+echo "==> Starting Uvicorn ASGI server on port 8080"
+uvicorn pong_project.asgi:application --host 0.0.0.0 --port 8080

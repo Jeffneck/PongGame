@@ -20,18 +20,23 @@
     const protocol = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
     const wsUrl = protocol + '//' + window.location.host + '/ws/pong/' + gameId + '/';
     const socket = new WebSocket(wsUrl);
-
+  
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-
+  
     let gameState = {
       ball_x: 300, ball_y: 200,
       left: 150, right: 150,
       score_left: 0, score_right: 0
     };
-
+  
+    socket.onopen = () => {
+      console.log("[Frontend] WebSocket connection opened.");
+    };
+  
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
+      console.log("[Frontend] Received data:", data);
       if (data.type === 'game_state') {
         gameState = data;
       } else if (data.type === 'game_over') {
@@ -39,7 +44,11 @@
         socket.close();
       }
     };
-
+  
+    socket.onclose = () => {
+      console.log("[Frontend] WebSocket connection closed.");
+    };
+  
     document.addEventListener('keydown', (evt) => {
       let action = null, player=null, direction=null;
       if(evt.key === 'w' || evt.key === 'W'){
@@ -57,27 +66,28 @@
           player,
           direction
         }));
+        console.log(`[Frontend] Sent move: player=${player}, direction=${direction}`);
       }
     });
-
+  
     function draw(){
       ctx.clearRect(0,0, canvas.width, canvas.height);
-
+  
       // Score
       ctx.fillStyle='white';
       ctx.font="20px Arial";
       ctx.fillText(`${gameState.score_left}`, 20, 30);
       ctx.fillText(`${gameState.score_right}`, canvas.width-40, 30);
-
+  
       // Balle
       ctx.beginPath();
       ctx.arc(gameState.ball_x, gameState.ball_y, 7, 0, 2*Math.PI);
       ctx.fill();
-
+  
       // Raquettes
       ctx.fillRect(10, gameState.left, 10, 60);
       ctx.fillRect(canvas.width-20, gameState.right, 10, 60);
-
+  
       requestAnimationFrame(draw);
     }
     requestAnimationFrame(draw);

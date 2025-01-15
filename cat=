@@ -1,0 +1,248 @@
+  pong_project git:(main) ✗ make up
+docker compose -f docker-compose.yml up 
+[+] Running 3/0
+ ✔ Container pong_web    Created                                                                         0.0s 
+ ✔ Container pong_db     Created                                                                         0.0s 
+ ✔ Container pong_redis  Created                                                                         0.0s 
+Attaching to pong_db, pong_redis, pong_web
+pong_web    | ==> Applying migrations
+pong_redis  | 1:C 15 Jan 2025 13:33:46.223 # WARNING Memory overcommit must be enabled! Without it, a background save or replication may fail under low memory condition. Being disabled, it can also cause failures without low memory condition, see https://github.com/jemalloc/jemalloc/issues/1328. To fix this issue add 'vm.overcommit_memory = 1' to /etc/sysctl.conf and then reboot or run the command 'sysctl vm.overcommit_memory=1' for this to take effect.
+pong_redis  | 1:C 15 Jan 2025 13:33:46.224 * oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo
+pong_redis  | 1:C 15 Jan 2025 13:33:46.224 * Redis version=7.4.2, bits=64, commit=00000000, modified=0, pid=1, just started
+pong_redis  | 1:C 15 Jan 2025 13:33:46.224 # Warning: no config file specified, using the default config. In order to specify a config file use redis-server /path/to/redis.conf
+pong_redis  | 1:M 15 Jan 2025 13:33:46.224 * monotonic clock: POSIX clock_gettime
+pong_redis  | 1:M 15 Jan 2025 13:33:46.225 * Running mode=standalone, port=6379.
+pong_redis  | 1:M 15 Jan 2025 13:33:46.225 * Server initialized
+pong_redis  | 1:M 15 Jan 2025 13:33:46.225 * Loading RDB produced by version 7.4.2
+pong_redis  | 1:M 15 Jan 2025 13:33:46.225 * RDB age 16 seconds
+pong_redis  | 1:M 15 Jan 2025 13:33:46.225 * RDB memory usage when created 0.93 Mb
+pong_redis  | 1:M 15 Jan 2025 13:33:46.225 * Done loading RDB, keys loaded: 8, keys expired: 0.
+pong_redis  | 1:M 15 Jan 2025 13:33:46.225 * DB loaded from disk: 0.000 seconds
+pong_redis  | 1:M 15 Jan 2025 13:33:46.225 * Ready to accept connections tcp
+pong_db     | 
+pong_db     | PostgreSQL Database directory appears to contain a database; Skipping initialization
+pong_db     | 
+pong_db     | 2025-01-15 13:33:46.594 UTC [1] LOG:  starting PostgreSQL 15.10 (Debian 15.10-1.pgdg120+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14) 12.2.0, 64-bit
+pong_db     | 2025-01-15 13:33:46.594 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+pong_db     | 2025-01-15 13:33:46.595 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+pong_db     | 2025-01-15 13:33:46.662 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+pong_db     | 2025-01-15 13:33:46.747 UTC [30] LOG:  database system was shut down at 2025-01-15 13:33:31 UTC
+pong_web    | /usr/local/lib/python3.10/site-packages/django/core/management/commands/makemigrations.py:158: RuntimeWarning: Got an error checking a consistent migration history performed for database connection 'default': connection to server at "db" (172.18.0.4), port 5432 failed: FATAL:  the database system is starting up
+pong_web    | 
+pong_db     | 2025-01-15 13:33:46.747 UTC [31] FATAL:  the database system is starting up
+pong_web    |   warnings.warn(
+pong_web    | No changes detected
+pong_db     | 2025-01-15 13:33:46.773 UTC [1] LOG:  database system is ready to accept connections
+pong_web    | makemigration
+pong_web    | db:5432 - accepting connections
+pong_web    | Postgres is up - executing command
+pong_web    | Operations to perform:
+pong_web    |   Apply all migrations: admin, auth, contenttypes, game, sessions
+pong_web    | Running migrations:
+pong_web    |   No migrations to apply.
+pong_web    | migrate
+pong_web    | ==> Starting Daphne ASGI server on port 8080
+pong_web    | 2025-01-15 13:33:48,590 INFO     Starting server at tcp:port=8080:interface=0.0.0.0
+pong_web    | 2025-01-15 13:33:48,591 INFO     HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+pong_web    | 2025-01-15 13:33:48,591 INFO     Configuring endpoint tcp:port=8080:interface=0.0.0.0
+pong_web    | 2025-01-15 13:33:48,591 INFO     Listening on TCP address 0.0.0.0:8080
+pong_web    | [create_game] GameSession f1fc0e36-a77f-4179-bce4-639e22ca4605 created, status=running. Scheduling game_loop.
+pong_web    | No current event loop in this thread, fallback run_coroutine_threadsafe
+pong_web    | No global loop available or loop is not running, game cannot be scheduled.
+pong_web    | 172.18.0.1:45818 - - [15/Jan/2025:13:33:54] "GET /game/create/" 302 -
+pong_web    | 172.18.0.1:45818 - - [15/Jan/2025:13:33:54] "GET /game/f1fc0e36-a77f-4179-bce4-639e22ca4605/" 200 2738
+pong_web    | 172.18.0.1:45836 - - [15/Jan/2025:13:33:54] "WSCONNECTING /ws/pong/f1fc0e36-a77f-4179-bce4-639e22ca4605/" - -
+pong_web    | 172.18.0.1:45836 - - [15/Jan/2025:13:33:54] "WSCONNECT /ws/pong/f1fc0e36-a77f-4179-bce4-639e22ca4605/" - -
+pong_web    | [PongConsumer] WebSocket connected for game_id=f1fc0e36-a77f-4179-bce4-639e22ca4605
+^[[A^[[Apong_web    | [update_paddle] Updated f1fc0e36-a77f-4179-bce4-639e22ca4605:paddle_right_y to 145.0
+pong_web    | [PongConsumer] Received move: player=right, direction=up for game_id=f1fc0e36-a77f-4179-bce4-639e22ca4605
+pong_web    | [update_paddle] Updated f1fc0e36-a77f-4179-bce4-639e22ca4605:paddle_right_y to 150.0
+pong_web    | [PongConsumer] Received move: player=right, direction=down for game_id=f1fc0e36-a77f-4179-bce4-639e22ca4605
+pong_web    | [update_paddle] Updated f1fc0e36-a77f-4179-bce4-639e22ca4605:paddle_right_y to 145.0
+pong_web    | [PongConsumer] Received move: player=right, direction=up for game_id=f1fc0e36-a77f-4179-bce4-639e22ca4605
+pong_web    | [update_paddle] Updated f1fc0e36-a77f-4179-bce4-639e22ca4605:paddle_right_y to 150.0
+pong_web    | [PongConsumer] Received move: player=right, direction=down for game_id=f1fc0e36-a77f-4179-bce4-639e22ca4605
+pong_web    | [update_paddle] Updated f1fc0e36-a77f-4179-bce4-639e22ca4605:paddle_right_y to 155.0
+pong_web    | [PongConsumer] Received move: player=right, direction=down for game_id=f1fc0e36-a77f-4179-bce4-639e22ca4605
+pong_web    | [update_paddle] Updated f1fc0e36-a77f-4179-bce4-639e22ca4605:paddle_right_y to 160.0
+pong_web    | [PongConsumer] Received move: player=right, direction=down for game_id=f1fc0e36-a77f-4179-bce4-639e22ca4605
+pong_web    | [update_paddle] Updated f1fc0e36-a77f-4179-bce4-639e22ca4605:paddle_right_y to 165.0
+pong_web    | [PongConsumer] Received move: player=right, direction=down for game_id=f1fc0e36-a77f-4179-bce4-639e22ca4605
+pong_web    | [update_paddle] Updated f1fc0e36-a77f-4179-bce4-639e22ca4605:paddle_right_y to 170.0
+pong_web    | [PongConsumer] Received move: player=right, direction=down for game_id=f1fc0e36-a77f-4179-bce4-639e22ca4605
+pong_web    | [update_paddle] Updated f1fc0e36-a77f-4179-bce4-639e22ca4605:paddle_right_y to 175.0
+pong_web    | [PongConsumer] Received move: player=right, direction=down for game_id=f1fc0e36-a77f-4179-bce4-639e22ca4605
+pong_web    | [update_paddle] Updated f1fc0e36-a77f-4179-bce4-639e22ca4605:paddle_right_y to 180.0
+pong_web    | [PongConsumer] Received move: player=right, direction=down for game_id=f1fc0e36-a77f-4179-bce4-639e22ca4605
+pong_web    | [update_paddle] Updated f1fc0e36-a77f-4179-bce4-639e22ca4605:paddle_right_y to 185.0
+pong_web    | [PongConsumer] Received move: player=right, direction=down for game_id=f1fc0e36-a77f-4179-bce4-639e22ca4605
+pong_web    | [update_paddle] Updated f1fc0e36-a77f-4179-bce4-639e22ca4605:paddle_right_y to 190.0
+pong_web    | [PongConsumer] Received move: player=right, direction=down for game_id=f1fc0e36-a77f-4179-bce4-639e22ca4605
+pong_web    | [update_paddle] Updated f1fc0e36-a77f-4179-bce4-639e22ca4605:paddle_right_y to 185.0
+pong_web    | [PongConsumer] Received move: player=right, direction=up for game_id=f1fc0e36-a77f-4179-bce4-639e22ca4605
+pong_web    | [update_paddle] Updated f1fc0e36-a77f-4179-bce4-639e22ca4605:paddle_right_y to 180.0
+pong_web    | [PongConsumer] Received move: player=right, direction=up for game_id=f1fc0e36-a77f-4179-bce4-639e22ca4605
+pong_web    | [update_paddle] Updated f1fc0e36-a77f-4179-bce4-639e22ca4605:paddle_right_y to 175.0
+pong_web    | [PongConsumer] Received move: player=right, direction=up for game_id=f1fc0e36-a77f-4179-bce4-639e22ca4605
+pong_web    | [update_paddle] Updated f1fc0e36-a77f-4179-bce4-639e22ca4605:paddle_right_y to 170.0
+pong_web    | [PongConsumer] Received move: player=right, direction=up for game_id=f1fc0e36-a77f-4179-bce4-639e22ca4605
+pong_web    | [update_paddle] Updated f1fc0e36-a77f-4179-bce4-639e22ca4605:paddle_right_y to 175.0
+pong_web    | [PongConsumer] Received move: player=right, direction=down for game_id=f1fc0e36-a77f-4179-bce4-639e22ca4605
+^CGracefully stopping... (press Ctrl+C again to force)
+[+] Stopping 3/3
+ ✔ Container pong_redis  Stopped                                                                         1.1s 
+ ✔ Container pong_web    Stopped                                                                        10.8s 
+ ✔ Container pong_db     Stopped                                                                         1.7s 
+canceled
+make: *** [Makefile:9: up] Error 130
+
+➜  pong_project git:(main) ✗ make reset 
+docker compose -f docker-compose.yml down --volumes --remove-orphans
+[+] Running 4/4
+ ✔ Container pong_db             Removed                                                                 0.2s 
+ ✔ Container pong_web            Removed                                                                 0.1s 
+ ✔ Container pong_redis          Removed                                                                 0.2s 
+ ✔ Network pong_project_default  Removed                                                                 0.4s 
+docker compose -f docker-compose.yml build
+[+] Building 10.1s (14/14) FINISHED                                                            docker:default
+ => [web internal] load build definition from Dockerfile                                                 0.2s
+ => => transferring dockerfile: 623B                                                                     0.0s
+ => [web internal] load metadata for docker.io/library/python:3.10                                       0.3s
+ => [web internal] load .dockerignore                                                                    0.2s
+ => => transferring context: 2B                                                                          0.0s
+ => [web 1/9] FROM docker.io/library/python:3.10@sha256:989f09f383a4508e837d8c02226c20e2a1111127d386f58  0.0s
+ => [web internal] load build context                                                                    0.2s
+ => => transferring context: 5.77kB                                                                      0.0s
+ => CACHED [web 2/9] WORKDIR /app                                                                        0.0s
+ => CACHED [web 3/9] RUN apt-get update && apt-get install -y postgresql-client                          0.0s
+ => CACHED [web 4/9] COPY requirements.txt /app/                                                         0.0s
+ => CACHED [web 5/9] RUN pip install --no-cache-dir -r requirements.txt                                  0.0s
+ => [web 6/9] COPY . /app/                                                                               0.7s
+ => [web 7/9] RUN python manage.py collectstatic --noinput || true                                       2.4s
+ => [web 8/9] RUN chmod +x /app/entrypoint.sh                                                            1.6s 
+ => [web 9/9] RUN chmod +x /app/wait-for-postgres.sh                                                     1.5s
+ => [web] exporting to image                                                                             1.5s
+ => => exporting layers                                                                                  1.3s
+ => => writing image sha256:0efa087c7cc74b2ee26170ff9c5f8d1384e940dce1181e4927abaf9a05a97066             0.0s
+ => => naming to docker.io/library/pong_project-web                                                      0.1s
+docker compose -f docker-compose.yml up 
+[+] Running 4/4
+ ✔ Network pong_project_default  Created                                                                 0.4s 
+ ✔ Container pong_web            Created                                                                 1.4s 
+ ✔ Container pong_db             Created                                                                 1.4s 
+ ✔ Container pong_redis          Created                                                                 1.4s 
+Attaching to pong_db, pong_redis, pong_web
+pong_web    | ==> Applying migrations
+pong_redis  | 1:C 15 Jan 2025 13:35:20.676 # WARNING Memory overcommit must be enabled! Without it, a background save or replication may fail under low memory condition. Being disabled, it can also cause failures without low memory condition, see https://github.com/jemalloc/jemalloc/issues/1328. To fix this issue add 'vm.overcommit_memory = 1' to /etc/sysctl.conf and then reboot or run the command 'sysctl vm.overcommit_memory=1' for this to take effect.
+pong_redis  | 1:C 15 Jan 2025 13:35:20.676 * oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo
+pong_redis  | 1:C 15 Jan 2025 13:35:20.677 * Redis version=7.4.2, bits=64, commit=00000000, modified=0, pid=1, just started
+pong_redis  | 1:C 15 Jan 2025 13:35:20.677 # Warning: no config file specified, using the default config. In order to specify a config file use redis-server /path/to/redis.conf
+pong_redis  | 1:M 15 Jan 2025 13:35:20.677 * monotonic clock: POSIX clock_gettime
+pong_redis  | 1:M 15 Jan 2025 13:35:20.678 * Running mode=standalone, port=6379.
+pong_redis  | 1:M 15 Jan 2025 13:35:20.678 * Server initialized
+pong_redis  | 1:M 15 Jan 2025 13:35:20.678 * Ready to accept connections tcp
+pong_db     | The files belonging to this database system will be owned by user "postgres".
+pong_db     | This user must also own the server process.
+pong_db     | 
+pong_db     | The database cluster will be initialized with locale "en_US.utf8".
+pong_db     | The default database encoding has accordingly been set to "UTF8".
+pong_db     | The default text search configuration will be set to "english".
+pong_db     | 
+pong_db     | Data page checksums are disabled.
+pong_db     | 
+pong_db     | fixing permissions on existing directory /var/lib/postgresql/data ... ok
+pong_db     | creating subdirectories ... ok
+pong_db     | selecting dynamic shared memory implementation ... posix
+pong_db     | selecting default max_connections ... 100
+pong_db     | selecting default shared_buffers ... 128MB
+pong_db     | selecting default time zone ... Etc/UTC
+pong_db     | creating configuration files ... ok
+pong_db     | running bootstrap script ... ok
+pong_web    | /usr/local/lib/python3.10/site-packages/django/core/management/commands/makemigrations.py:158: RuntimeWarning: Got an error checking a consistent migration history performed for database connection 'default': connection to server at "db" (172.18.0.4), port 5432 failed: Connection refused
+pong_web    |   Is the server running on that host and accepting TCP/IP connections?
+pong_web    | 
+pong_web    |   warnings.warn(
+pong_web    | No changes detected
+pong_web    | makemigration
+pong_web    | db:5432 - no response
+pong_web    | Postgres is unavailable - sleeping
+pong_db     | performing post-bootstrap initialization ... ok
+pong_db     | initdb: warning: enabling "trust" authentication for local connections
+pong_db     | initdb: hint: You can change this by editing pg_hba.conf or using the option -A, or --auth-local and --auth-host, the next time you run initdb.
+pong_db     | syncing data to disk ... ok
+pong_db     | 
+pong_db     | 
+pong_db     | Success. You can now start the database server using:
+pong_db     | 
+pong_db     |     pg_ctl -D /var/lib/postgresql/data -l logfile start
+pong_db     | 
+pong_db     | waiting for server to start....2025-01-15 13:35:22.530 UTC [50] LOG:  starting PostgreSQL 15.10 (Debian 15.10-1.pgdg120+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14) 12.2.0, 64-bit
+pong_db     | 2025-01-15 13:35:22.573 UTC [50] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+pong_db     | 2025-01-15 13:35:22.691 UTC [53] LOG:  database system was shut down at 2025-01-15 13:35:21 UTC
+pong_db     | 2025-01-15 13:35:22.718 UTC [50] LOG:  database system is ready to accept connections
+pong_db     |  done
+pong_db     | server started
+pong_db     | CREATE DATABASE
+pong_db     | 
+pong_db     | 
+pong_db     | /usr/local/bin/docker-entrypoint.sh: ignoring /docker-entrypoint-initdb.d/*
+pong_db     | 
+pong_db     | waiting for server to shut down....2025-01-15 13:35:22.977 UTC [50] LOG:  received fast shutdown request
+pong_db     | 2025-01-15 13:35:23.001 UTC [50] LOG:  aborting any active transactions
+pong_db     | 2025-01-15 13:35:23.003 UTC [50] LOG:  background worker "logical replication launcher" (PID 56) exited with exit code 1
+pong_db     | 2025-01-15 13:35:23.004 UTC [51] LOG:  shutting down
+pong_db     | 2025-01-15 13:35:23.043 UTC [51] LOG:  checkpoint starting: shutdown immediate
+pong_web    | db:5432 - no response
+pong_web    | Postgres is unavailable - sleeping
+pong_db     | 2025-01-15 13:35:23.428 UTC [51] LOG:  checkpoint complete: wrote 918 buffers (5.6%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.177 s, sync=0.126 s, total=0.424 s; sync files=301, longest=0.050 s, average=0.001 s; distance=4222 kB, estimate=4222 kB
+pong_db     | 2025-01-15 13:35:23.435 UTC [50] LOG:  database system is shut down
+pong_db     |  done
+pong_db     | server stopped
+pong_db     | 
+pong_db     | PostgreSQL init process complete; ready for start up.
+pong_db     | 
+pong_db     | 2025-01-15 13:35:23.553 UTC [1] LOG:  starting PostgreSQL 15.10 (Debian 15.10-1.pgdg120+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14) 12.2.0, 64-bit
+pong_db     | 2025-01-15 13:35:23.554 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+pong_db     | 2025-01-15 13:35:23.554 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+pong_db     | 2025-01-15 13:35:23.604 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+pong_db     | 2025-01-15 13:35:23.664 UTC [66] LOG:  database system was shut down at 2025-01-15 13:35:23 UTC
+pong_db     | 2025-01-15 13:35:23.690 UTC [1] LOG:  database system is ready to accept connections
+pong_web    | db:5432 - accepting connections
+pong_web    | Postgres is up - executing command
+pong_web    | Operations to perform:
+pong_web    |   Apply all migrations: admin, auth, contenttypes, game, sessions
+pong_web    | Running migrations:
+pong_web    |   Applying contenttypes.0001_initial... OK
+pong_web    |   Applying auth.0001_initial... OK
+pong_web    |   Applying admin.0001_initial... OK
+pong_web    |   Applying admin.0002_logentry_remove_auto_add... OK
+pong_web    |   Applying admin.0003_logentry_add_action_flag_choices... OK
+pong_web    |   Applying contenttypes.0002_remove_content_type_name... OK
+pong_web    |   Applying auth.0002_alter_permission_name_max_length... OK
+pong_web    |   Applying auth.0003_alter_user_email_max_length... OK
+pong_web    |   Applying auth.0004_alter_user_username_opts... OK
+pong_web    |   Applying auth.0005_alter_user_last_login_null... OK
+pong_web    |   Applying auth.0006_require_contenttypes_0002... OK
+pong_web    |   Applying auth.0007_alter_validators_add_error_messages... OK
+pong_web    |   Applying auth.0008_alter_user_username_max_length... OK
+pong_web    |   Applying auth.0009_alter_user_last_name_max_length... OK
+pong_web    |   Applying auth.0010_alter_group_name_max_length... OK
+pong_web    |   Applying auth.0011_update_proxy_permissions... OK
+pong_web    |   Applying auth.0012_alter_user_first_name_max_length... OK
+pong_web    |   Applying game.0001_initial... OK
+pong_web    |   Applying sessions.0001_initial... OK
+pong_web    | migrate
+pong_web    | ==> Starting Daphne ASGI server on port 8080
+pong_web    | 2025-01-15 13:35:28,875 INFO     Starting server at tcp:port=8080:interface=0.0.0.0
+pong_web    | 2025-01-15 13:35:28,876 INFO     HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+pong_web    | 2025-01-15 13:35:28,876 INFO     Configuring endpoint tcp:port=8080:interface=0.0.0.0
+pong_web    | 2025-01-15 13:35:28,877 INFO     Listening on TCP address 0.0.0.0:8080
+pong_web    | 172.18.0.1:48504 - - [15/Jan/2025:13:35:53] "GET /game/" 200 231
+pong_web    | [create_game] GameSession 1f14c1f2-368a-4853-b6fd-5f9ad58a95a8 created, status=running. Scheduling game_loop.
+pong_web    | No current event loop in this thread, fallback run_coroutine_threadsafe
+pong_web    | No global loop available or loop is not running, game cannot be scheduled.
+pong_web    | 172.18.0.1:48504 - - [15/Jan/2025:13:35:54] "GET /game/create/" 302 -
+pong_web    | 172.18.0.1:48504 - - [15/Jan/2025:13:35:54] "GET /game/1f14c1f2-368a-4853-b6fd-5f9ad58a95a8/" 200 2738
+pong_web    | 172.18.0.1:48516 - - [15/Jan/2025:13:35:54] "WSCONNECTING /ws/pong/1f14c1f2-368a-4853-b6fd-5f9ad58a95a8/" - -
+pong_web    | 172.18.0.1:48516 - - [15/Jan/2025:13:35:54] "WSCONNECT /ws/pong/1f14c1f2-368a-4853-b6fd-5f9ad58a95a8/" - -
+pong_web    | [PongConsumer] WebSocket connected for game_id=1f14c1f2-368a-4853-b6fd-5f9ad58a95a8

@@ -17,35 +17,37 @@ BALL_RADIUS = 7
 WIN_SCORE = 2
 
 async def game_loop(game_id):
-    """
-    Boucle principale pour UNE partie identifiée par game_id.
-    Tourne ~60 fois/s tant que la partie est "running".
-    """
     channel_layer = get_channel_layer()
 
-    # S'assurer que Django est ready (si on n'est pas dans un context manage.py)
-    # django.setup() -> seulement si besoin
-
     dt = 1/60
+    print(f"[game_loop] Starting loop for game_id={game_id}.")
     while True:
-        # Vérifier si la partie est encore "running"
         session_status = get_game_status(game_id)
         if session_status != 'running':
+            print(f"[game_loop] game_id={game_id} is not running (status={session_status}), break.")
             break
 
         update_ball(game_id)
 
-        # Broadcast l'état
+        # broadcast
         await broadcast_game_state(game_id, channel_layer)
 
-        # Checker si un joueur a gagné
         if check_game_finished(game_id):
-            # On arrête
             finish_game(game_id, channel_layer)
+            print(f"[game_loop] game_id={game_id} finished (score reached). break.")
             break
 
         await asyncio.sleep(dt)
 
+    print(f"[game_loop] game_id={game_id} loop ended.")
+
+def get_game_status(game_id):
+    from .models import GameSession
+    try:
+        session = GameSession.objects.get(pk=game_id)
+        return session.status
+    except GameSession.DoesNotExist:
+        return 'finished'
 
 def update_ball(game_id):
     """Met à jour la balle pour la partie <game_id> (rebonds, collisions, etc.)."""

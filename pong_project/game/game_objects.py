@@ -63,11 +63,11 @@ class Ball:
         self.speed_y = speed_y
 
 class PowerUpOrb:
-    def __init__(self, game_id, effect_type, terrain_rect):
+    def __init__(self, game_id, effect_type, terrain_rect, color=None):
         self.game_id = game_id
         self.effect_type = effect_type  # 'invert', 'shrink', 'ice', 'speed', 'sticky', 'flash'
         self.size = 15
-        self.color = self.get_color()
+        self.color = color or self.get_default_color()
         self.active = False
         self.x = 0
         self.y = 0
@@ -75,16 +75,16 @@ class PowerUpOrb:
         self.spawn_time = 0
         self.duration = 0
 
-    def get_color(self):
+    def get_default_color(self):
         colors = {
-            'invert': (147, 0, 211),    # Purple
+            'invert': (255, 105, 180),  # Pink
             'shrink': (255, 0, 0),      # Red
-            'ice': (0, 191, 255),       # Blue
-            'speed': (255, 255, 0),     # Yellow
-            'sticky': (0, 255, 0),      # Green
-            'flash': (255, 255, 255),   # White
+            'ice': (0, 255, 255),       # Cyan
+            'speed': (255, 215, 0),     # Gold
+            'flash': (255, 255, 0),     # Yellow
+            'sticky': (50, 205, 50)     # Lime green
         }
-        return colors.get(self.effect_type, (255, 255, 255))
+        return colors_map.get(self.effect_type, (255, 255, 255))
 
     def spawn(self, terrain_rect):
         left = terrain_rect['left']

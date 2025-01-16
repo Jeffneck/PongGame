@@ -42,12 +42,12 @@ async def initialize_game_objects(game_id, parameters):
 
     # Initialize power-ups and bumpers
     power_up_orbs = [
-        PowerUpOrb(game_id, 'invert', terrain_rect),
-        PowerUpOrb(game_id, 'shrink', terrain_rect),
-        PowerUpOrb(game_id, 'ice', terrain_rect),
-        PowerUpOrb(game_id, 'speed', terrain_rect),
-        PowerUpOrb(game_id, 'flash', terrain_rect),
-        PowerUpOrb(game_id, 'sticky', terrain_rect)
+        PowerUpOrb(game_id, 'invert', terrain_rect, color=(255, 105, 180)),  # Pink for invert
+        PowerUpOrb(game_id, 'shrink', terrain_rect, color=(255, 0, 0)),      # Red for shrink
+        PowerUpOrb(game_id, 'ice', terrain_rect, color=(0, 255, 255)),       # Cyan for ice
+        PowerUpOrb(game_id, 'speed', terrain_rect, color=(255, 215, 0)),     # Gold for speed
+        PowerUpOrb(game_id, 'flash', terrain_rect, color=(255, 255, 0)),     # Yellow for flash
+        PowerUpOrb(game_id, 'sticky', terrain_rect, color=(50, 205, 50))     # Lime green for sticky
     ]
 
     bumpers = []

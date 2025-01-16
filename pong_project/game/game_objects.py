@@ -45,12 +45,12 @@ class Paddle:
         self.height = new_height
 
 class Ball:
-    def __init__(self, x, y, speed_x, speed_y, radius=7):
+    def __init__(self, x, y, speed_x, speed_y, size=7):
         self.x = x
         self.y = y
         self.speed_x = speed_x
         self.speed_y = speed_y
-        self.radius = radius
+        self.size = size
 
     def move(self):
         self.x += self.speed_x
@@ -114,7 +114,7 @@ class PowerUpOrb:
 class Bumper:
     def __init__(self, game_id, terrain_rect):
         self.game_id = game_id
-        self.radius = 20
+        self.size = 20
         self.color = (255, 255, 255)  # White
         self.active = False
         self.x = 0

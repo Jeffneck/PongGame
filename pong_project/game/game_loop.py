@@ -60,8 +60,6 @@ async def get_terrain_rect(game_id):
     """
     Retourne les dimensions du terrain. Peut être ajusté pour récupérer les dimensions dynamiquement.
     """
-    # Si les dimensions sont dynamiques, récupérez-les depuis Redis ou une autre source
-    # Sinon, retournez des valeurs par défaut
     return {
         'left': 50,
         'top': 50,
@@ -91,7 +89,7 @@ async def game_loop(game_id):
         paddle_left, paddle_right, ball, power_up_orbs, bumpers = await initialize_game_objects(game_id, parameters)
         print(f"[game_loop.py] Game objects initialized for game_id={game_id}.")
         
-        # Initialiser les positions dans Redis
+        # Initialiser les positions et vélocités dans Redis
         await initialize_redis(game_id, paddle_left, paddle_right, ball, power_up_orbs, bumpers)
         print(f"[game_loop.py] Game objects positions initialized in Redis for game_id={game_id}.")
         
@@ -112,7 +110,7 @@ async def game_loop(game_id):
                 print(f"[game_loop.py] game_id={game_id} is not running (status={session_status}), breaking loop.")
                 break
 
-            # 1. Mettre à jour les positions des raquettes depuis Redis
+            # 1. Mettre à jour les positions des raquettes depuis Redis en fonction de la vélocité
             await update_paddles_from_redis(game_id, paddle_left, paddle_right)
             print(f"[game_loop.py] game_id={game_id} - Paddles positions updated from Redis.")
 
@@ -136,13 +134,12 @@ async def game_loop(game_id):
                 else:
                     # Personne n'a encore gagné,
                     # on réinitialise la balle pour continuer la partie
-                    # (vous pouvez remettre la balle au centre, inverser son sens, etc.)
                     terrain_rect = await get_terrain_rect(game_id)
                     center_x = terrain_rect['left'] + terrain_rect['width'] // 2
                     center_y = terrain_rect['top'] + terrain_rect['height'] // 2
                     ball.reset(center_x, center_y, 4, 4)  # Vitesse X/Y à ajuster
-                    # puis on continue la boucle
-
+                    await update_ball_redis(game_id, ball)
+                    print(f"[game_loop.py] Ball reset to ({ball.x}, {ball.y}) with speed ({ball.speed_x}, {ball.speed_y})")
 
             # 4. Gérer les power-ups
             if parameters.bonus_malus_activation:
@@ -195,12 +192,22 @@ async def game_loop(game_id):
 
 async def update_paddles_from_redis(game_id, paddle_left, paddle_right):
     """
-    Met à jour les positions des raquettes depuis Redis.
+    Lit la vélocité dans Redis et met à jour la position (y) des paddles.
     """
-    paddle_left_y = float(r.get(f"{game_id}:paddle_left_y") or paddle_left.y)
-    paddle_right_y = float(r.get(f"{game_id}:paddle_right_y") or paddle_right.y)
-    paddle_left.y = paddle_left_y
-    paddle_right.y = paddle_right_y
+    left_vel = float(r.get(f"{game_id}:paddle_left_velocity") or 0)
+    right_vel = float(r.get(f"{game_id}:paddle_right_velocity") or 0)
+
+    # Appliquer la vélocité
+    paddle_left.y += left_vel
+    paddle_right.y += right_vel
+
+    # Contraindre le mouvement dans [50, 350 - paddle.height]
+    paddle_left.y = max(50, min(350 - paddle_left.height, paddle_left.y))
+    paddle_right.y = max(50, min(350 - paddle_right.height, paddle_right.y))
+
+    # Stocker la position mise à jour
+    r.set(f"{game_id}:paddle_left_y", paddle_left.y)
+    r.set(f"{game_id}:paddle_right_y", paddle_right.y)
 
 async def get_game_status(game_id):
     """
@@ -214,7 +221,7 @@ async def get_game_status(game_id):
 
 async def get_game_parameters(game_id):
     """
-    Récupère les paramètres de la partie depuis la base de données.
+    Récupère les paramètres (GameParameters) de la partie depuis la base de données.
     """
     try:
         session = await sync_to_async(GameSession.objects.get)(pk=game_id)
@@ -225,25 +232,29 @@ async def get_game_parameters(game_id):
 
 async def initialize_redis(game_id, paddle_left, paddle_right, ball, power_up_orbs, bumpers):
     """
-    Initialise les positions des objets de jeu dans Redis.
+    Initialise les positions et vitesses dans Redis pour chaque objet.
     """
-    # Initialiser les positions des raquettes
+    # Positions initiales des paddles
     r.set(f"{game_id}:paddle_left_y", paddle_left.y)
     r.set(f"{game_id}:paddle_right_y", paddle_right.y)
 
-    # Initialiser la balle
+    # Vélocités initiales des paddles (0 => immobiles)
+    r.set(f"{game_id}:paddle_left_velocity", 0)
+    r.set(f"{game_id}:paddle_right_velocity", 0)
+
+    # Balle
     r.set(f"{game_id}:ball_x", ball.x)
     r.set(f"{game_id}:ball_y", ball.y)
     r.set(f"{game_id}:ball_vx", ball.speed_x)
     r.set(f"{game_id}:ball_vy", ball.speed_y)
 
-    # Initialiser les power-ups
+    # Power-ups
     for orb in power_up_orbs:
         r.delete(f"{game_id}:powerup_{orb.effect_type}_active")
         r.delete(f"{game_id}:powerup_{orb.effect_type}_x")
         r.delete(f"{game_id}:powerup_{orb.effect_type}_y")
 
-    # Initialiser les bumpers
+    # Bumpers
     for bumper in bumpers:
         r.delete(f"{game_id}:bumper_{bumper.x}_{bumper.y}_active")
         r.delete(f"{game_id}:bumper_{bumper.x}_{bumper.y}_x")
@@ -260,44 +271,39 @@ async def update_ball_redis(game_id, ball):
 
 async def check_collisions(game_id, paddle_left, paddle_right, ball, bumpers, power_up_orbs):
     """
-    Vérifie les collisions entre la balle et les raquettes, les bumpers, et les bords.
-    Retourne 'score_left', 'score_right', ou None.
+    Vérifie collisions ball/paddles/bumpers/bords, retourne 'score_left', 'score_right' ou None.
     """
-    # Collision avec les raquettes
-    if ball.x - ball.radius <= paddle_left.x + paddle_left.width:
+    # Left paddle
+    if ball.x - ball.size <= paddle_left.x + paddle_left.width:
         if paddle_left.y <= ball.y <= paddle_left.y + paddle_left.height:
-            # Collision avec la raquette gauche
             await handle_paddle_collision(game_id, 'left', paddle_left, ball)
             await check_powerup_collection(game_id, 'left', ball, power_up_orbs)
             return None
         else:
-            # Point pour le joueur droit
             return 'score_right'
 
-    if ball.x + ball.radius >= paddle_right.x:
+    # Right paddle
+    if ball.x + ball.size >= paddle_right.x:
         if paddle_right.y <= ball.y <= paddle_right.y + paddle_right.height:
-            # Collision avec la raquette droite
             await handle_paddle_collision(game_id, 'right', paddle_right, ball)
             await check_powerup_collection(game_id, 'right', ball, power_up_orbs)
             return None
         else:
-            # Point pour le joueur gauche
             return 'score_left'
 
-    # Collision avec les bords haut et bas
-    if ball.y - ball.radius <= 50:
+    # Bords haut/bas
+    if ball.y - ball.size <= 50:
         ball.speed_y = abs(ball.speed_y)  # Rebond vers le bas
-    elif ball.y + ball.radius >= 350:
+    elif ball.y + ball.size >= 350:
         ball.speed_y = -abs(ball.speed_y)  # Rebond vers le haut
 
-    # Collision avec les bumpers
+    # Bumpers
     for bumper in bumpers:
         if bumper.active:
-            distance = math.hypot(ball.x - bumper.x, ball.y - bumper.y)
-            if distance <= ball.radius + bumper.radius:
-                # Simple réflexion basée sur la position
+            dist = math.hypot(ball.x - bumper.x, ball.y - bumper.y)
+            if dist <= ball.size + bumper.size:
                 angle = math.atan2(ball.y - bumper.y, ball.x - bumper.x)
-                speed = math.hypot(ball.speed_x, ball.speed_y) * 1.05  # Augmenter la vitesse
+                speed = math.hypot(ball.speed_x, ball.speed_y) * 1.05
                 ball.speed_x = speed * math.cos(angle)
                 ball.speed_y = speed * math.sin(angle)
                 print(f"[game_loop.py] Ball collided with bumper at ({bumper.x}, {bumper.y}). New speed: ({ball.speed_x}, {ball.speed_y})")
@@ -308,11 +314,9 @@ async def handle_paddle_collision(game_id, paddle_side, paddle, ball):
     """
     Gère la logique de collision entre la balle et une raquette.
     """
-    # Calculer la position relative de la balle par rapport à la raquette
     relative_y = (ball.y - (paddle.y + paddle.height / 2)) / (paddle.height / 2)
     relative_y = max(-1, min(1, relative_y))  # Limiter à l'intervalle [-1, 1]
 
-    # Calculer l'angle de rebond
     angle = relative_y * (math.pi / 4)  # Max 45 degrés
     speed = math.hypot(ball.speed_x, ball.speed_y) * 1.03  # Augmenter la vitesse
 
@@ -328,20 +332,49 @@ async def handle_paddle_collision(game_id, paddle_side, paddle, ball):
 
     print(f"[game_loop.py] Ball collided with {paddle_side} paddle. New speed: ({ball.speed_x}, {ball.speed_y})")
 
+async def check_powerup_collection(game_id, player, ball, power_up_orbs):
+    """
+    Vérifie si la balle a ramassé un power-up.
+    """
+    for orb in power_up_orbs:
+        if orb.active:
+            dist = math.hypot(ball.x - orb.x, ball.y - orb.y)
+            if dist <= ball.size + orb.size:
+                await apply_powerup(game_id, player, orb)
+                orb.deactivate()
+                r.set(f"{game_id}:powerup_{orb.effect_type}_active", 0)
+                print(f"[game_loop.py] Player {player} collected power-up {orb.effect_type} at ({orb.x}, {orb.y})")
+
+async def apply_powerup(game_id, player, orb):
+    """
+    Applique l'effet du power-up au joueur.
+    """
+    # Implémenter la logique d'application des effets
+    print(f"[game_loop.py] Applying power-up {orb.effect_type} to {player}")
+
+    # Exemple de notification
+    channel_layer = get_channel_layer()
+    effect = orb.effect_type
+    await channel_layer.group_send(
+        f"pong_{game_id}",
+        {
+            'type': 'powerup_applied',
+            'player': player,
+            'effect': effect
+        }
+    )
+
 async def handle_score(game_id, scorer):
     """
-    Gère le score lorsqu'un joueur marque un point.
+    Gère l'incrément du score, vérifie si la partie est terminée.
     """
-    channel_layer = get_channel_layer()
     if scorer == 'score_left':
-        # Increment score_left dans Redis
         score_left = int(r.get(f"{game_id}:score_left") or 0) + 1
         r.set(f"{game_id}:score_left", score_left)
         print(f"[game_loop.py] Player Left scored. Score: {score_left} - {r.get(f'{game_id}:score_right')}")
         if score_left >= WIN_SCORE:
             await finish_game(game_id, 'left')
     elif scorer == 'score_right':
-        # Increment score_right dans Redis
         score_right = int(r.get(f"{game_id}:score_right") or 0) + 1
         r.set(f"{game_id}:score_right", score_right)
         print(f"[game_loop.py] Player Right scored. Score: {r.get(f'{game_id}:score_left')} - {score_right}")
@@ -350,27 +383,29 @@ async def handle_score(game_id, scorer):
 
 async def finish_game(game_id, winner):
     """
-    Termine la partie, enregistre le résultat, notifie les clients et nettoie Redis.
+    Termine la partie, notifie, supprime les clés Redis, enregistre GameResult.
     """
+    print(f"[game_loop.py] Game {game_id} finished, winner={winner}")
     channel_layer = get_channel_layer()
     try:
         session = await sync_to_async(GameSession.objects.get)(pk=game_id)
         session.status = 'finished'
         await sync_to_async(session.save)()
 
-        # Créer un GameResult
+        score_left = int(r.get(f"{game_id}:score_left") or 0)
+        score_right = int(r.get(f"{game_id}:score_right") or 0)
         await sync_to_async(GameResult.objects.create)(
             game=session,
             winner=winner,
-            score_left=int(r.get(f"{game_id}:score_left") or 0),
-            score_right=int(r.get(f"{game_id}:score_right") or 0)
+            score_left=score_left,
+            score_right=score_right
         )
         print(f"[game_loop.py] GameResult created for game_id={game_id}, winner={winner}")
     except GameSession.DoesNotExist:
         print(f"[game_loop.py] GameSession {game_id} does not exist.")
         pass
 
-    # Notifier les clients que la partie est terminée
+    # Notifier
     await channel_layer.group_send(
         f"pong_{game_id}",
         {
@@ -386,49 +421,9 @@ async def finish_game(game_id, winner):
         r.delete(key)
     print(f"[game_loop.py] Redis keys deleted for game_id={game_id}")
 
-async def check_powerup_collection(game_id, player, ball, power_up_orbs):
-    """
-    Vérifie si la balle a collecté un power-up.
-    """
-    for orb in power_up_orbs:
-        if orb.active:
-            distance = math.hypot(ball.x - orb.x, ball.y - orb.y)
-            if distance <= ball.radius + orb.size:
-                # Appliquer l'effet du power-up
-                await apply_powerup(game_id, player, orb)
-                orb.deactivate()
-                r.set(f"{game_id}:powerup_{orb.effect_type}_active", 0)
-                print(f"[game_loop.py] Player {player} collected power-up {orb.effect_type} at ({orb.x}, {orb.y})")
-
-async def apply_powerup(game_id, player, orb):
-    """
-    Applique l'effet du power-up au joueur.
-    """
-    # Implémenter la logique d'application des effets
-    # Par exemple, inverser les contrôles, réduire la taille de la raquette, etc.
-    # Ceci est un exemple simplifié
-    channel_layer = get_channel_layer()
-    effect = orb.effect_type
-    # Mettre à jour l'état du joueur dans Redis ou dans la session de jeu
-    # Puis, notifier le client via WebSocket si nécessaire
-    print(f"[game_loop.py] Applying power-up {effect} to player {player}")
-    # Exemple de notification
-    await channel_layer.group_send(
-        f"pong_{game_id}",
-        {
-            'type': 'powerup_applied',
-            'player': player,
-            'effect': effect
-        }
-    )
-
 async def spawn_powerup(game_id, orb):
-    """
-    Tente de spawn un power-up dans le jeu.
-    """
     terrain_rect = await get_terrain_rect(game_id)
     if await sync_to_async(orb.spawn)(terrain_rect):
-        # Stocker la position et l'état dans Redis
         r.set(f"{game_id}:powerup_{orb.effect_type}_active", 1)
         r.set(f"{game_id}:powerup_{orb.effect_type}_x", orb.x)
         r.set(f"{game_id}:powerup_{orb.effect_type}_y", orb.y)
@@ -437,12 +432,8 @@ async def spawn_powerup(game_id, orb):
     return False
 
 async def spawn_bumper(game_id, bumper):
-    """
-    Tente de spawn un bumper dans le jeu.
-    """
     terrain_rect = await get_terrain_rect(game_id)
     if await sync_to_async(bumper.spawn)(terrain_rect):
-        # Stocker la position et l'état dans Redis
         key = f"{game_id}:bumper_{bumper.x}_{bumper.y}_active"
         r.set(key, 1)
         r.set(f"{game_id}:bumper_{bumper.x}_{bumper.y}_x", bumper.x)
@@ -519,30 +510,30 @@ async def broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right
             active_bumpers.append({
                 'x': bumper.x,
                 'y': bumper.y,
-                'radius': bumper.radius,
+                'size': bumper.size,
                 'color': list(bumper.color)  # Convertir en liste pour JSON
             })
 
     data = {
-        'type': 'broadcast_game_state',
-        'data': {
-            'type': 'game_state',
-            'ball_x': ball.x,
-            'ball_y': ball.y,
-            'ball_radius': ball.radius,
-            'ball_speed_x': ball.speed_x,
-            'ball_speed_y': ball.speed_y,
-            'paddle_left_y': paddle_left.y,
-            'paddle_right_y': paddle_right.y,
-            'paddle_width': paddle_left.width,
-            'paddle_left_height': paddle_left.height,
-            'paddle_right_height': paddle_right.height,
-            'score_left': int(r.get(f"{game_id}:score_left") or 0),
-            'score_right': int(r.get(f"{game_id}:score_right") or 0),
-            'powerups': powerups,
-            'bumpers': active_bumpers,
-        }
+        'type': 'game_state',
+        'ball_x': ball.x,
+        'ball_y': ball.y,
+        'ball_size': ball.size,
+        'ball_speed_x': ball.speed_x,
+        'ball_speed_y': ball.speed_y,
+        'paddle_left_y': paddle_left.y,
+        'paddle_right_y': paddle_right.y,
+        'paddle_width': paddle_left.width,
+        'paddle_left_height': paddle_left.height,
+        'paddle_right_height': paddle_right.height,
+        'score_left': int(r.get(f"{game_id}:score_left") or 0),
+        'score_right': int(r.get(f"{game_id}:score_right") or 0),
+        'powerups': powerups,
+        'bumpers': active_bumpers,
     }
 
-    await channel_layer.group_send(f"pong_{game_id}", data)
+    await channel_layer.group_send(f"pong_{game_id}", {
+        'type': 'broadcast_game_state',
+        'data': data
+    })
     print(f"[game_loop.py] Broadcast game_state for game_id={game_id}")

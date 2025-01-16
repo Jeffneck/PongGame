@@ -20,13 +20,16 @@
     const protocol = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
     const wsUrl = protocol + '//' + window.location.host + '/ws/pong/' + gameId + '/';
     const socket = new WebSocket(wsUrl);
-  
+
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-  
+
+    // État initial du jeu côté client
     let gameState = {
-      ball_x: 400, ball_y: 200,
-      ball_radius: 7,
+      type: 'game_state',
+      ball_x: 400, 
+      ball_y: 200,
+      ball_size: 7,
       ball_speed_x: 4,
       ball_speed_y: 4,
       paddle_left_y: 170,
@@ -34,69 +37,108 @@
       paddle_width: 10,
       paddle_left_height: 60,
       paddle_right_height: 60,
-      score_left: 0, score_right: 0,
+      score_left: 0, 
+      score_right: 0,
       powerups: [],
       bumpers: [],
-      player_effects: {
-        left: {
-          inverted_controls: false,
-          shrink_paddle: null,
-          ice_physics: false,
-          speed_boost: null,
-          sticky_ball: false
-        },
-        right: {
-          inverted_controls: false,
-          shrink_paddle: null,
-          ice_physics: false,
-          speed_boost: null,
-          sticky_ball: false
-        }
-      },
       flash_effect: false
     };
-  
+
     socket.onopen = () => {
       console.log("[Frontend] WebSocket connection opened.");
     };
-  
+
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      console.log("[Frontend] Received data:", data);
+      // console.log("[Frontend] Received data:", data);
       if (data.type === 'game_state') {
         gameState = data;
       } else if (data.type === 'game_over') {
         alert("Game Over! Winner = " + data.winner);
         socket.close();
+      } else if (data.type === 'powerup_applied') {
+        // Gérer les effets des power-ups si nécessaire
+        console.log(`[Frontend] Power-up applied to ${data.player}: ${data.effect}`);
+        // Implémentez la logique pour gérer les effets (inversion des contrôles, etc.)
       }
     };
-  
+
     socket.onclose = () => {
       console.log("[Frontend] WebSocket connection closed.");
     };
-  
+
+    // Nouveau système : keydown => start_move, keyup => stop_move
+    let keysPressed = {};
+
     document.addEventListener('keydown', (evt) => {
-      let action = null, player=null, direction=null;
-      if(evt.key === 'w' || evt.key === 'W'){
-        player='left'; direction='up';
-      } else if(evt.key === 's' || evt.key === 'S'){
-        player='left'; direction='down';
-      } else if(evt.key === 'ArrowUp'){
-        player='right'; direction='up';
-      } else if(evt.key === 'ArrowDown'){
-        player='right'; direction='down';
+      if (evt.repeat) return; // Éviter l'auto-repeat
+      let action = "start_move", player = null, direction = null;
+      
+      switch(evt.key) {
+        case 'w':
+        case 'W':
+          player = 'left';
+          direction = 'up';
+          break;
+        case 's':
+        case 'S':
+          player = 'left';
+          direction = 'down';
+          break;
+        case 'ArrowUp':
+          player = 'right';
+          direction = 'up';
+          break;
+        case 'ArrowDown':
+          player = 'right';
+          direction = 'down';
+          break;
       }
-      if(player && direction){
+      if (player && direction && !keysPressed[evt.key]) {
+        // On envoie un start_move
         socket.send(JSON.stringify({
-          action: 'move',
-          player,
-          direction
+          action: action,
+          player: player,
+          direction: direction
         }));
-        console.log(`[Frontend] Sent move: player=${player}, direction=${direction}`);
+        console.log(`[Frontend] Sent start_move: player=${player}, direction=${direction}`);
+        keysPressed[evt.key] = true;
       }
     });
-  
+
+    document.addEventListener('keyup', (evt) => {
+      // keyup => stop_move
+      let action = "stop_move", player = null;
+
+      switch(evt.key) {
+        case 'w':
+        case 'W':
+          player = 'left';
+          break;
+        case 's':
+        case 'S':
+          player = 'left';
+          break;
+        case 'ArrowUp':
+          player = 'right';
+          break;
+        case 'ArrowDown':
+          player = 'right';
+          break;
+      }
+      if (player && keysPressed[evt.key]) {
+        socket.send(JSON.stringify({
+          action: action,
+          player: player
+        }));
+        console.log(`[Frontend] Sent stop_move: player=${player}`);
+        keysPressed[evt.key] = false;
+      }
+    });
+
+    // Dessin du jeu
     function draw(){
+      // Effet flash
       if (gameState.flash_effect) {
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -104,44 +146,48 @@
         ctx.fillStyle = 'black';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        // Draw terrain
+        // Terrain
         ctx.strokeStyle = 'white';
         ctx.lineWidth = 2;
         ctx.strokeRect(50, 50, canvas.width - 100, canvas.height - 100);
         
-        // Draw paddles
+        // Paddles
         ctx.fillStyle = 'white';
-        ctx.fillRect(50, gameState.paddle_left_y, gameState.paddle_width, gameState.paddle_left_height);
-        ctx.fillRect(canvas.width - 50 - gameState.paddle_width, gameState.paddle_right_y, gameState.paddle_width, gameState.paddle_right_height);
+        ctx.fillRect(50, gameState.paddle_left_y, 
+          gameState.paddle_width, gameState.paddle_left_height);
+        ctx.fillRect(canvas.width - 50 - gameState.paddle_width, 
+          gameState.paddle_right_y, 
+          gameState.paddle_width, 
+          gameState.paddle_right_height);
         
-        // Draw ball
+        // Balle
         ctx.beginPath();
-        ctx.arc(gameState.ball_x, gameState.ball_y, gameState.ball_radius, 0, 2*Math.PI);
+        ctx.arc(gameState.ball_x, gameState.ball_y, gameState.ball_size, 0, 2*Math.PI);
         ctx.fill();
-        
-        // Draw power-ups
+
+        // Power-ups
         gameState.powerups.forEach(orb => {
           ctx.fillStyle = `rgb(${orb.color[0]}, ${orb.color[1]}, ${orb.color[2]})`;
           ctx.beginPath();
           ctx.arc(orb.x, orb.y, 15, 0, 2*Math.PI);
           ctx.fill();
         });
-        
-        // Draw bumpers
+
+        // Bumpers
         gameState.bumpers.forEach(bumper => {
           ctx.fillStyle = `rgb(${bumper.color[0]}, ${bumper.color[1]}, ${bumper.color[2]})`;
           ctx.beginPath();
-          ctx.arc(bumper.x, bumper.y, bumper.radius, 0, 2*Math.PI);
+          ctx.arc(bumper.x, bumper.y, bumper.size, 0, 2*Math.PI);
           ctx.fill();
         });
       }
-  
-      // Affichage des scores
+
+      // Scores
       ctx.fillStyle='white';
       ctx.font="20px Arial";
       ctx.fillText(`${gameState.score_left}`, 20, 30);
-      ctx.fillText(`${gameState.score_right}`, canvas.width-40, 30);
-  
+      ctx.fillText(`${gameState.score_right}`, canvas.width - 40, 30);
+
       requestAnimationFrame(draw);
     }
     requestAnimationFrame(draw);

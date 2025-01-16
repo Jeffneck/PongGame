@@ -8,14 +8,47 @@
       border: 2px solid white;
       display: block;
       margin: 0 auto;
+      max-width: 100%;
+    }
+
+    body {
+        margin: 0;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+        height: 100vh;  /* Force full height */
+        background: #1a1a1a;
+        color: white;
+        overflow: hidden;  /* Prevent scrolling */
+        box-sizing: border-box;  /* Include padding in height calculation */
+    }
+
+    h1 {
+        text-align: center;
+        font-size: clamp(1.5rem, 4vw, 2.5rem); /* Responsive font size */
+    }
+
+    .game-container {
+        width: 100%;
+        max-width: 1200px; /* Maximum game width */
+        position: relative;
+        aspect-ratio: 2/1;
     }
   </style>
 </head>
 <body>
   <h1>Pong Game - ID : {{ game_id }}</h1>
-  <canvas id="gameCanvas" width="800" height="400"></canvas>
+  <div class="game-container">
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+  </div>
 
   <script>
+    const ORIGINAL_WIDTH = 800;
+    const ORIGINAL_HEIGHT = 400;
+    let scale = 1;
+
     const gameId = "{{ game_id }}";
     const protocol = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
     const wsUrl = protocol + '//' + window.location.host + '/ws/pong/' + gameId + '/';
@@ -23,6 +56,32 @@
 
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
+
+    // Handle canvas resize
+    function handleResize() {
+      const container = document.querySelector('.game-container');
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+      
+      // Calculate new scale
+      scale = Math.min(containerWidth / ORIGINAL_WIDTH, containerHeight / ORIGINAL_HEIGHT);
+      
+      // Set canvas size
+      canvas.style.width = (ORIGINAL_WIDTH * scale) + 'px';
+      canvas.style.height = (ORIGINAL_HEIGHT * scale) + 'px';
+      
+      // Keep canvas resolution sharp
+      canvas.width = ORIGINAL_WIDTH;
+      canvas.height = ORIGINAL_HEIGHT;
+      
+      // Reset context properties
+      ctx.imageSmoothingEnabled = false;
+    }
+
+    // Add resize event listener
+    window.addEventListener('resize', handleResize);
+    // Initial resize
+    handleResize();
 
   // Function to create SVG power-up data URLs
     function createPowerupSVG(type) {
@@ -123,6 +182,88 @@
       return `data:image/svg+xml;base64,${btoa(new XMLSerializer().serializeToString(svg))}`;
   }
 
+  function createBumperSVG() {
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("viewBox", "0 0 100 100");
+      
+      // Create white orb gradient
+      const whiteGradient = document.createElementNS("http://www.w3.org/2000/svg", "radialGradient");
+      whiteGradient.id = "whiteOrbGradient";
+      whiteGradient.setAttribute("cx", "40%");
+      whiteGradient.setAttribute("cy", "40%");
+      whiteGradient.setAttribute("r", "60%");
+      
+      const whiteStops = [
+        {offset: '0%', color: 'white', opacity: '1'},
+        {offset: '90%', color: '#e0e0e0', opacity: '1'}
+      ];
+      
+      whiteStops.forEach(stop => {
+        const stopEl = document.createElementNS("http://www.w3.org/2000/svg", "stop");
+        stopEl.setAttribute("offset", stop.offset);
+        stopEl.setAttribute("stop-color", stop.color);
+        stopEl.setAttribute("stop-opacity", stop.opacity);
+        whiteGradient.appendChild(stopEl);
+      });
+      
+      // Create blue ring gradient
+      const blueGradient = document.createElementNS("http://www.w3.org/2000/svg", "radialGradient");
+      blueGradient.id = "blueRingGradient";
+      blueGradient.setAttribute("cx", "50%");
+      blueGradient.setAttribute("cy", "50%");
+      blueGradient.setAttribute("r", "50%");
+      
+      const blueStops = [
+        {offset: '0%', color: '#4169E1', opacity: '1'},
+        {offset: '100%', color: '#1E90FF', opacity: '1'}
+      ];
+      
+      blueStops.forEach(stop => {
+        const stopEl = document.createElementNS("http://www.w3.org/2000/svg", "stop");
+        stopEl.setAttribute("offset", stop.offset);
+        stopEl.setAttribute("stop-color", stop.color);
+        stopEl.setAttribute("stop-opacity", stop.opacity);
+        blueGradient.appendChild(stopEl);
+      });
+      
+      // Add gradients to defs
+      const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+      defs.appendChild(whiteGradient);
+      defs.appendChild(blueGradient);
+      svg.appendChild(defs);
+      
+      // Blue exterior ring
+      const ringCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      ringCircle.setAttribute("cx", "50");
+      ringCircle.setAttribute("cy", "50");
+      ringCircle.setAttribute("r", "45");
+      ringCircle.setAttribute("fill", "none");
+      ringCircle.setAttribute("stroke", "url(#blueRingGradient)");
+      ringCircle.setAttribute("stroke-width", "8");
+      
+      // White orb center
+      const whiteOrb = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      whiteOrb.setAttribute("cx", "50");
+      whiteOrb.setAttribute("cy", "50");
+      whiteOrb.setAttribute("r", "35");
+      whiteOrb.setAttribute("fill", "url(#whiteOrbGradient)");
+      
+      // Highlight for 3D effect
+      const highlight = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      highlight.setAttribute("cx", "35");
+      highlight.setAttribute("cy", "35");
+      highlight.setAttribute("r", "15");
+      highlight.setAttribute("fill", "white");
+      highlight.setAttribute("opacity", "0.3");
+      
+      svg.appendChild(ringCircle);
+      svg.appendChild(whiteOrb);
+      svg.appendChild(highlight);
+      
+      return `data:image/svg+xml;base64,${btoa(new XMLSerializer().serializeToString(svg))}`;
+    }
+
+
   // Create and cache power-up images
   const powerupImages = {
       'invert': new Image(),
@@ -139,6 +280,10 @@
           powerupImages[type].src = createPowerupSVG(type);
       });
   }
+
+  // Create and cache bumper image
+  const bumperImage = new Image();
+  bumperImage.src = createBumperSVG();
 
   // Call initialization
   initPowerupImages();
@@ -188,6 +333,7 @@
 
     document.addEventListener('keydown', (evt) => {
       if (evt.repeat) return;
+
       let action = "start_move", player = null, direction = null;
       
       switch(evt.key) {
@@ -277,7 +423,7 @@
         ctx.arc(gameState.ball_x, gameState.ball_y, gameState.ball_size, 0, 2*Math.PI);
         ctx.fill();
 
-        // Power-ups
+        // Power-ups with scaling
         gameState.powerups.forEach(orb => {
             const type = orb.type || 'speed';
             const img = powerupImages[type];
@@ -310,10 +456,18 @@
 
         // Bumpers
         gameState.bumpers.forEach(bumper => {
-          ctx.fillStyle = `rgb(${bumper.color[0]}, ${bumper.color[1]}, ${bumper.color[2]})`;
-          ctx.beginPath();
-          ctx.arc(bumper.x, bumper.y, bumper.size, 0, 2*Math.PI);
-          ctx.fill();
+          if (bumperImage.complete) {
+            ctx.save();
+            ctx.shadowColor = '#4169E1';
+            ctx.shadowBlur = 10 * scale;
+            ctx.drawImage(bumperImage,
+              bumper.x - bumperSize,
+              bumper.y - bumperSize,
+              bumperSize * 2,
+              bumperSize * 2
+            );
+            ctx.restore();
+          }
         });
       }
 

@@ -88,3 +88,14 @@ class PongConsumer(AsyncWebsocketConsumer):
             'winner': event['winner']
         }))
         print(f"[PongConsumer] Broadcast game_over to game_id={self.game_id}, winner={event['winner']}")
+
+    async def powerup_applied(self, event):
+        """
+        Reçoit { 'type': 'powerup_applied', 'player': 'left', 'effect': 'flash' }
+        """
+        await self.send(json.dumps({
+            'type': 'powerup_applied',
+            'player': event['player'],
+            'effect': event['effect']
+        }))
+        print(f"[PongConsumer] Broadcast powerup_applied to game_id={self.game_id}, player={event['player']}, effect={event['effect']}")

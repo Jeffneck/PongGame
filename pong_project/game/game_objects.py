@@ -51,6 +51,7 @@ class Ball:
         self.speed_x = speed_x
         self.speed_y = speed_y
         self.size = size
+        self.last_player = None  # Nouvel attribut pour suivre le dernier joueur
 
     def move(self):
         self.x += self.speed_x
@@ -61,6 +62,7 @@ class Ball:
         self.y = y
         self.speed_x = speed_x
         self.speed_y = speed_y
+        self.last_player = None  # Réinitialiser le dernier joueur
 
 class PowerUpOrb:
     def __init__(self, game_id, effect_type, terrain_rect, color=None):

@@ -281,6 +281,14 @@
       });
   }
 
+  //modifie le gameState pour y indiquer l'effet flash
+  function applyFlashEffect() {
+    gameState.flash_effect = true;
+    setTimeout(() => {
+      gameState.flash_effect = false;
+    }, 300);  // 300 millisecondes = 0.3 secondes
+  }
+
   // Create and cache bumper image
   const bumperImage = new Image();
   bumperImage.src = createBumperSVG();
@@ -315,6 +323,7 @@
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
       // console.log("[Frontend] Received data:", data);
+      
       if (data.type === 'game_state') {
         gameState = data;
       } else if (data.type === 'game_over') {
@@ -322,6 +331,11 @@
         socket.close();
       } else if (data.type === 'powerup_applied') {
         console.log(`[Frontend] Power-up applied to ${data.player}: ${data.effect}`);
+        
+        if (data.effect === 'flash') {
+          applyFlashEffect();
+        }
+        // Vous pourrez gérer d'autres effets ici plus tard
       }
     };
 

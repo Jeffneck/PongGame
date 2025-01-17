@@ -279,8 +279,8 @@ async def check_collisions(game_id, paddle_left, paddle_right, ball, bumpers, po
     # Left paddle
     if ball.x - ball.size <= paddle_left.x + paddle_left.width:
         if paddle_left.y <= ball.y <= paddle_left.y + paddle_left.height:
+            ball.last_player = 'left'  # Mettre à jour le dernier joueur
             await handle_paddle_collision(game_id, 'left', paddle_left, ball)
-            await check_powerup_collection(game_id, 'left', ball, power_up_orbs)
             return None
         else:
             return 'score_right'
@@ -288,8 +288,8 @@ async def check_collisions(game_id, paddle_left, paddle_right, ball, bumpers, po
     # Right paddle
     if ball.x + ball.size >= paddle_right.x:
         if paddle_right.y <= ball.y <= paddle_right.y + paddle_right.height:
+            ball.last_player = 'right'  # Mettre à jour le dernier joueur
             await handle_paddle_collision(game_id, 'right', paddle_right, ball)
-            await check_powerup_collection(game_id, 'right', ball, power_up_orbs)
             return None
         else:
             return 'score_left'
@@ -319,7 +319,10 @@ async def check_collisions(game_id, paddle_left, paddle_right, ball, bumpers, po
                     bumper.last_collision_time = current_time
 
                     print(f"[game_loop.py] Ball collided with bumper at ({bumper.x}, {bumper.y}). New speed: ({ball.speed_x}, {ball.speed_y})")
-    
+
+    # Vérification des collisions avec les power-ups indépendamment des paddles
+    await check_powerup_collection_general(game_id, ball, power_up_orbs)
+
     return None
 
 async def handle_paddle_collision(game_id, paddle_side, paddle, ball):
@@ -344,18 +347,27 @@ async def handle_paddle_collision(game_id, paddle_side, paddle, ball):
 
     print(f"[game_loop.py] Ball collided with {paddle_side} paddle. New speed: ({ball.speed_x}, {ball.speed_y})")
 
-async def check_powerup_collection(game_id, player, ball, power_up_orbs):
+async def check_powerup_collection_general(game_id, ball, power_up_orbs):
     """
-    Vérifie si la balle a ramassé un power-up.
+    Vérifie si la balle a ramassé un power-up en dehors des collisions avec les paddles.
     """
     for orb in power_up_orbs:
         if orb.active:
             dist = math.hypot(ball.x - orb.x, ball.y - orb.y)
             if dist <= ball.size + orb.size:
-                await apply_powerup(game_id, player, orb)
-                orb.deactivate()
-                r.set(f"{game_id}:powerup_{orb.effect_type}_active", 0)
-                print(f"[game_loop.py] Player {player} collected power-up {orb.effect_type} at ({orb.x}, {orb.y})")
+                # Associer le power-up au dernier joueur qui a touché la balle
+                last_player = ball.last_player
+                if last_player:
+                    await apply_powerup(game_id, last_player, orb)
+                    orb.deactivate()
+                    r.set(f"{game_id}:powerup_{orb.effect_type}_active", 0)
+                    print(f"[game_loop.py] Player {last_player} collected power-up {orb.effect_type} at ({orb.x}, {orb.y})")
+                else:
+                    # Si aucun joueur n'a touché la balle récemment, attribuer au joueur gauche par défaut
+                    await apply_powerup(game_id, 'left', orb)
+                    orb.deactivate()
+                    r.set(f"{game_id}:powerup_{orb.effect_type}_active", 0)
+                    print(f"[game_loop.py] Player left collected power-up {orb.effect_type} at ({orb.x}, {orb.y}) by default")
 
 async def apply_powerup(game_id, player, orb):
     """
@@ -375,6 +387,7 @@ async def apply_powerup(game_id, player, orb):
             'effect': effect
         }
     )
+
 
 async def handle_score(game_id, scorer):
     """

@@ -114,6 +114,17 @@ class PongConsumer(AsyncWebsocketConsumer):
             'winner': event['winner']
         }))
         print(f"[PongConsumer] Broadcast game_over to game_id={self.game_id}, winner={event['winner']}")
+
+    async def powerup_applied(self, event):
+        """
+        Reçoit { 'type': 'powerup_applied', 'player': 'left', 'effect': 'flash' }
+        """
+        await self.send(json.dumps({
+            'type': 'powerup_applied',
+            'player': event['player'],
+            'effect': event['effect']
+        }))
+        print(f"[PongConsumer] Broadcast powerup_applied to game_id={self.game_id}, player={event['player']}, effect={event['effect']}")
 # game/forms.py
 
 from django import forms
@@ -181,7 +192,7 @@ async def initialize_game_objects(game_id, parameters):
     )
 
     # Initialize power-ups and bumpers
-    power_up_orbs = [
+    powerup_orbs = [
         PowerUpOrb(game_id, 'invert', terrain_rect, color=(255, 105, 180)),  # Pink for invert
         PowerUpOrb(game_id, 'shrink', terrain_rect, color=(255, 0, 0)),      # Red for shrink
         PowerUpOrb(game_id, 'ice', terrain_rect, color=(0, 255, 255)),       # Cyan for ice
@@ -194,7 +205,7 @@ async def initialize_game_objects(game_id, parameters):
     if parameters.bumpers_activation:
         bumpers = [Bumper(game_id, terrain_rect) for _ in range(3)]  # Adjust number as needed
 
-    return paddle_left, paddle_right, ball, power_up_orbs, bumpers
+    return paddle_left, paddle_right, ball, powerup_orbs, bumpers
 
 async def get_terrain_rect(game_id):
     """
@@ -226,11 +237,11 @@ async def game_loop(game_id):
             )
         
         # Initialiser les objets de jeu
-        paddle_left, paddle_right, ball, power_up_orbs, bumpers = await initialize_game_objects(game_id, parameters)
+        paddle_left, paddle_right, ball, powerup_orbs, bumpers = await initialize_game_objects(game_id, parameters)
         print(f"[game_loop.py] Game objects initialized for game_id={game_id}.")
         
         # Initialiser les positions et vélocités dans Redis
-        await initialize_redis(game_id, paddle_left, paddle_right, ball, power_up_orbs, bumpers)
+        await initialize_redis(game_id, paddle_left, paddle_right, ball, powerup_orbs, bumpers)
         print(f"[game_loop.py] Game objects positions initialized in Redis for game_id={game_id}.")
         
         last_powerup_spawn_time = time.time()
@@ -260,7 +271,7 @@ async def game_loop(game_id):
             # print(f"[game_loop.py] game_id={game_id} - Ball position updated to ({ball.x}, {ball.y})")
 
             # 3. Vérifier les collisions
-            collision = await check_collisions(game_id, paddle_left, paddle_right, ball, bumpers, power_up_orbs)
+            collision = await check_collisions(game_id, paddle_left, paddle_right, ball, bumpers, powerup_orbs)
             if collision in ['score_left', 'score_right']:
                 await handle_score(game_id, collision)
                 # print(f"[game_loop.py] game_id={game_id} - Handling score for {collision}")
@@ -285,15 +296,15 @@ async def game_loop(game_id):
             if parameters.bonus_malus_activation:
                 if current_time - last_powerup_spawn_time >= powerup_spawn_interval:
                     # Tenter de spawn un power-up
-                    active_powerups = await count_active_powerups(game_id, power_up_orbs)
+                    active_powerups = await count_active_powerups(game_id, powerup_orbs)
                     # print(f"[game_loop.py] game_id={game_id} - Active power-ups: {active_powerups}")
                     if active_powerups < 2:  # MAX_ACTIVE_POWERUPS = 2
-                        orb = random.choice(power_up_orbs)
-                        if not orb.active:
-                            spawned = await spawn_powerup(game_id, orb)
+                        powerup_orb = random.choice(powerup_orbs)
+                        if not powerup_orb.active:
+                            spawned = await spawn_powerup(game_id, powerup_orb)
                             if spawned:
                                 last_powerup_spawn_time = current_time
-                                print(f"[game_loop.py] game_id={game_id} - PowerUp {orb.effect_type} spawned.")
+                                print(f"[game_loop.py] game_id={game_id} - PowerUp {powerup_orb.effect_type} spawned.")
 
             # 5. Gérer les bumpers
             if parameters.bumpers_activation:
@@ -310,7 +321,7 @@ async def game_loop(game_id):
                                 print(f"[game_loop.py] game_id={game_id} - Bumper spawned at ({bumper.x}, {bumper.y}).")
 
             # 6. Gérer les power-ups expirés
-            await handle_powerup_expiration(game_id, power_up_orbs)
+            await handle_powerup_expiration(game_id, powerup_orbs)
             # print(f"[game_loop.py] game_id={game_id} - Handled power-up expiration.")
 
             # 7. Gérer les bumpers expirés
@@ -318,7 +329,7 @@ async def game_loop(game_id):
             # print(f"[game_loop.py] game_id={game_id} - Handled bumper expiration.")
 
             # 8. Broadcast l'état actuel du jeu
-            await broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right, ball, power_up_orbs, bumpers)
+            await broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right, ball, powerup_orbs, bumpers)
             # print(f"[game_loop.py] game_id={game_id} - Broadcasted game state.")
 
             # Attendre le prochain cycle
@@ -370,7 +381,7 @@ async def get_game_parameters(game_id):
     except GameSession.DoesNotExist:
         return None
 
-async def initialize_redis(game_id, paddle_left, paddle_right, ball, power_up_orbs, bumpers):
+async def initialize_redis(game_id, paddle_left, paddle_right, ball, powerup_orbs, bumpers):
     """
     Initialise les positions et vitesses dans Redis pour chaque objet.
     """
@@ -389,10 +400,10 @@ async def initialize_redis(game_id, paddle_left, paddle_right, ball, power_up_or
     r.set(f"{game_id}:ball_vy", ball.speed_y)
 
     # Power-ups
-    for orb in power_up_orbs:
-        r.delete(f"{game_id}:powerup_{orb.effect_type}_active")
-        r.delete(f"{game_id}:powerup_{orb.effect_type}_x")
-        r.delete(f"{game_id}:powerup_{orb.effect_type}_y")
+    for powerup_orb in powerup_orbs:
+        r.delete(f"{game_id}:powerup_{powerup_orb.effect_type}_active")
+        r.delete(f"{game_id}:powerup_{powerup_orb.effect_type}_x")
+        r.delete(f"{game_id}:powerup_{powerup_orb.effect_type}_y")
 
     # Bumpers
     for bumper in bumpers:
@@ -409,15 +420,32 @@ async def update_ball_redis(game_id, ball):
     r.set(f"{game_id}:ball_vx", ball.speed_x)
     r.set(f"{game_id}:ball_vy", ball.speed_y)
 
-async def check_collisions(game_id, paddle_left, paddle_right, ball, bumpers, power_up_orbs):
+async def check_collisions(game_id, paddle_left, paddle_right, ball, bumpers, powerup_orbs):
     """
     Vérifie collisions ball/paddles/bumpers/bords, retourne 'score_left', 'score_right' ou None.
+    """
+    result = await handle_paddle_collisions(game_id, paddle_left, paddle_right, ball)
+    if result:
+        return result
+
+    handle_border_collisions(ball)
+
+    await handle_bumper_collision(game_id, ball, bumpers)
+
+    await handle_powerup_collision(game_id, ball, powerup_orbs)
+
+    return None
+
+
+async def handle_paddle_collisions(game_id, paddle_left, paddle_right, ball):
+    """
+    Gère les collisions avec les paddles gauche et droite.
     """
     # Left paddle
     if ball.x - ball.size <= paddle_left.x + paddle_left.width:
         if paddle_left.y <= ball.y <= paddle_left.y + paddle_left.height:
+            ball.last_player = 'left'  # Mettre à jour le dernier joueur
             await handle_paddle_collision(game_id, 'left', paddle_left, ball)
-            await check_powerup_collection(game_id, 'left', ball, power_up_orbs)
             return None
         else:
             return 'score_right'
@@ -425,18 +453,27 @@ async def check_collisions(game_id, paddle_left, paddle_right, ball, bumpers, po
     # Right paddle
     if ball.x + ball.size >= paddle_right.x:
         if paddle_right.y <= ball.y <= paddle_right.y + paddle_right.height:
+            ball.last_player = 'right'  # Mettre à jour le dernier joueur
             await handle_paddle_collision(game_id, 'right', paddle_right, ball)
-            await check_powerup_collection(game_id, 'right', ball, power_up_orbs)
             return None
         else:
             return 'score_left'
 
-    # Bords haut/bas
+    return None
+
+
+def handle_border_collisions(ball):
+    """
+    Gère les collisions avec les bords supérieur et inférieur.
+    """
     if ball.y - ball.size <= 50:
         ball.speed_y = abs(ball.speed_y)  # Rebond vers le bas
     elif ball.y + ball.size >= 350:
         ball.speed_y = -abs(ball.speed_y)  # Rebond vers le haut
 
+
+
+async def handle_bumper_collision(game_id, ball, bumpers):
     # Bumpers
     current_time = time.time()
     for bumper in bumpers:
@@ -456,8 +493,7 @@ async def check_collisions(game_id, paddle_left, paddle_right, ball, bumpers, po
                     bumper.last_collision_time = current_time
 
                     print(f"[game_loop.py] Ball collided with bumper at ({bumper.x}, {bumper.y}). New speed: ({ball.speed_x}, {ball.speed_y})")
-    
-    return None
+
 
 async def handle_paddle_collision(game_id, paddle_side, paddle, ball):
     """
@@ -481,29 +517,44 @@ async def handle_paddle_collision(game_id, paddle_side, paddle, ball):
 
     print(f"[game_loop.py] Ball collided with {paddle_side} paddle. New speed: ({ball.speed_x}, {ball.speed_y})")
 
-async def check_powerup_collection(game_id, player, ball, power_up_orbs):
+async def handle_powerup_collision(game_id, ball, powerup_orbs):
     """
-    Vérifie si la balle a ramassé un power-up.
+    Vérifie si la balle a ramassé un power-up en dehors des collisions avec les paddles.
     """
-    for orb in power_up_orbs:
-        if orb.active:
-            dist = math.hypot(ball.x - orb.x, ball.y - orb.y)
-            if dist <= ball.size + orb.size:
-                await apply_powerup(game_id, player, orb)
-                orb.deactivate()
-                r.set(f"{game_id}:powerup_{orb.effect_type}_active", 0)
-                print(f"[game_loop.py] Player {player} collected power-up {orb.effect_type} at ({orb.x}, {orb.y})")
+    for powerup_orb in powerup_orbs:
+        if powerup_orb.active:
+            dist = math.hypot(ball.x - powerup_orb.x, ball.y - powerup_orb.y)
+            if dist <= ball.size + powerup_orb.size:
+                # Associer le power-up au dernier joueur qui a touché la balle
+                last_player = ball.last_player
+                if last_player:
+                    await apply_powerup(game_id, last_player, powerup_orb)
+                    powerup_orb.deactivate()
+                    r.set(f"{game_id}:powerup_{powerup_orb.effect_type}_active", 0)
+                    print(f"[game_loop.py] Player {last_player} collected power-up {powerup_orb.effect_type} at ({powerup_orb.x}, {powerup_orb.y})")
+                else:
+                    # Si aucun joueur n'a touché la balle récemment, attribuer au joueur gauche par défaut
+                    await apply_powerup(game_id, 'left', powerup_orb)
+                    powerup_orb.deactivate()
+                    r.set(f"{game_id}:powerup_{powerup_orb.effect_type}_active", 0)
+                    print(f"[game_loop.py] Player left collected power-up {powerup_orb.effect_type} at ({powerup_orb.x}, {powerup_orb.y}) by default")
 
-async def apply_powerup(game_id, player, orb):
+async def apply_powerup(game_id, player, powerup_orb):
     """
     Applique l'effet du power-up au joueur.
     """
     # Implémenter la logique d'application des effets
-    print(f"[game_loop.py] Applying power-up {orb.effect_type} to {player}")
+    print(f"[game_loop.py] Applying power-up {powerup_orb.effect_type} to {player}")
+
+    # le power_up est detruit car consommé par le joueur  
+    powerup_orb.deactivate()
+    r.delete(f"{game_id}:powerup_{powerup_orb.effect_type}_active")
+    r.delete(f"{game_id}:powerup_{powerup_orb.effect_type}_x")
+    r.delete(f"{game_id}:powerup_{powerup_orb.effect_type}_y")
 
     # Exemple de notification
     channel_layer = get_channel_layer()
-    effect = orb.effect_type
+    effect = powerup_orb.effect_type
     await channel_layer.group_send(
         f"pong_{game_id}",
         {
@@ -512,6 +563,7 @@ async def apply_powerup(game_id, player, orb):
             'effect': effect
         }
     )
+
 
 async def handle_score(game_id, scorer):
     """
@@ -570,13 +622,17 @@ async def finish_game(game_id, winner):
         r.delete(key)
     print(f"[game_loop.py] Redis keys deleted for game_id={game_id}")
 
-async def spawn_powerup(game_id, orb):
+async def spawn_powerup(game_id, powerup_orb):
+    if powerup_orb.active:
+        print(f"[game_loop.py] PowerUp {powerup_orb.effect_type} is already active, skipping spawn.")
+        return False
+
     terrain_rect = await get_terrain_rect(game_id)
-    if await sync_to_async(orb.spawn)(terrain_rect):
-        r.set(f"{game_id}:powerup_{orb.effect_type}_active", 1)
-        r.set(f"{game_id}:powerup_{orb.effect_type}_x", orb.x)
-        r.set(f"{game_id}:powerup_{orb.effect_type}_y", orb.y)
-        print(f"[game_loop.py] PowerUp {orb.effect_type} spawned at ({orb.x}, {orb.y})")
+    if await sync_to_async(powerup_orb.spawn)(terrain_rect):
+        r.set(f"{game_id}:powerup_{powerup_orb.effect_type}_active", 1)
+        r.set(f"{game_id}:powerup_{powerup_orb.effect_type}_x", powerup_orb.x)
+        r.set(f"{game_id}:powerup_{powerup_orb.effect_type}_y", powerup_orb.y)
+        print(f"[game_loop.py] PowerUp {powerup_orb.effect_type} spawned at ({powerup_orb.x}, {powerup_orb.y})")
         return True
     return False
 
@@ -591,15 +647,18 @@ async def spawn_bumper(game_id, bumper):
         return True
     return False
 
-async def count_active_powerups(game_id, power_up_orbs):
+async def count_active_powerups(game_id, powerup_orbs):
     """
     Compte le nombre de power-ups actifs.
     """
     count = 0
-    for orb in power_up_orbs:
-        if r.get(f"{game_id}:powerup_{orb.effect_type}_active"):
+    for powerup_orb in powerup_orbs:
+        active = r.get(f"{game_id}:powerup_{powerup_orb.effect_type}_active")
+        if active and active.decode('utf-8') == '1':
             count += 1
+    print(f"[game_loop.py] count_active_powerups ({count})")
     return count
+
 
 async def count_active_bumpers(game_id, bumpers):
     """
@@ -607,20 +666,22 @@ async def count_active_bumpers(game_id, bumpers):
     """
     count = 0
     for bumper in bumpers:
-        if r.get(f"{game_id}:bumper_{bumper.x}_{bumper.y}_active"):
+        active = r.get(f"{game_id}:bumper_{bumper.x}_{bumper.y}_active")
+        if active and active.decode('utf-8') == '1':
             count += 1
+    print(f"[game_loop.py] count_active_bumpers ({count})")
     return count
 
-async def handle_powerup_expiration(game_id, power_up_orbs):
-    """
-    Gère l'expiration des power-ups.
-    """
+
+async def handle_powerup_expiration(game_id, powerup_orbs):
     current_time = time.time()
-    for orb in power_up_orbs:
-        if orb.active and current_time - orb.spawn_time >= orb.duration:
-            orb.deactivate()
-            r.set(f"{game_id}:powerup_{orb.effect_type}_active", 0)
-            print(f"[game_loop.py] PowerUp {orb.effect_type} expired at ({orb.x}, {orb.y})")
+    for powerup_orb in powerup_orbs:
+        if powerup_orb.active and current_time - powerup_orb.spawn_time >= powerup_orb.duration:
+            powerup_orb.deactivate()
+            r.delete(f"{game_id}:powerup_{powerup_orb.effect_type}_active")
+            r.delete(f"{game_id}:powerup_{powerup_orb.effect_type}_x")
+            r.delete(f"{game_id}:powerup_{powerup_orb.effect_type}_y")
+            print(f"[game_loop.py] PowerUp {powerup_orb.effect_type} expired at ({powerup_orb.x}, {powerup_orb.y})")
 
 async def handle_bumper_expiration(game_id, bumpers):
     """
@@ -634,28 +695,31 @@ async def handle_bumper_expiration(game_id, bumpers):
             r.set(key, 0)
             print(f"[game_loop.py] Bumper at ({bumper.x}, {bumper.y}) expired")
 
-async def broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right, ball, power_up_orbs, bumpers):
+
+async def broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right, ball, powerup_orbs, bumpers):
     """
     Envoie l'état actuel du jeu aux clients via WebSocket.
     """
     # Récupérer les états des power-ups
     powerups = []
-    for orb in power_up_orbs:
-        if r.get(f"{game_id}:powerup_{orb.effect_type}_active"):
-            x = float(r.get(f"{game_id}:powerup_{orb.effect_type}_x"))
-            y = float(r.get(f"{game_id}:powerup_{orb.effect_type}_y"))
+    for powerup_orb in powerup_orbs:
+        active = r.get(f"{game_id}:powerup_{powerup_orb.effect_type}_active")
+        if active and active.decode('utf-8') == '1':
+            x = float(r.get(f"{game_id}:powerup_{powerup_orb.effect_type}_x"))
+            y = float(r.get(f"{game_id}:powerup_{powerup_orb.effect_type}_y"))
             powerups.append({
-                'type': orb.effect_type,
+                'type': powerup_orb.effect_type,
                 'x': x,
                 'y': y,
-                'color': list(orb.color)  # Convertir en liste pour JSON
+                'color': list(powerup_orb.color)  # Convertir en liste pour JSON
             })
 
     # Récupérer les états des bumpers
     active_bumpers = []
     for bumper in bumpers:
         key = f"{game_id}:bumper_{bumper.x}_{bumper.y}_active"
-        if r.get(key):
+        active = r.get(key)
+        if active and active.decode('utf-8') == '1':
             active_bumpers.append({
                 'x': bumper.x,
                 'y': bumper.y,
@@ -686,6 +750,7 @@ async def broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right
         'data': data
     })
     # print(f"[game_loop.py] Broadcast game_state for game_id={game_id}")
+
 # game/game_objects.py
 
 import random
@@ -739,6 +804,7 @@ class Ball:
         self.speed_x = speed_x
         self.speed_y = speed_y
         self.size = size
+        self.last_player = None  # Nouvel attribut pour suivre le dernier joueur
 
     def move(self):
         self.x += self.speed_x
@@ -749,6 +815,7 @@ class Ball:
         self.y = y
         self.speed_x = speed_x
         self.speed_y = speed_y
+        self.last_player = None  # Réinitialiser le dernier joueur
 
 class PowerUpOrb:
     def __init__(self, game_id, effect_type, terrain_rect, color=None):
@@ -798,6 +865,9 @@ class PowerUpOrb:
 
     def deactivate(self):
         self.active = False
+        self.x = None
+        self.y = None
+        self.spawn_time = None
 
 class Bumper:
     def __init__(self, game_id, terrain_rect):
@@ -1091,488 +1161,3 @@ def list_results(request):
     """
     results = GameResult.objects.select_related('game').order_by('-ended_at')[:20]
     return render(request, 'game/results.html', {'results': results})
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Game</title>
-  <style>
-    #gameCanvas {
-      background: black;
-      border: 2px solid white;
-      display: block;
-      margin: 0 auto;
-      max-width: 100%;
-    }
-
-    body {
-        margin: 0;
-        padding: 20px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        min-height: 100vh;
-        height: 100vh;  /* Force full height */
-        background: #1a1a1a;
-        color: white;
-        overflow: hidden;  /* Prevent scrolling */
-        box-sizing: border-box;  /* Include padding in height calculation */
-    }
-
-    h1 {
-        text-align: center;
-        font-size: clamp(1.5rem, 4vw, 2.5rem); /* Responsive font size */
-    }
-
-    .game-container {
-        width: 100%;
-        max-width: 1200px; /* Maximum game width */
-        position: relative;
-        aspect-ratio: 2/1;
-    }
-  </style>
-</head>
-<body>
-  <h1>Pong Game - ID : {{ game_id }}</h1>
-  <div class="game-container">
-    <canvas id="gameCanvas" width="800" height="400"></canvas>
-  </div>
-
-  <script>
-    const ORIGINAL_WIDTH = 800;
-    const ORIGINAL_HEIGHT = 400;
-    let scale = 1;
-
-    const gameId = "{{ game_id }}";
-    const protocol = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
-    const wsUrl = protocol + '//' + window.location.host + '/ws/pong/' + gameId + '/';
-    const socket = new WebSocket(wsUrl);
-
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-
-    // Handle canvas resize
-    function handleResize() {
-      const container = document.querySelector('.game-container');
-      const containerWidth = container.clientWidth;
-      const containerHeight = container.clientHeight;
-      
-      // Calculate new scale
-      scale = Math.min(containerWidth / ORIGINAL_WIDTH, containerHeight / ORIGINAL_HEIGHT);
-      
-      // Set canvas size
-      canvas.style.width = (ORIGINAL_WIDTH * scale) + 'px';
-      canvas.style.height = (ORIGINAL_HEIGHT * scale) + 'px';
-      
-      // Keep canvas resolution sharp
-      canvas.width = ORIGINAL_WIDTH;
-      canvas.height = ORIGINAL_HEIGHT;
-      
-      // Reset context properties
-      ctx.imageSmoothingEnabled = false;
-    }
-
-    // Add resize event listener
-    window.addEventListener('resize', handleResize);
-    // Initial resize
-    handleResize();
-
-  // Function to create SVG power-up data URLs
-    function createPowerupSVG(type) {
-      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      svg.setAttribute("viewBox", "0 0 50 50");
-      svg.setAttribute("width", "30");
-      svg.setAttribute("height", "30");
-      
-      const powerupStyles = {
-          'invert': {
-              colors: {main: '#FF69B4', glow: '#FF1493'},
-              icon: 'M25 15 A10 10 0 1 1 25 35 M25 35 L20 30 M25 35 L30 30'
-          },
-          'shrink': {
-              colors: {main: '#FF0000', glow: '#8B0000'},
-              icon: 'M25 25 L35 15 M33 15 L35 15 L35 17 M25 25 L15 15 M17 15 L15 15 L15 17 M25 25 L35 35 M33 35 L35 35 L35 33 M25 25 L15 35 M17 35 L15 35 L15 33'
-          },
-          'ice': {
-              colors: {main: '#00FFFF', glow: '#00CED1'},
-              paths: [
-                  {d: 'M25 10 L25 40 M18 14 L32 36 M32 14 L18 36 M20 25 L30 25', 
-                  fill: 'none', stroke: 'white', width: 3},
-                  {d: 'M25 25 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0', 
-                  fill: 'white', stroke: 'none', width: 0}
-              ]
-          },
-          'speed': {
-              colors: {main: '#FFD700', glow: '#FFA500'},
-              icon: 'M30 10 L20 25 L27 25 L17 40 L32 25 L25 25 L35 10',
-              fill: 'white'
-          },
-          'flash': {
-              colors: {main: '#FFFF00', glow: '#FFD700'},
-              paths: [
-                  {d: 'M25 10 m-8,0 a8,8 0 1,0 16,0 a8,8 0 1,0 -16,0', 
-                  fill: 'white', stroke: 'none', width: 0},
-                  {d: 'M25 10 L25 17 M25 33 L25 40 M35 25 L42 25 M8 25 L15 25 M32 18 L37 13 M13 37 L18 32 M32 32 L37 37 M13 13 L18 18',
-                  fill: 'none', stroke: 'white', width: 3}
-              ]
-          },
-          'sticky': {
-              colors: {main: '#32CD32', glow: '#228B22'},
-              icon: 'M25 10 C15 10 15 20 25 20 C35 20 35 10 25 10 M17 20 C17 40 33 40 33 20',
-              fill: 'white'
-          }
-      };
-      
-      const style = powerupStyles[type] || powerupStyles['speed'];
-      
-      // Create gradient
-      const gradient = document.createElementNS("http://www.w3.org/2000/svg", "radialGradient");
-      gradient.id = `${type}Glow`;
-      
-      const stops = [
-          {offset: '0%', color: style.colors.main, opacity: '1'},
-          {offset: '100%', color: style.colors.glow, opacity: '0.6'}
-      ];
-      
-      stops.forEach(stop => {
-          const stopEl = document.createElementNS("http://www.w3.org/2000/svg", "stop");
-          stopEl.setAttribute("offset", stop.offset);
-          stopEl.setAttribute("stop-color", stop.color);
-          stopEl.setAttribute("stop-opacity", stop.opacity);
-          gradient.appendChild(stopEl);
-      });
-      
-      svg.appendChild(gradient);
-      
-      // Create base circle
-      const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-      circle.setAttribute("cx", "25");
-      circle.setAttribute("cy", "25");
-      circle.setAttribute("r", "20");
-      circle.setAttribute("fill", `url(#${type}Glow)`);
-      svg.appendChild(circle);
-      
-      // Add icon(s)
-      if (style.paths) {
-          // For complex icons with multiple paths
-          style.paths.forEach(pathData => {
-              const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-              path.setAttribute("d", pathData.d);
-              path.setAttribute("stroke", pathData.stroke);
-              path.setAttribute("stroke-width", pathData.width);
-              path.setAttribute("fill", pathData.fill);
-              svg.appendChild(path);
-          });
-      } else {
-          // For single path icons
-          const icon = document.createElementNS("http://www.w3.org/2000/svg", "path");
-          icon.setAttribute("d", style.icon);
-          icon.setAttribute("stroke", "white");
-          icon.setAttribute("stroke-width", "3");
-          icon.setAttribute("fill", style.fill || "none");
-          svg.appendChild(icon);
-      }
-      
-      return `data:image/svg+xml;base64,${btoa(new XMLSerializer().serializeToString(svg))}`;
-  }
-
-  function createBumperSVG() {
-      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      svg.setAttribute("viewBox", "0 0 100 100");
-      
-      // Create white orb gradient
-      const whiteGradient = document.createElementNS("http://www.w3.org/2000/svg", "radialGradient");
-      whiteGradient.id = "whiteOrbGradient";
-      whiteGradient.setAttribute("cx", "40%");
-      whiteGradient.setAttribute("cy", "40%");
-      whiteGradient.setAttribute("r", "60%");
-      
-      const whiteStops = [
-        {offset: '0%', color: 'white', opacity: '1'},
-        {offset: '90%', color: '#e0e0e0', opacity: '1'}
-      ];
-      
-      whiteStops.forEach(stop => {
-        const stopEl = document.createElementNS("http://www.w3.org/2000/svg", "stop");
-        stopEl.setAttribute("offset", stop.offset);
-        stopEl.setAttribute("stop-color", stop.color);
-        stopEl.setAttribute("stop-opacity", stop.opacity);
-        whiteGradient.appendChild(stopEl);
-      });
-      
-      // Create blue ring gradient
-      const blueGradient = document.createElementNS("http://www.w3.org/2000/svg", "radialGradient");
-      blueGradient.id = "blueRingGradient";
-      blueGradient.setAttribute("cx", "50%");
-      blueGradient.setAttribute("cy", "50%");
-      blueGradient.setAttribute("r", "50%");
-      
-      const blueStops = [
-        {offset: '0%', color: '#4169E1', opacity: '1'},
-        {offset: '100%', color: '#1E90FF', opacity: '1'}
-      ];
-      
-      blueStops.forEach(stop => {
-        const stopEl = document.createElementNS("http://www.w3.org/2000/svg", "stop");
-        stopEl.setAttribute("offset", stop.offset);
-        stopEl.setAttribute("stop-color", stop.color);
-        stopEl.setAttribute("stop-opacity", stop.opacity);
-        blueGradient.appendChild(stopEl);
-      });
-      
-      // Add gradients to defs
-      const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
-      defs.appendChild(whiteGradient);
-      defs.appendChild(blueGradient);
-      svg.appendChild(defs);
-      
-      // Blue exterior ring
-      const ringCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-      ringCircle.setAttribute("cx", "50");
-      ringCircle.setAttribute("cy", "50");
-      ringCircle.setAttribute("r", "45");
-      ringCircle.setAttribute("fill", "none");
-      ringCircle.setAttribute("stroke", "url(#blueRingGradient)");
-      ringCircle.setAttribute("stroke-width", "8");
-      
-      // White orb center
-      const whiteOrb = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-      whiteOrb.setAttribute("cx", "50");
-      whiteOrb.setAttribute("cy", "50");
-      whiteOrb.setAttribute("r", "35");
-      whiteOrb.setAttribute("fill", "url(#whiteOrbGradient)");
-      
-      // Highlight for 3D effect
-      const highlight = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-      highlight.setAttribute("cx", "35");
-      highlight.setAttribute("cy", "35");
-      highlight.setAttribute("r", "15");
-      highlight.setAttribute("fill", "white");
-      highlight.setAttribute("opacity", "0.3");
-      
-      svg.appendChild(ringCircle);
-      svg.appendChild(whiteOrb);
-      svg.appendChild(highlight);
-      
-      return `data:image/svg+xml;base64,${btoa(new XMLSerializer().serializeToString(svg))}`;
-    }
-
-
-  // Create and cache power-up images
-  const powerupImages = {
-      'invert': new Image(),
-      'shrink': new Image(),
-      'ice': new Image(),
-      'speed': new Image(),
-      'flash': new Image(),
-      'sticky': new Image()
-  };
-
-  // Initialize power-up images
-  function initPowerupImages() {
-      Object.keys(powerupImages).forEach(type => {
-          powerupImages[type].src = createPowerupSVG(type);
-      });
-  }
-
-  // Create and cache bumper image
-  const bumperImage = new Image();
-  bumperImage.src = createBumperSVG();
-
-  // Call initialization
-  initPowerupImages();
-
-    // État initial du jeu côté client
-    let gameState = {
-      type: 'game_state',
-      ball_x: 400, 
-      ball_y: 200,
-      ball_size: 7,
-      ball_speed_x: 4,
-      ball_speed_y: 4,
-      paddle_left_y: 170,
-      paddle_right_y: 170,
-      paddle_width: 10,
-      paddle_left_height: 60,
-      paddle_right_height: 60,
-      score_left: 0, 
-      score_right: 0,
-      powerups: [],
-      bumpers: [],
-      flash_effect: false
-    };
-
-    socket.onopen = () => {
-      console.log("[Frontend] WebSocket connection opened.");
-    };
-
-    socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      // console.log("[Frontend] Received data:", data);
-      if (data.type === 'game_state') {
-        gameState = data;
-      } else if (data.type === 'game_over') {
-        alert("Game Over! Winner = " + data.winner);
-        socket.close();
-      } else if (data.type === 'powerup_applied') {
-        console.log(`[Frontend] Power-up applied to ${data.player}: ${data.effect}`);
-      }
-    };
-
-    socket.onclose = () => {
-      console.log("[Frontend] WebSocket connection closed.");
-    };
-
-    let keysPressed = {};
-
-    document.addEventListener('keydown', (evt) => {
-      if (evt.repeat) return;
-
-      let action = "start_move", player = null, direction = null;
-      
-      switch(evt.key) {
-        case 'w':
-        case 'W':
-          player = 'left';
-          direction = 'up';
-          break;
-        case 's':
-        case 'S':
-          player = 'left';
-          direction = 'down';
-          break;
-        case 'ArrowUp':
-          player = 'right';
-          direction = 'up';
-          break;
-        case 'ArrowDown':
-          player = 'right';
-          direction = 'down';
-          break;
-      }
-      if (player && direction && !keysPressed[evt.key]) {
-        socket.send(JSON.stringify({
-          action: action,
-          player: player,
-          direction: direction
-        }));
-        console.log(`[Frontend] Sent start_move: player=${player}, direction=${direction}`);
-        keysPressed[evt.key] = true;
-      }
-    });
-
-    document.addEventListener('keyup', (evt) => {
-      let action = "stop_move", player = null;
-
-      switch(evt.key) {
-        case 'w':
-        case 'W':
-          player = 'left';
-          break;
-        case 's':
-        case 'S':
-          player = 'left';
-          break;
-        case 'ArrowUp':
-          player = 'right';
-          break;
-        case 'ArrowDown':
-          player = 'right';
-          break;
-      }
-      if (player && keysPressed[evt.key]) {
-        socket.send(JSON.stringify({
-          action: action,
-          player: player
-        }));
-        console.log(`[Frontend] Sent stop_move: player=${player}`);
-        keysPressed[evt.key] = false;
-      }
-    });
-
-    function draw() {
-      if (gameState.flash_effect) {
-        ctx.fillStyle = 'white';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-      } else {
-        ctx.fillStyle = 'black';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // Terrain
-        ctx.strokeStyle = 'white';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(50, 50, canvas.width - 100, canvas.height - 100);
-        
-        // Paddles
-        ctx.fillStyle = 'white';
-        ctx.fillRect(50, gameState.paddle_left_y, 
-          gameState.paddle_width, gameState.paddle_left_height);
-        ctx.fillRect(canvas.width - 50 - gameState.paddle_width, 
-          gameState.paddle_right_y, 
-          gameState.paddle_width, 
-          gameState.paddle_right_height);
-        
-        // Ball
-        ctx.beginPath();
-        ctx.arc(gameState.ball_x, gameState.ball_y, gameState.ball_size, 0, 2*Math.PI);
-        ctx.fill();
-
-        // Power-ups with scaling
-        gameState.powerups.forEach(orb => {
-            const type = orb.type || 'speed';
-            const img = powerupImages[type];
-            if (img.complete) {
-                ctx.save();
-                
-                // Add glow effect based on type
-                const glowColors = {
-                    'invert': '#FF69B4',
-                    'shrink': '#FF0000',
-                    'ice': '#00FFFF',
-                    'speed': '#FFD700',
-                    'flash': '#FFFF00',
-                    'sticky': '#32CD32'
-                };
-                
-                ctx.shadowColor = glowColors[type] || glowColors['speed'];
-                ctx.shadowBlur = 10;
-                
-                ctx.drawImage(img, 
-                    orb.x - 15,
-                    orb.y - 15, 
-                    30, 
-                    30
-                );
-                
-                ctx.restore();
-            }
-        });
-
-        // Bumpers
-        gameState.bumpers.forEach(bumper => {
-          if (bumperImage.complete) {
-            ctx.save();
-            ctx.shadowColor = '#4169E1';
-            ctx.shadowBlur = 10 * scale;
-            ctx.drawImage(bumperImage,
-              bumper.x - bumper.size,     // Correction ici
-              bumper.y - bumper.size,     // Correction ici
-              bumper.size * 2,            // Correction ici
-              bumper.size * 2             // Correction ici
-            );
-            ctx.restore();
-          }
-        });
-      }
-
-      // Scores
-      ctx.fillStyle='white';
-      ctx.font="20px Arial";
-      ctx.fillText(`${gameState.score_left}`, 20, 30);
-      ctx.fillText(`${gameState.score_right}`, canvas.width - 40, 30);
-
-      requestAnimationFrame(draw);
-    }
-    requestAnimationFrame(draw);
-  </script>
-</body>
-</html>

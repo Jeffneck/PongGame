@@ -5,6 +5,8 @@ import redis
 from django.conf import settings
 from channels.generic.websocket import AsyncWebsocketConsumer
 
+from .game_loop.redis_utils import get_key
+
 r = redis.Redis(
     host=settings.REDIS_HOST,
     port=settings.REDIS_PORT,
@@ -25,36 +27,18 @@ class PongConsumer(AsyncWebsocketConsumer):
         print(f"[PongConsumer] WebSocket disconnected for game_id={self.game_id}")
 
     async def receive(self, text_data=None, bytes_data=None):
-        """
-        Nouveau protocole:
-        {
-          "action": "start_move",
-          "player": "left",
-          "direction": "up"
-        }
-        ou
-        {
-          "action": "stop_move",
-          "player": "left"
-        }
-        """
         data = json.loads(text_data)
         action = data.get('action')
         player = data.get('player')
 
         if action == 'start_move':
-            # Le joueur commence à bouger le paddle
             direction = data.get('direction')  # 'up' ou 'down'
             await self.start_move_paddle(player, direction)
 
         elif action == 'stop_move':
-            # Le joueur arrête de bouger le paddle
             await self.stop_move_paddle(player)
 
     async def start_move_paddle(self, player, direction):
-        """
-        Met une vélocité non nulle dans Redis tant que la touche est enfoncée.
-        """
         velocity = 0
         if direction == 'up':
             velocity = -8  # Ajustez la vitesse selon vos préférences
@@ -65,24 +49,14 @@ class PongConsumer(AsyncWebsocketConsumer):
         print(f"[PongConsumer] start_move_paddle: player={player}, velocity={velocity}")
 
     async def stop_move_paddle(self, player):
-        """
-        Remet la vélocité à 0 quand la touche est relâchée.
-        """
         r.set(f"{self.game_id}:paddle_{player}_velocity", 0)
         print(f"[PongConsumer] stop_move_paddle: player={player}")
 
+    # Handlers pour les événements du groupe
     async def broadcast_game_state(self, event):
-        """
-        Reçoit { 'type': 'broadcast_game_state', 'data': { ... } }
-        et envoie data au client.
-        """
         await self.send(json.dumps(event['data']))
-        # print(f"[PongConsumer] Broadcast game_state to game_id={self.game_id}")
 
     async def game_over(self, event):
-        """
-        Reçoit { 'type': 'game_over', 'winner': 'left' } par ex.
-        """
         await self.send(json.dumps({
             'type': 'game_over',
             'winner': event['winner']
@@ -90,12 +64,23 @@ class PongConsumer(AsyncWebsocketConsumer):
         print(f"[PongConsumer] Broadcast game_over to game_id={self.game_id}, winner={event['winner']}")
 
     async def powerup_applied(self, event):
-        """
-        Reçoit { 'type': 'powerup_applied', 'player': 'left', 'effect': 'flash' }
-        """
         await self.send(json.dumps({
             'type': 'powerup_applied',
             'player': event['player'],
             'effect': event['effect']
         }))
         print(f"[PongConsumer] Broadcast powerup_applied to game_id={self.game_id}, player={event['player']}, effect={event['effect']}")
+
+    async def powerup_spawned(self, event):
+        await self.send(json.dumps({
+            'type': 'powerup_spawned',
+            'powerup': event['powerup']
+        }))
+        print(f"[PongConsumer] Broadcast powerup_spawned to game_id={self.game_id}, powerup={event['powerup']}")
+
+    async def powerup_expired(self, event):
+        await self.send(json.dumps({
+            'type': 'powerup_expired',
+            'powerup': event['powerup']
+        }))
+        print(f"[PongConsumer] Broadcast powerup_expired to game_id={self.game_id}, powerup={event['powerup']}")

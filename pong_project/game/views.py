@@ -1,9 +1,12 @@
+# game/views.py
+
 from django.shortcuts import render, redirect
 from .models import GameSession, GameResult, GameParameters
 from .manager import schedule_game
 from .forms import GameParametersForm
-from django.conf import settings
+from .game_loop.redis_utils import set_key
 import redis
+from django.conf import settings
 
 r = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=0)
 
@@ -30,17 +33,17 @@ def create_game(request):
             parameters.save()
 
             # Initialiser Redis avec les paramètres personnalisés
-            r.set(f"{game_id}:score_left", 0)
-            r.set(f"{game_id}:score_right", 0)
-            r.set(f"{game_id}:paddle_left_y", 150)
-            r.set(f"{game_id}:paddle_right_y", 150)
-            r.set(f"{game_id}:ball_x", 300)
-            r.set(f"{game_id}:ball_y", 200)
+            set_key(game_id, "score_left", 0)
+            set_key(game_id, "score_right", 0)
+            set_key(game_id, "paddle_left_y", 150)
+            set_key(game_id, "paddle_right_y", 150)
+            set_key(game_id, "ball_x", 300)
+            set_key(game_id, "ball_y", 200)
             # Ajuster la vitesse de la balle selon le paramètre
             ball_vx = 3 * parameters.ball_speed
             ball_vy = 2 * parameters.ball_speed
-            r.set(f"{game_id}:ball_vx", ball_vx)
-            r.set(f"{game_id}:ball_vy", ball_vy)
+            set_key(game_id, "ball_vx", ball_vx)
+            set_key(game_id, "ball_vy", ball_vy)
 
             # Si les bumpers sont activés, initialiser leurs positions ou autres configurations
             if parameters.bumpers_activation:

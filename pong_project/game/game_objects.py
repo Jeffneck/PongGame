@@ -112,6 +112,9 @@ class PowerUpOrb:
 
     def deactivate(self):
         self.active = False
+        self.x = None
+        self.y = None
+        self.spawn_time = None
 
 class Bumper:
     def __init__(self, game_id, terrain_rect):

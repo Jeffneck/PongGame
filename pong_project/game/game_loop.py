@@ -497,6 +497,7 @@ async def handle_bumper_expiration(game_id, bumpers):
             r.set(key, 0)
             print(f"[game_loop.py] Bumper at ({bumper.x}, {bumper.y}) expired")
 
+
 async def broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right, ball, power_up_orbs, bumpers):
     """
     Envoie l'état actuel du jeu aux clients via WebSocket.
@@ -504,7 +505,8 @@ async def broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right
     # Récupérer les états des power-ups
     powerups = []
     for orb in power_up_orbs:
-        if r.get(f"{game_id}:powerup_{orb.effect_type}_active"):
+        active = r.get(f"{game_id}:powerup_{orb.effect_type}_active")
+        if active and active.decode('utf-8') == '1':
             x = float(r.get(f"{game_id}:powerup_{orb.effect_type}_x"))
             y = float(r.get(f"{game_id}:powerup_{orb.effect_type}_y"))
             powerups.append({
@@ -518,7 +520,8 @@ async def broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right
     active_bumpers = []
     for bumper in bumpers:
         key = f"{game_id}:bumper_{bumper.x}_{bumper.y}_active"
-        if r.get(key):
+        active = r.get(key)
+        if active and active.decode('utf-8') == '1':
             active_bumpers.append({
                 'x': bumper.x,
                 'y': bumper.y,
@@ -549,3 +552,4 @@ async def broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right
         'data': data
     })
     # print(f"[game_loop.py] Broadcast game_state for game_id={game_id}")
+

@@ -15,7 +15,10 @@ r = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=0)
 
 FIELD_WIDTH = 800
 FIELD_HEIGHT = 400
-WIN_SCORE = 10
+WIN_SCORE = 4
+
+# collision avec les bumpers
+COOLDOWN_TIME = 0.5  # Temps en secondes
 
 # Initialize paddles and ball
 async def initialize_game_objects(game_id, parameters):
@@ -101,29 +104,29 @@ async def game_loop(game_id):
 
         while True:
             current_time = time.time()
-            print(f"[game_loop.py] game_id={game_id} - Loop iteration at {current_time}")
+            # print(f"[game_loop.py] game_id={game_id} - Loop iteration at {current_time}")
 
             # Vérifier si la partie est encore "running"
             session_status = await get_game_status(game_id)
-            print(f"[game_loop.py] game_id={game_id} - Session status: {session_status}")
+            # print(f"[game_loop.py] game_id={game_id} - Session status: {session_status}")
             if session_status != 'running':
                 print(f"[game_loop.py] game_id={game_id} is not running (status={session_status}), breaking loop.")
                 break
 
             # 1. Mettre à jour les positions des raquettes depuis Redis en fonction de la vélocité
             await update_paddles_from_redis(game_id, paddle_left, paddle_right)
-            print(f"[game_loop.py] game_id={game_id} - Paddles positions updated from Redis.")
+            # print(f"[game_loop.py] game_id={game_id} - Paddles positions updated from Redis.")
 
             # 2. Mettre à jour la position de la balle
             ball.move()
             await update_ball_redis(game_id, ball)
-            print(f"[game_loop.py] game_id={game_id} - Ball position updated to ({ball.x}, {ball.y})")
+            # print(f"[game_loop.py] game_id={game_id} - Ball position updated to ({ball.x}, {ball.y})")
 
             # 3. Vérifier les collisions
             collision = await check_collisions(game_id, paddle_left, paddle_right, ball, bumpers, power_up_orbs)
             if collision in ['score_left', 'score_right']:
                 await handle_score(game_id, collision)
-                print(f"[game_loop.py] game_id={game_id} - Handling score for {collision}")
+                # print(f"[game_loop.py] game_id={game_id} - Handling score for {collision}")
                 
                 # Vérifier si quelqu'un a gagné
                 score_left = int(r.get(f"{game_id}:score_left") or 0)
@@ -146,7 +149,7 @@ async def game_loop(game_id):
                 if current_time - last_powerup_spawn_time >= powerup_spawn_interval:
                     # Tenter de spawn un power-up
                     active_powerups = await count_active_powerups(game_id, power_up_orbs)
-                    print(f"[game_loop.py] game_id={game_id} - Active power-ups: {active_powerups}")
+                    # print(f"[game_loop.py] game_id={game_id} - Active power-ups: {active_powerups}")
                     if active_powerups < 2:  # MAX_ACTIVE_POWERUPS = 2
                         orb = random.choice(power_up_orbs)
                         if not orb.active:
@@ -160,7 +163,7 @@ async def game_loop(game_id):
                 if current_time - last_bumper_spawn_time >= bumper_spawn_interval:
                     # Tenter de spawn un bumper
                     active_bumpers = await count_active_bumpers(game_id, bumpers)
-                    print(f"[game_loop.py] game_id={game_id} - Active bumpers: {active_bumpers}")
+                    # print(f"[game_loop.py] game_id={game_id} - Active bumpers: {active_bumpers}")
                     if active_bumpers < 2:  # MAX_BUMPERS = 2
                         bumper = random.choice(bumpers)
                         if not bumper.active:
@@ -171,15 +174,15 @@ async def game_loop(game_id):
 
             # 6. Gérer les power-ups expirés
             await handle_powerup_expiration(game_id, power_up_orbs)
-            print(f"[game_loop.py] game_id={game_id} - Handled power-up expiration.")
+            # print(f"[game_loop.py] game_id={game_id} - Handled power-up expiration.")
 
             # 7. Gérer les bumpers expirés
             await handle_bumper_expiration(game_id, bumpers)
-            print(f"[game_loop.py] game_id={game_id} - Handled bumper expiration.")
+            # print(f"[game_loop.py] game_id={game_id} - Handled bumper expiration.")
 
             # 8. Broadcast l'état actuel du jeu
             await broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right, ball, power_up_orbs, bumpers)
-            print(f"[game_loop.py] game_id={game_id} - Broadcasted game state.")
+            # print(f"[game_loop.py] game_id={game_id} - Broadcasted game state.")
 
             # Attendre le prochain cycle
             await asyncio.sleep(dt)
@@ -298,16 +301,25 @@ async def check_collisions(game_id, paddle_left, paddle_right, ball, bumpers, po
         ball.speed_y = -abs(ball.speed_y)  # Rebond vers le haut
 
     # Bumpers
+    current_time = time.time()
     for bumper in bumpers:
         if bumper.active:
             dist = math.hypot(ball.x - bumper.x, ball.y - bumper.y)
             if dist <= ball.size + bumper.size:
-                angle = math.atan2(ball.y - bumper.y, ball.x - bumper.x)
-                speed = math.hypot(ball.speed_x, ball.speed_y) * 1.05
-                ball.speed_x = speed * math.cos(angle)
-                ball.speed_y = speed * math.sin(angle)
-                print(f"[game_loop.py] Ball collided with bumper at ({bumper.x}, {bumper.y}). New speed: ({ball.speed_x}, {ball.speed_y})")
+                if current_time - bumper.last_collision_time >= COOLDOWN_TIME:
+                    angle = math.atan2(ball.y - bumper.y, ball.x - bumper.x)
+                    speed = math.hypot(ball.speed_x, ball.speed_y) * 1.05
+                    ball.speed_x = speed * math.cos(angle)
+                    ball.speed_y = speed * math.sin(angle)
 
+                    # Mettre à jour la balle dans Redis
+                    await update_ball_redis(game_id, ball)
+
+                    # Mettre à jour le temps de la dernière collision
+                    bumper.last_collision_time = current_time
+
+                    print(f"[game_loop.py] Ball collided with bumper at ({bumper.x}, {bumper.y}). New speed: ({ball.speed_x}, {ball.speed_y})")
+    
     return None
 
 async def handle_paddle_collision(game_id, paddle_side, paddle, ball):
@@ -413,7 +425,7 @@ async def finish_game(game_id, winner):
             'winner': winner
         }
     )
-    print(f"[game_loop.py] Broadcast game_over for game_id={game_id}, winner={winner}")
+    # print(f"[game_loop.py] Broadcast game_over for game_id={game_id}, winner={winner}")
 
     # Nettoyer les clés Redis
     keys = list(r.scan_iter(f"{game_id}:*"))
@@ -536,4 +548,4 @@ async def broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right
         'type': 'broadcast_game_state',
         'data': data
     })
-    print(f"[game_loop.py] Broadcast game_state for game_id={game_id}")
+    # print(f"[game_loop.py] Broadcast game_state for game_id={game_id}")

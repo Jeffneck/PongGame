@@ -77,7 +77,7 @@ class PongConsumer(AsyncWebsocketConsumer):
         et envoie data au client.
         """
         await self.send(json.dumps(event['data']))
-        print(f"[PongConsumer] Broadcast game_state to game_id={self.game_id}")
+        # print(f"[PongConsumer] Broadcast game_state to game_id={self.game_id}")
 
     async def game_over(self, event):
         """

@@ -84,7 +84,7 @@ class PowerUpOrb:
             'flash': (255, 255, 0),     # Yellow
             'sticky': (50, 205, 50)     # Lime green
         }
-        return colors_map.get(self.effect_type, (255, 255, 255))
+        return colors.get(self.effect_type, (255, 255, 255))
 
     def spawn(self, terrain_rect):
         left = terrain_rect['left']
@@ -122,6 +122,7 @@ class Bumper:
         self.rect = None
         self.spawn_time = 0
         self.duration = 0
+        self.last_collision_time = 0 
 
     def spawn(self, terrain_rect):
         left = terrain_rect['left']

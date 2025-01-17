@@ -461,10 +461,10 @@
             ctx.shadowColor = '#4169E1';
             ctx.shadowBlur = 10 * scale;
             ctx.drawImage(bumperImage,
-              bumper.x - bumperSize,
-              bumper.y - bumperSize,
-              bumperSize * 2,
-              bumperSize * 2
+              bumper.x - bumper.size,     // Correction ici
+              bumper.y - bumper.size,     // Correction ici
+              bumper.size * 2,            // Correction ici
+              bumper.size * 2             // Correction ici
             );
             ctx.restore();
           }

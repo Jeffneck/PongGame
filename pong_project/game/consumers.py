@@ -62,14 +62,14 @@ class PongConsumer(AsyncWebsocketConsumer):
             velocity = 8
 
         r.set(f"{self.game_id}:paddle_{player}_velocity", velocity)
-        print(f"[PongConsumer] start_move_paddle: player={player}, velocity={velocity}")
+        # print(f"[PongConsumer] start_move_paddle: player={player}, velocity={velocity}")
 
     async def stop_move_paddle(self, player):
         """
         Remet la vélocité à 0 quand la touche est relâchée.
         """
         r.set(f"{self.game_id}:paddle_{player}_velocity", 0)
-        print(f"[PongConsumer] stop_move_paddle: player={player}")
+        # print(f"[PongConsumer] stop_move_paddle: player={player}")
 
     async def broadcast_game_state(self, event):
         """
@@ -96,6 +96,7 @@ class PongConsumer(AsyncWebsocketConsumer):
         await self.send(json.dumps({
             'type': 'powerup_applied',
             'player': event['player'],
-            'effect': event['effect']
+            'effect': event['effect'],
+            'duration': event['duration']
         }))
         print(f"[PongConsumer] Broadcast powerup_applied to game_id={self.game_id}, player={event['player']}, effect={event['effect']}")

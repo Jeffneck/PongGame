@@ -194,21 +194,31 @@ async def game_loop(game_id):
         print(f"[game_loop.py] game_id={game_id} loop ended.")
 
 async def update_paddles_from_redis(game_id, paddle_left, paddle_right):
-    """
-    Lit la vélocité dans Redis et met à jour la position (y) des paddles.
-    """
+    """Updates paddle positions considering active effects."""
     left_vel = float(r.get(f"{game_id}:paddle_left_velocity") or 0)
     right_vel = float(r.get(f"{game_id}:paddle_right_velocity") or 0)
 
-    # Appliquer la vélocité
+    # Apply ice effect (slower movement)
+    if r.get(f"{game_id}:paddle_left_ice_effect"):
+        left_vel *= 0.5
+    if r.get(f"{game_id}:paddle_right_ice_effect"):
+        right_vel *= 0.5
+
+    # Apply inverted controls
+    if r.get(f"{game_id}:paddle_left_inverted"):
+        left_vel *= -1
+    if r.get(f"{game_id}:paddle_right_inverted"):
+        right_vel *= -1
+
+    # Update positions
     paddle_left.y += left_vel
     paddle_right.y += right_vel
 
-    # Contraindre le mouvement dans [50, 350 - paddle.height]
+    # Constrain movement
     paddle_left.y = max(50, min(350 - paddle_left.height, paddle_left.y))
     paddle_right.y = max(50, min(350 - paddle_right.height, paddle_right.y))
 
-    # Stocker la position mise à jour
+    # Store updated positions
     r.set(f"{game_id}:paddle_left_y", paddle_left.y)
     r.set(f"{game_id}:paddle_right_y", paddle_right.y)
 
@@ -348,14 +358,16 @@ async def handle_bumper_collision(game_id, ball, bumpers):
 
 
 async def handle_paddle_collision(game_id, paddle_side, paddle, ball):
-    """
-    Gère la logique de collision entre la balle et une raquette.
-    """
+    """Handles paddle collision with sticky effect."""
+    
+    if r.get(f"{game_id}:paddle_{paddle_side}_sticky"):
+        # Ball sticks to paddle for a brief moment
+        await asyncio.sleep(0.2)  # 200ms stick duration
+    
     relative_y = (ball.y - (paddle.y + paddle.height / 2)) / (paddle.height / 2)
-    relative_y = max(-1, min(1, relative_y))  # Limiter à l'intervalle [-1, 1]
-
-    angle = relative_y * (math.pi / 4)  # Max 45 degrés
-    speed = math.hypot(ball.speed_x, ball.speed_y) * 1.03  # Augmenter la vitesse
+    relative_y = max(-1, min(1, relative_y))
+    angle = relative_y * (math.pi / 4)
+    speed = math.hypot(ball.speed_x, ball.speed_y) * 1.03
 
     if paddle_side == 'left':
         ball.speed_x = speed * math.cos(angle)
@@ -363,11 +375,7 @@ async def handle_paddle_collision(game_id, paddle_side, paddle, ball):
         ball.speed_x = -speed * math.cos(angle)
 
     ball.speed_y = speed * math.sin(angle)
-
-    # Mettre à jour la balle dans Redis
     await update_ball_redis(game_id, ball)
-
-    print(f"[game_loop.py] Ball collided with {paddle_side} paddle. New speed: ({ball.speed_x}, {ball.speed_y})")
 
 async def handle_powerup_collision(game_id, ball, powerup_orbs):
     """
@@ -392,30 +400,81 @@ async def handle_powerup_collision(game_id, ball, powerup_orbs):
                     print(f"[game_loop.py] Player left collected power-up {powerup_orb.effect_type} at ({powerup_orb.x}, {powerup_orb.y}) by default")
 
 async def apply_powerup(game_id, player, powerup_orb):
-    """
-    Applique l'effet du power-up au joueur.
-    """
-    # Implémenter la logique d'application des effets
+    """Applies the effect of the power-up."""
     print(f"[game_loop.py] Applying power-up {powerup_orb.effect_type} to {player}")
 
-    # le power_up est detruit car consommé par le joueur  
+    # Create task for handling effect duration
+    effect_duration = 5
+    asyncio.create_task(handle_powerup_duration(game_id, player, powerup_orb))
+    print(f"[game_loop.py] Creating duration task for {powerup_orb.effect_type}")
+
+    # Deactivate the powerup immediately
     powerup_orb.deactivate()
     r.delete(f"{game_id}:powerup_{powerup_orb.effect_type}_active")
     r.delete(f"{game_id}:powerup_{powerup_orb.effect_type}_x")
     r.delete(f"{game_id}:powerup_{powerup_orb.effect_type}_y")
 
-    # Exemple de notification
+    # Notify clients immediately
     channel_layer = get_channel_layer()
-    effect = powerup_orb.effect_type
     await channel_layer.group_send(
         f"pong_{game_id}",
         {
             'type': 'powerup_applied',
             'player': player,
-            'effect': effect
+            'effect': powerup_orb.effect_type,
+            'duration': effect_duration  # 5 seconds duration
         }
     )
 
+async def handle_powerup_duration(game_id, player, powerup_orb):
+    """Handles the duration of a power-up effect asynchronously."""
+    effect_type = powerup_orb.effect_type
+    effect_duration = 5  # 5 seconds for all effects
+
+    print(f"[game_loop.py] Starting effect {effect_type} for {player}")
+
+    # Apply effect
+    if effect_type == 'flash':
+        r.set(f"{game_id}:flash_effect", 1)
+        await asyncio.sleep(0.3) # Flash lasts 300ms
+        r.delete(f"{game_id}:flash_effect")
+
+    elif effect_type == 'shrink':
+        opponent = 'left' if player == 'right' else 'right'
+        current_height = float(r.get(f"{game_id}:paddle_{opponent}_height") or 60)
+        r.set(f"{game_id}:paddle_{opponent}_height", current_height * 0.5)
+        await asyncio.sleep(effect_duration)
+        r.set(f"{game_id}:paddle_{opponent}_height", 60)
+
+    elif effect_type == 'speed':
+        current_vx = float(r.get(f"{game_id}:ball_vx") or 4)
+        current_vy = float(r.get(f"{game_id}:ball_vy") or 4)
+        print(f"[game_loop.py] Setting speed effect: {current_vx * 1.5}, {current_vy * 1.5}")  # Debug print
+        r.set(f"{game_id}:ball_vx", current_vx * 1.5)
+        r.set(f"{game_id}:ball_vy", current_vy * 1.5)
+        await asyncio.sleep(effect_duration)
+        print(f"[game_loop.py] Resetting speed effect")  # Debug print
+        r.set(f"{game_id}:ball_vx", current_vx)
+        r.set(f"{game_id}:ball_vy", current_vy)
+
+    elif effect_type == 'ice':
+        opponent = 'left' if player == 'right' else 'right'
+        r.set(f"{game_id}:paddle_{opponent}_ice_effect", 1)
+        await asyncio.sleep(effect_duration)
+        r.delete(f"{game_id}:paddle_{opponent}_ice_effect")
+
+    elif effect_type == 'sticky':
+        r.set(f"{game_id}:paddle_{player}_sticky", 1)
+        await asyncio.sleep(effect_duration)
+        r.delete(f"{game_id}:paddle_{player}_sticky")
+
+    elif effect_type == 'invert':
+        opponent = 'left' if player == 'right' else 'right'
+        r.set(f"{game_id}:paddle_{opponent}_inverted", 1)
+        await asyncio.sleep(effect_duration)
+        r.delete(f"{game_id}:paddle_{opponent}_inverted")
+
+    # Flash effect is handled client-side
 
 async def handle_score(game_id, scorer):
     """
@@ -595,6 +654,7 @@ async def broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right
         'score_right': int(r.get(f"{game_id}:score_right") or 0),
         'powerups': powerups,
         'bumpers': active_bumpers,
+        'flash_effect': bool(r.get(f"{game_id}:flash_effect"))
     }
 
     await channel_layer.group_send(f"pong_{game_id}", {

@@ -4,7 +4,7 @@ from django.shortcuts import render, redirect
 from .models import GameSession, GameResult, GameParameters
 from .manager import schedule_game
 from .forms import GameParametersForm
-from .game_loop.redis_microutils import set_key
+from .game_loop.redis_utils import set_key
 import redis
 from django.conf import settings
 

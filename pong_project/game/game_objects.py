@@ -53,9 +53,9 @@ class Ball:
         self.size = size
         self.last_player = None  # Nouvel attribut pour suivre le dernier joueur
 
-    def move(self):
-        self.x += self.speed_x
-        self.y += self.speed_y
+    # def move(self):
+    #     self.x += self.speed_x
+    #     self.y += self.speed_y
 
     def reset(self, x, y, speed_x, speed_y):
         self.x = x

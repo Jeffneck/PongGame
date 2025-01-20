@@ -3,21 +3,21 @@
 import math
 import time
 from asgiref.sync import sync_to_async
-from .redis_macroutils import update_ball_redis, delete_powerup_redis
-from .broadcast import notify_collision, notify_powerup_applied
-from .powerups import apply_powerup
+from .ball_utils import update_ball_redis
+from .powerups_utils import apply_powerup, delete_powerup_redis
+from .broadcast import notify_paddle_collision, notify_border_collision, notify_bumper_collision, notify_powerup_applied
 
 # Temps de cooldown pour les collisions avec les bumpers (en secondes)
 COOLDOWN_TIME = 0.5
 
 async def check_collisions(game_id, paddle_left, paddle_right, ball, bumpers, powerup_orbs):
     # Gérer les collisions avec les raquettes
-    collision = await handle_paddle_collisions(game_id, paddle_left, paddle_right, ball)
-    if collision:
-        return collision
+    scoring = await handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right, ball)
+    if scoring:
+        return scoring
 
     # Gérer les collisions avec les bords
-    handle_border_collisions(ball)
+    handle_border_collisions(game_id, ball)
 
     # Gérer les collisions avec les bumpers
     await handle_bumper_collision(game_id, ball, bumpers)
@@ -27,7 +27,7 @@ async def check_collisions(game_id, paddle_left, paddle_right, ball, bumpers, po
 
     return None
 
-async def handle_paddle_collisions(game_id, paddle_left, paddle_right, ball):
+async def handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right, ball):
     """
     Gère les collisions avec les paddles gauche et droite.
     Retourne 'score_left', 'score_right' ou None.
@@ -36,7 +36,7 @@ async def handle_paddle_collisions(game_id, paddle_left, paddle_right, ball):
     if ball.x - ball.size <= paddle_left.x + paddle_left.width:
         if paddle_left.y <= ball.y <= paddle_left.y + paddle_left.height:
             ball.last_player = 'left'  # Mettre à jour le dernier joueur
-            await handle_paddle_collision(game_id, 'left', paddle_left, ball)
+            await process_paddle_collision(game_id, 'left', paddle_left, ball)
             return None
         else:
             return 'score_right'
@@ -45,14 +45,15 @@ async def handle_paddle_collisions(game_id, paddle_left, paddle_right, ball):
     if ball.x + ball.size >= paddle_right.x:
         if paddle_right.y <= ball.y <= paddle_right.y + paddle_right.height:
             ball.last_player = 'right'  # Mettre à jour le dernier joueur
-            await handle_paddle_collision(game_id, 'right', paddle_right, ball)
+            await process_paddle_collision(game_id, 'right', paddle_right, ball)
             return None
         else:
             return 'score_left'
 
     return None
 
-async def handle_paddle_collision(game_id, paddle_side, paddle, ball):
+#ball
+async def process_paddle_collision(game_id, paddle_side, paddle, ball):
     """
     Gère la logique de collision entre la balle et une raquette.
     Ajuste la vitesse et la direction de la balle, met à jour Redis et notifie les clients.
@@ -74,26 +75,23 @@ async def handle_paddle_collision(game_id, paddle_side, paddle, ball):
     await update_ball_redis(game_id, ball)
 
     # Notifier la collision via WebSocket
-    collision_info = {
-        'type': 'paddle_collision',
-        'paddle_side': paddle_side,
-        'new_speed_x': ball.speed_x,
-        'new_speed_y': ball.speed_y,
-    }
-    await notify_collision(game_id, collision_info)
+    notify_paddle_collision(game_id, paddle_side, ball)
+    
 
-    print(f"[collisions.py] Ball collided with {paddle_side} paddle. New speed: ({ball.speed_x}, {ball.speed_y})")
-
-
-def handle_border_collisions(ball):
+def handle_border_collisions(game_id, ball):
     """
     Gère les collisions avec les bords supérieur et inférieur.
     Ajuste la vitesse de la balle en conséquence.
     """
     if ball.y - ball.size <= 50:
+        border_side = "up"
         ball.speed_y = abs(ball.speed_y)  # Rebond vers le bas
     elif ball.y + ball.size >= 350:
+        border_side = "down"
         ball.speed_y = -abs(ball.speed_y)  # Rebond vers le haut
+    
+    # Notifier la collision via WebSocket
+    notify_border_collision(game_id, border_side, ball)
 
 
 async def handle_bumper_collision(game_id, ball, bumpers):
@@ -119,18 +117,8 @@ async def handle_bumper_collision(game_id, ball, bumpers):
                     bumper.last_collision_time = current_time
 
                     # Notifier la collision via WebSocket
-                    collision_info = {
-                        'type': 'bumper_collision',
-                        'bumper_x': bumper.x,
-                        'bumper_y': bumper.y,
-                        'new_speed_x': ball.speed_x,
-                        'new_speed_y': ball.speed_y,
-                    }
-                    await notify_collision(game_id, collision_info)
-
-                    print(f"[collisions.py] Ball collided with bumper at ({bumper.x}, {bumper.y}). New speed: ({ball.speed_x}, {ball.speed_y})")
-
-
+                    notify_bumper_collision(game_id, bumper, ball)
+                    
 
 async def handle_powerup_collision(game_id, ball, powerup_orbs):
     """
@@ -145,11 +133,3 @@ async def handle_powerup_collision(game_id, ball, powerup_orbs):
                 last_player = ball.last_player
                 if last_player:
                     await apply_powerup(game_id, last_player, powerup_orb)
-                    await notify_powerup_applied(game_id, last_player, powerup_orb.effect_type)
-                    print(f"[collisions.py] Player {last_player} collected power-up {powerup_orb.effect_type} at ({powerup_orb.x}, {powerup_orb.y})")
-                else:
-                    # Si aucun joueur n'a touché la balle récemment, ne pas attribuer le power up
-                    print(f"[collisions.py] Power-up {powerup_orb.effect_type} collected by nobody at ({powerup_orb.x}, {powerup_orb.y}) by default")
-                
-                # supprimer le powerup de redis une fois consommé 
-                await delete_powerup_redis(game_id, powerup_orb)

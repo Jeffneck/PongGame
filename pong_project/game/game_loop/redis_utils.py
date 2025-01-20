@@ -18,3 +18,4 @@ def scan_and_delete_keys(game_id):
     keys = list(r.scan_iter(f"{game_id}:*"))
     for key in keys:
         r.delete(key)
+

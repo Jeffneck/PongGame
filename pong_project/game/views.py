@@ -4,7 +4,7 @@ from django.shortcuts import render, redirect
 from .models import GameSession, GameResult, GameParameters
 from .manager import schedule_game
 from .forms import GameParametersForm
-from .game_loop.redis_utils import set_key
+from .game_loop.redis_microutils import set_key
 import redis
 from django.conf import settings
 
@@ -40,16 +40,10 @@ def create_game(request):
             set_key(game_id, "ball_x", 300)
             set_key(game_id, "ball_y", 200)
             # Ajuster la vitesse de la balle selon le paramètre
-            ball_vx = 3 * parameters.ball_speed
-            ball_vy = 2 * parameters.ball_speed
+            ball_vx = 2 * parameters.ball_speed
+            ball_vy = 1 * parameters.ball_speed
             set_key(game_id, "ball_vx", ball_vx)
             set_key(game_id, "ball_vy", ball_vy)
-
-            # Si les bumpers sont activés, initialiser leurs positions ou autres configurations
-            if parameters.bumpers_activation:
-                # Exemple: ajouter des bumpers dans Redis
-                # À implémenter selon la logique du jeu
-                pass
 
             print(f"[create_game] GameSession {game_id} created avec paramètres personnalisés. Scheduling game_loop.")
             schedule_game(game_id)
@@ -60,7 +54,7 @@ def create_game(request):
 
     return render(request, 'game/create_game.html', {'form': form})
 
-def game_page(request, game_id):
+def game(request, game_id):
     """
     Affiche la page HTML (canvas + websocket) pour la partie <game_id>
     """

@@ -1,11 +1,11 @@
 # game/tasks.py
 
 import asyncio
+from .game_loop.loop import game_loop
 
 ACTIVE_GAMES = {}  # Dict: { game_id -> asyncio.Task }
 
 async def start_game_loop(game_id):
-    from .game_loop.loop import game_loop
 
     task = asyncio.create_task(game_loop(game_id))
     ACTIVE_GAMES[game_id] = task

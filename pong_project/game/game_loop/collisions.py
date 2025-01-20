@@ -3,12 +3,29 @@
 import math
 import time
 from asgiref.sync import sync_to_async
-from .redis_utils import set_key, get_key, delete_key
+from .redis_macroutils import update_ball_redis, delete_powerup_redis
 from .broadcast import notify_collision, notify_powerup_applied
 from .powerups import apply_powerup
 
 # Temps de cooldown pour les collisions avec les bumpers (en secondes)
 COOLDOWN_TIME = 0.5
+
+async def check_collisions(game_id, paddle_left, paddle_right, ball, bumpers, powerup_orbs):
+    # Gérer les collisions avec les raquettes
+    collision = await handle_paddle_collisions(game_id, paddle_left, paddle_right, ball)
+    if collision:
+        return collision
+
+    # Gérer les collisions avec les bords
+    handle_border_collisions(ball)
+
+    # Gérer les collisions avec les bumpers
+    await handle_bumper_collision(game_id, ball, bumpers)
+
+    # Gérer les collisions avec les power-ups
+    await handle_powerup_collision(game_id, ball, powerup_orbs)
+
+    return None
 
 async def handle_paddle_collisions(game_id, paddle_left, paddle_right, ball):
     """
@@ -54,8 +71,7 @@ async def handle_paddle_collision(game_id, paddle_side, paddle, ball):
     ball.speed_y = speed * math.sin(angle)
 
     # Mettre à jour la balle dans Redis
-    await sync_to_async(set_key)(game_id, "ball_vx", ball.speed_x)
-    await sync_to_async(set_key)(game_id, "ball_vy", ball.speed_y)
+    await update_ball_redis(game_id, ball)
 
     # Notifier la collision via WebSocket
     collision_info = {
@@ -97,10 +113,7 @@ async def handle_bumper_collision(game_id, ball, bumpers):
                     ball.speed_y = speed * math.sin(angle)
 
                     # Mettre à jour la balle dans Redis
-                    await sync_to_async(set_key)(game_id, "ball_x", ball.x)
-                    await sync_to_async(set_key)(game_id, "ball_y", ball.y)
-                    await sync_to_async(set_key)(game_id, "ball_vx", ball.speed_x)
-                    await sync_to_async(set_key)(game_id, "ball_vy", ball.speed_y)
+                    await update_ball_redis(game_id, ball)
 
                     # Mettre à jour le temps de la dernière collision
                     bumper.last_collision_time = current_time
@@ -132,18 +145,11 @@ async def handle_powerup_collision(game_id, ball, powerup_orbs):
                 last_player = ball.last_player
                 if last_player:
                     await apply_powerup(game_id, last_player, powerup_orb)
-                    powerup_orb.deactivate()
-                    await sync_to_async(delete_key)(game_id, f"powerup_{powerup_orb.effect_type}_active")
-                    await sync_to_async(delete_key)(game_id, f"powerup_{powerup_orb.effect_type}_x")
-                    await sync_to_async(delete_key)(game_id, f"powerup_{powerup_orb.effect_type}_y")
                     await notify_powerup_applied(game_id, last_player, powerup_orb.effect_type)
                     print(f"[collisions.py] Player {last_player} collected power-up {powerup_orb.effect_type} at ({powerup_orb.x}, {powerup_orb.y})")
                 else:
-                    # Si aucun joueur n'a touché la balle récemment, attribuer au joueur gauche par défaut
-                    await apply_powerup(game_id, 'left', powerup_orb)
-                    powerup_orb.deactivate()
-                    await sync_to_async(delete_key)(game_id, f"powerup_{powerup_orb.effect_type}_active")
-                    await sync_to_async(delete_key)(game_id, f"powerup_{powerup_orb.effect_type}_x")
-                    await sync_to_async(delete_key)(game_id, f"powerup_{powerup_orb.effect_type}_y")
-                    await notify_powerup_applied(game_id, 'left', powerup_orb.effect_type)
-                    print(f"[collisions.py] Player left collected power-up {powerup_orb.effect_type} at ({powerup_orb.x}, {powerup_orb.y}) by default")
+                    # Si aucun joueur n'a touché la balle récemment, ne pas attribuer le power up
+                    print(f"[collisions.py] Power-up {powerup_orb.effect_type} collected by nobody at ({powerup_orb.x}, {powerup_orb.y}) by default")
+                
+                # supprimer le powerup de redis une fois consommé 
+                await delete_powerup_redis(game_id, powerup_orb)

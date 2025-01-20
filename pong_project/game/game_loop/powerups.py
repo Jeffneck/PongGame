@@ -2,7 +2,7 @@
 
 import random
 import time
-from .redis_utils import set_key, get_key, delete_key
+from .redis_microutils import set_key, get_key, delete_key
 from .broadcast import notify_powerup_applied, notify_powerup_spawned, notify_powerup_expired
 
 async def spawn_powerup(game_id, powerup_orb, terrain_rect):

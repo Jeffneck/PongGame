@@ -1,7 +1,5 @@
 # game/game_loop/broadcast.py
 
-import json
-from .redis_utils import get_key
 from channels.layers import get_channel_layer
 
 async def notify_powerup_spawned(game_id, powerup_orb):
@@ -52,6 +50,17 @@ async def notify_collision(game_id, collision_info):
         {
             'type': 'collision_event',
             'collision': collision_info
+        }
+    )
+
+async def notify_game_finished(game_id, winner, looser):
+    channel_layer = get_channel_layer()
+    await channel_layer.group_send(
+        f"pong_{game_id}",
+        {
+            'type': 'game_over',
+            'winner': winner,
+            'looser': looser
         }
     )
 

@@ -19,28 +19,16 @@ class GameSession(models.Model):
 
 
 class GameParameters(models.Model):
-    BALL_SPEED_CHOICES = [
-        (1, 'Slow'),
-        (2, 'Medium'),
-        (3, 'Fast'),
-    ]
+    game_session = models.OneToOneField(GameSession, related_name='parameters', on_delete=models.CASCADE)
+    BALL_SPEED_CHOICES = [(1, 'Slow'), (2, 'Medium'), (3, 'Fast'),]
     ball_speed = models.PositiveSmallIntegerField(choices=BALL_SPEED_CHOICES, default=2)
 
-    RACKET_SIZE_CHOICES = [
-        (1, 'Small'),
-        (2, 'Medium'),
-        (3, 'Large'),
-    ]
+    RACKET_SIZE_CHOICES = [(1, 'Small'), (2, 'Medium'), (3, 'Large'),]
     racket_size = models.PositiveSmallIntegerField(choices=RACKET_SIZE_CHOICES, default=2)
 
     bonus_malus_activation = models.BooleanField(default=True)
     bumpers_activation = models.BooleanField(default=False)
 
-    game_session = models.OneToOneField(
-        GameSession,
-        related_name='parameters',
-        on_delete=models.CASCADE
-    )
 
     def __str__(self):
         return (f"Ball speed: {self.get_ball_speed_display()}, "
@@ -48,19 +36,20 @@ class GameParameters(models.Model):
                 f"Bonus/Malus: {'On' if self.bonus_malus_activation else 'Off'}, "
                 f"Bumpers: {'On' if self.bumpers_activation else 'Off'}")
 
-
+#remplacer game par game_session
 class GameResult(models.Model):
     """
     Enregistre le score final d'une partie terminée.
     """
     game = models.ForeignKey(GameSession, on_delete=models.CASCADE)
     winner = models.CharField(max_length=10)  # "left" ou "right"
+    looser = models.CharField(max_length=10)  # "left" ou "right"
     score_left = models.IntegerField()
     score_right = models.IntegerField()
     ended_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"[{self.game.id}] winner={self.winner} => {self.score_left}-{self.score_right}"
+        return f"[{self.game.id}] winner={self.winner} looser={self.looser} => {self.score_left}-{self.score_right}"
 
 
 class GameInvitation(models.Model):

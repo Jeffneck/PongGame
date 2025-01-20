@@ -5,7 +5,7 @@ import redis
 from django.conf import settings
 from channels.generic.websocket import AsyncWebsocketConsumer
 
-from .game_loop.redis_utils import get_key
+from .game_loop.redis_microutils import get_key
 
 r = redis.Redis(
     host=settings.REDIS_HOST,

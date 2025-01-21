@@ -4,7 +4,7 @@ import random
 import math
 import time
 
-class Paddle:
+class Paddle: #added
     def __init__(self, position, size, speed):
         """
         position: 'left' ou 'right'
@@ -18,17 +18,18 @@ class Paddle:
         self.y = 200 - self.height // 2
         self.speed = speed
         self.velocity = 0
-        self.on_ice = False
         self.shown_size = size  # Current displayed size
 
     def move(self, direction, is_on_ice, terrain_top, terrain_bottom, speed_boost=False):
+        ICE_ACCELERATION = 0.5
+        ICE_FRICTION = 0.02
         if is_on_ice:
-            acceleration = 0.5
-            friction = 0.02
-            self.velocity += direction * acceleration
-            self.velocity *= (1 - friction)
+            if direction != 0:
+                self.velocity += direction * ICE_ACCELERATION
+            self.velocity *= (1 - ICE_FRICTION)
         else:
-            self.velocity = direction * (self.speed * 1.5 if speed_boost else self.speed)
+            speed = self.speed * 1.5 if speed_boost else self.speed
+            self.velocity = direction * speed
 
         # Apply movement with boundary checking
         new_y = self.y + self.velocity

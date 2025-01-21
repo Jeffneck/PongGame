@@ -116,12 +116,57 @@ async def game_loop(game_id):
             # 1. Mettre à jour les positions des raquettes depuis Redis en fonction de la vélocité
             await update_paddles_from_redis(game_id, paddle_left, paddle_right)
             # print(f"[game_loop.py] game_id={game_id} - Paddles positions updated from Redis.")
+            # check if ball is stuck to any paddle
+            left_stuck = r.get(f"{game_id}:ball_stuck_to_left")
+            right_stuck = r.get(f"{game_id}:ball_stuck_to_right")
 
-            # 2. Mettre à jour la position de la balle
-            ball.move()
-            await update_ball_redis(game_id, ball)
-            # print(f"[game_loop.py] game_id={game_id} - Ball position updated to ({ball.x}, {ball.y})")
+            ball_moved = False
 
+            if left_stuck or right_stuck:
+                stuck_side = 'left' if left_stuck else 'right'
+                sticky_start = float(r.get(f"{game_id}:sticky_start_{stuck_side}") or 0)
+                relative_pos = float(r.get(f"{game_id}:sticky_relative_pos_{stuck_side}") or 0)
+                
+                # Check if 1 second has passed or if the user wants to release
+                if time.time() - sticky_start >= 1.0:
+                    # Get the original speed that was stored when the ball got stuck
+                    original_speed_x = float(r.get(f"{game_id}:ball_original_speed_x") or ball.speed_x)
+                    original_speed_y = float(r.get(f"{game_id}:ball_original_speed_y") or ball.speed_y)
+                    
+                    # Calculate the original speed magnitude
+                    original_speed = math.hypot(original_speed_x, original_speed_y)
+                    
+                    # Apply speed boost
+                    speed_multiplier = 1.3
+                    new_speed = original_speed * speed_multiplier
+
+                    # First, make sure the ball is in the correct position relative to the paddle
+                    relative_pos = float(r.get(f"{game_id}:sticky_relative_pos_{stuck_side}") or 0)
+                    if stuck_side == 'left':
+                        ball.x = paddle_left.x + paddle_left.width
+                        ball.y = paddle_left.y + relative_pos
+                    else:
+                        ball.x = paddle_right.x
+                        ball.y = paddle_right.y + relative_pos
+                    
+                    # Then set the release velocity (away from paddle)
+                    ball.speed_x = new_speed * (1 if stuck_side == 'right' else -1)
+                    ball.speed_y = random.uniform(-0.5, 0.5) * new_speed
+                    
+                    # Update ball position in Redis immediately
+                    await update_ball_redis(game_id, ball)
+                    
+                    # Clean up Redis keys
+                    r.delete(f"{game_id}:ball_stuck_to_{stuck_side}")
+                    r.delete(f"{game_id}:sticky_start_{stuck_side}")
+                    r.delete(f"{game_id}:sticky_relative_pos_{stuck_side}")
+                    r.delete(f"{game_id}:ball_original_speed_x")
+                    r.delete(f"{game_id}:ball_original_speed_y")
+                    
+                    ball_moved = True
+            if not ball_moved:
+                ball.move()
+                await update_ball_redis(game_id, ball)
             # 3. Vérifier les collisions
             collision = await check_collisions(game_id, paddle_left, paddle_right, ball, bumpers, powerup_orbs)
             if collision in ['score_left', 'score_right']:
@@ -198,29 +243,58 @@ async def update_paddles_from_redis(game_id, paddle_left, paddle_right):
     left_vel = float(r.get(f"{game_id}:paddle_left_velocity") or 0)
     right_vel = float(r.get(f"{game_id}:paddle_right_velocity") or 0)
 
-    # Apply ice effect (slower movement)
-    if r.get(f"{game_id}:paddle_left_ice_effect"):
-        left_vel *= 0.5
-    if r.get(f"{game_id}:paddle_right_ice_effect"):
-        right_vel *= 0.5
+    # Apply speed boost if active
+    if r.get(f"{game_id}:paddle_left_speed_boost"):
+        left_vel *= 1.5  # 50% speed increase
+    if r.get(f"{game_id}:paddle_right_speed_boost"):
+        right_vel *= 1.5  # 50% speed increase
 
-    # Apply inverted controls
+    # Convert velocity to direction
+    left_direction = 0 if left_vel == 0 else (1 if left_vel > 0 else -1)
+    right_direction = 0 if right_vel == 0 else (1 if right_vel > 0 else -1)
+
+    # Apply inverted controls first
     if r.get(f"{game_id}:paddle_left_inverted"):
+        left_direction *= -1
         left_vel *= -1
     if r.get(f"{game_id}:paddle_right_inverted"):
+        right_direction *= -1
         right_vel *= -1
 
-    # Update positions
-    paddle_left.y += left_vel
-    paddle_right.y += right_vel
+    # Check ice effects
+    left_on_ice = bool(r.get(f"{game_id}:paddle_left_ice_effect"))
+    right_on_ice = bool(r.get(f"{game_id}:paddle_right_ice_effect"))
 
-    # Constrain movement
-    paddle_left.y = max(50, min(350 - paddle_left.height, paddle_left.y))
-    paddle_right.y = max(50, min(350 - paddle_right.height, paddle_right.y))
+    # Get current paddle heights from Redis
+    left_height = float(r.get(f"{game_id}:paddle_left_height") or paddle_left.height)
+    right_height = float(r.get(f"{game_id}:paddle_right_height") or paddle_right.height)
+
+    # Define boundaries
+    TOP_BOUNDARY = 50
+    BOTTOM_BOUNDARY = 350  # This is the bottom border of the play area
+
+    # Move paddles with ice physics if active, otherwise normal movement
+    if left_on_ice:
+        paddle_left.move(left_direction, left_on_ice, TOP_BOUNDARY, BOTTOM_BOUNDARY)
+    else:
+        # Update position
+        paddle_left.y += left_vel
+        # Constrain movement using current height
+        # Bottom boundary is the maximum y position where the paddle can be placed
+        paddle_left.y = max(TOP_BOUNDARY, min(BOTTOM_BOUNDARY - left_height, paddle_left.y))
+
+    if right_on_ice:
+        paddle_right.move(right_direction, right_on_ice, TOP_BOUNDARY, BOTTOM_BOUNDARY)
+    else:
+        # Update position
+        paddle_right.y += right_vel
+        # Constrain movement using current height
+        paddle_right.y = max(TOP_BOUNDARY, min(BOTTOM_BOUNDARY - right_height, paddle_right.y))
 
     # Store updated positions
     r.set(f"{game_id}:paddle_left_y", paddle_left.y)
     r.set(f"{game_id}:paddle_right_y", paddle_right.y)
+
 
 async def get_game_status(game_id):
     """
@@ -358,12 +432,31 @@ async def handle_bumper_collision(game_id, ball, bumpers):
 
 
 async def handle_paddle_collision(game_id, paddle_side, paddle, ball):
-    """Handles paddle collision with sticky effect."""
+    """Handles paddle collision with improved sticky effect."""
     
-    if r.get(f"{game_id}:paddle_{paddle_side}_sticky"):
-        # Ball sticks to paddle for a brief moment
-        await asyncio.sleep(0.2)  # 200ms stick duration
+    # Determine if sticky power-up is active for this side
+    is_sticky = r.get(f"{game_id}:paddle_{paddle_side}_sticky")
     
+    if is_sticky:
+        # Calculate precise relative position of ball to paddle
+        relative_pos = ball.y - paddle.y
+        
+        # Only stick if the ball is within the paddle's width
+        if 0 <= relative_pos <= paddle.height:
+            # Set a flag that the ball is stuck
+            r.set(f"{game_id}:ball_stuck_to_{paddle_side}", 1)
+            
+            # Store the start time, relative position and original speed
+            r.set(f"{game_id}:sticky_start_{paddle_side}", time.time())
+            r.set(f"{game_id}:sticky_relative_pos_{paddle_side}", relative_pos)
+            r.set(f"{game_id}:ball_original_speed_x", ball.speed_x)
+            r.set(f"{game_id}:ball_original_speed_y", ball.speed_y)
+            
+            # Optionally, modify ball speed to zero or minimal movement
+            ball.speed_x = 0
+            ball.speed_y = 0
+    
+    # Normal paddle collision mechanics (angle-based reflection)
     relative_y = (ball.y - (paddle.y + paddle.height / 2)) / (paddle.height / 2)
     relative_y = max(-1, min(1, relative_y))
     angle = relative_y * (math.pi / 4)
@@ -399,7 +492,7 @@ async def handle_powerup_collision(game_id, ball, powerup_orbs):
                     r.set(f"{game_id}:powerup_{powerup_orb.effect_type}_active", 0)
                     print(f"[game_loop.py] Player left collected power-up {powerup_orb.effect_type} at ({powerup_orb.x}, {powerup_orb.y}) by default")
 
-async def apply_powerup(game_id, player, powerup_orb):
+async def apply_powerup(game_id, player, powerup_orb): #{added}
     """Applies the effect of the power-up."""
     print(f"[game_loop.py] Applying power-up {powerup_orb.effect_type} to {player}")
 
@@ -426,7 +519,7 @@ async def apply_powerup(game_id, player, powerup_orb):
         }
     )
 
-async def handle_powerup_duration(game_id, player, powerup_orb):
+async def handle_powerup_duration(game_id, player, powerup_orb): #added
     """Handles the duration of a power-up effect asynchronously."""
     effect_type = powerup_orb.effect_type
     effect_duration = 5  # 5 seconds for all effects
@@ -441,21 +534,39 @@ async def handle_powerup_duration(game_id, player, powerup_orb):
 
     elif effect_type == 'shrink':
         opponent = 'left' if player == 'right' else 'right'
+        print(f"[game_loop.py] Applying shrink to {opponent}")  # Debug log
+        
+        # Get current height and store it as original
         current_height = float(r.get(f"{game_id}:paddle_{opponent}_height") or 60)
-        r.set(f"{game_id}:paddle_{opponent}_height", current_height * 0.5)
+        print(f"[game_loop.py] Original height: {current_height}")  # Debug log
+        
+        # Store original height for restoration
+        r.set(f"{game_id}:paddle_{opponent}_original_height", current_height)
+        
+        # Calculate and set new height
+        new_height = current_height * 0.5
+        r.set(f"{game_id}:paddle_{opponent}_height", new_height)
+        print(f"[game_loop.py] New height set to: {new_height}")  # Debug log
+        
+        # Wait for duration
         await asyncio.sleep(effect_duration)
-        r.set(f"{game_id}:paddle_{opponent}_height", 60)
+    
+        # Restore original height
+        original_height = float(r.get(f"{game_id}:paddle_{opponent}_original_height") or 60)
+        r.set(f"{game_id}:paddle_{opponent}_height", original_height)
+        r.delete(f"{game_id}:paddle_{opponent}_original_height")
+        print(f"[game_loop.py] Height restored to: {original_height}")  # Debug log
 
     elif effect_type == 'speed':
-        current_vx = float(r.get(f"{game_id}:ball_vx") or 4)
-        current_vy = float(r.get(f"{game_id}:ball_vy") or 4)
-        print(f"[game_loop.py] Setting speed effect: {current_vx * 1.5}, {current_vy * 1.5}")  # Debug print
-        r.set(f"{game_id}:ball_vx", current_vx * 1.5)
-        r.set(f"{game_id}:ball_vy", current_vy * 1.5)
+        # Set paddle speed multiplier
+        r.set(f"{game_id}:paddle_{player}_speed_boost", 1)  # Flag for speed boost
+        print(f"[game_loop.py] Speed boost applied to {player} paddle")
+        
         await asyncio.sleep(effect_duration)
-        print(f"[game_loop.py] Resetting speed effect")  # Debug print
-        r.set(f"{game_id}:ball_vx", current_vx)
-        r.set(f"{game_id}:ball_vy", current_vy)
+        
+        # Remove speed boost
+        r.delete(f"{game_id}:paddle_{player}_speed_boost")
+        print(f"[game_loop.py] Speed boost removed from {player} paddle")
 
     elif effect_type == 'ice':
         opponent = 'left' if player == 'right' else 'right'
@@ -474,7 +585,6 @@ async def handle_powerup_duration(game_id, player, powerup_orb):
         await asyncio.sleep(effect_duration)
         r.delete(f"{game_id}:paddle_{opponent}_inverted")
 
-    # Flash effect is handled client-side
 
 async def handle_score(game_id, scorer):
     """
@@ -607,7 +717,7 @@ async def handle_bumper_expiration(game_id, bumpers):
             print(f"[game_loop.py] Bumper at ({bumper.x}, {bumper.y}) expired")
 
 
-async def broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right, ball, powerup_orbs, bumpers):
+async def broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right, ball, powerup_orbs, bumpers): #added
     """
     Envoie l'état actuel du jeu aux clients via WebSocket.
     """
@@ -648,8 +758,8 @@ async def broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right
         'paddle_left_y': paddle_left.y,
         'paddle_right_y': paddle_right.y,
         'paddle_width': paddle_left.width,
-        'paddle_left_height': paddle_left.height,
-        'paddle_right_height': paddle_right.height,
+        'paddle_left_height': float(r.get(f"{game_id}:paddle_left_height") or paddle_left.height),
+        'paddle_right_height': float(r.get(f"{game_id}:paddle_right_height") or paddle_right.height),
         'score_left': int(r.get(f"{game_id}:score_left") or 0),
         'score_right': int(r.get(f"{game_id}:score_right") or 0),
         'powerups': powerups,

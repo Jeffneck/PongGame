@@ -298,46 +298,6 @@
     }, 300);  // 300 millisecondes = 0.3 secondes
   }
 
-  // function addEffectIndicator(player, effect, duration) {
-  //     const effectColors = {
-  //       'speed': '#FFD700',
-  //       'shrink': '#FF0000',
-  //       'ice': '#00FFFF',
-  //       'flash': '#FFFF00',
-  //       'sticky': '#32CD32',
-  //       'invert': '#FF69B4'
-  //     };
-
-  //     const glowStart = performance.now();
-      
-  //     function drawGlow(timestamp) {
-  //       const elapsed = timestamp - glowStart;
-  //       const progress = elapsed / (duration * 1000);
-        
-  //       if (progress < 1) {
-  //         ctx.save();
-  //         ctx.strokeStyle = effectColors[effect];
-  //         ctx.lineWidth = 2;
-  //         ctx.globalAlpha = 1 - progress;
-          
-  //         if (player === 'left') {
-  //           ctx.strokeRect(45, gameState.paddle_left_y - 5,
-  //             gameState.paddle_width + 10,
-  //             gameState.paddle_left_height + 10);
-  //         } else {
-  //           ctx.strokeRect(canvas.width - 65, gameState.paddle_right_y - 5,
-  //             gameState.paddle_width + 10,
-  //             gameState.paddle_right_height + 10);
-  //         }
-          
-  //         ctx.restore();
-  //         requestAnimationFrame(drawGlow);
-  //       }
-  //     }
-      
-  //     requestAnimationFrame(drawGlow);
-  //   }
-
   // Create and cache bumper image
   const bumperImage = new Image();
   bumperImage.src = createBumperSVG();
@@ -369,7 +329,7 @@
       console.log("[Frontend] WebSocket connection opened.");
     };
 
-    socket.onmessage = (event) => {
+    socket.onmessage = (event) => { //added
       const data = JSON.parse(event.data);
       // console.log("[Frontend] Received data:", data);
       
@@ -391,28 +351,41 @@
       } else if (data.type === 'powerup_applied') {
           console.log(`[Frontend] Power-up applied to ${data.player}: ${data.effect}`);
           console.log(`[Frontend] Power-up duration: ${data.duration}`);
-          // Add effect to active effects {added}
-          activeEffects[data.player].add(data.effect);
-          console.log("Active effects immediately after adding:", {
-            left: Array.from(activeEffects.left),
-            right: Array.from(activeEffects.right)
-        });
-          // Clear previous timer if it exists {added}
-          if (effectTimers[`${data.player}_${data.effect}`]) {
-            clearTimeout(effectTimers[`${data.player}_${data.effect}`]);
-          }
-          // Set timer to remove effect
-          effectTimers[`${data.player}_${data.effect}`] = setTimeout(() => {
-            console.log(`[Frontend] Removing effect ${data.effect} for ${data.player}`);
-            activeEffects[data.player].delete(data.effect);
-            console.log("Active effects after removal:", {
+          // Determine which side should show the effect
+          if (data.effect !== 'flash') {
+            let displaySide;
+            if (data.effect === 'speed' || data.effect == 'sticky') {
+                // Speed shows on the side that picked it up
+                displaySide = data.player;
+            } else {
+                // Other effects show on the opponent's side
+                displaySide = data.player === 'left' ? 'right' : 'left';
+            }
+            
+            // Add effect to active effects
+            activeEffects[displaySide].add(data.effect);
+            console.log("Active effects immediately after adding:", {
                 left: Array.from(activeEffects.left),
                 right: Array.from(activeEffects.right)
             });
-          }, data.duration * 1000);
-        
-        // // Add visual feedback
-        // addEffectIndicator(data.player, data.effect, data.duration);
+            
+            // Clear previous timer if it exists
+            if (effectTimers[`${displaySide}_${data.effect}`]) {
+                clearTimeout(effectTimers[`${displaySide}_${data.effect}`]);
+            }
+            
+            // Set timer to remove effect
+            effectTimers[`${displaySide}_${data.effect}`] = setTimeout(() => {
+                console.log(`[Frontend] Removing effect ${data.effect} for ${displaySide}`);
+                activeEffects[displaySide].delete(data.effect);
+                console.log("Active effects after removal:", {
+                    left: Array.from(activeEffects.left),
+                    right: Array.from(activeEffects.right)
+                });
+            }, data.duration * 1000);
+          } else {
+              applyFlashEffect();
+          }
       }
     };
 
@@ -488,7 +461,7 @@
     });
 
     // Drawing function
-    function draw() {
+    function draw() { //added
       // console.log("Active Effects:", activeEffects);
       if (gameState.flash_effect) {
         ctx.fillStyle = 'white';
@@ -506,7 +479,7 @@
         ['left', 'right'].forEach(side => {
           ctx.save();
           
-          // Add effect glows
+          // Add effect glows added
           if (activeEffects[side].size > 0) {
             activeEffects[side].forEach(effect => {
               const glowColor = {
@@ -598,7 +571,6 @@
           'speed': 'SPEED',
           'shrink': 'SHRINK',
           'ice': 'ICE',
-          'flash': 'FLASH',
           'sticky': 'STICKY',
           'invert': 'INVERT'
       };

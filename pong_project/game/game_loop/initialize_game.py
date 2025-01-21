@@ -8,13 +8,13 @@ from .dimensions_utils import get_terrain_rect
 FIELD_HEIGHT = 300
 
 #------------- INITIALIZE : CREATE ALL GAME OBJECTS WITH THEIR INITIAL VALUES --------------
-async def initialize_game_objects(game_id, parameters):
+def initialize_game_objects(game_id, parameters):
     paddle_size = {1: 30, 2: 60, 3: 90}[parameters.racket_size]
     paddle_speed = 6  # Peut être ajusté si nécessaire
     ball_speed_multiplier = parameters.ball_speed
 
     # Obtenir les dimensions du terrain
-    terrain_rect = await get_terrain_rect(game_id)
+    terrain_rect = get_terrain_rect(game_id)
 
     # Initialiser les raquettes
     paddle_left = Paddle('left', paddle_size, paddle_speed)
@@ -49,7 +49,7 @@ async def initialize_game_objects(game_id, parameters):
 
 
 #------------- INITIALIZE : UPDATE REDIS DATABASE WITH OBJECTS VALUES--------------
-async def initialize_redis(game_id, paddle_left, paddle_right, ball):
+def initialize_redis(game_id, paddle_left, paddle_right, ball):
     # Positions initiales des raquettes
     set_key(game_id, "paddle_left_y", paddle_left.y)
     set_key(game_id, "paddle_right_y", paddle_right.y)

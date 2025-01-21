@@ -1,17 +1,67 @@
 # game/game_loop/broadcast.py
 
 from channels.layers import get_channel_layer
+from .redis_utils import get_key
+
 
 # --------- GAME STATE : NOTIFICATIONS -----------
-async def broadcast_game_state(game_id, data):
-    channel_layer = get_channel_layer()
-    await channel_layer.group_send(
-        f"pong_{game_id}",
-        {
-            'type': 'broadcast_game_state',
-            'data': data
-        }
-    )
+async def broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right, ball, powerup_orbs, bumpers):
+    """
+    Envoie l'état actuel du jeu aux clients via WebSocket.
+    """
+    # Récupérer les états des power-ups
+    powerups = []
+    for powerup_orb in powerup_orbs:
+        active = get_key(game_id, f"powerup_{powerup_orb.effect_type}_active" or 0)
+        if active and active.decode('utf-8') == '1':
+            x = float(get_key(game_id, f"powerup_{powerup_orb.effect_type}_x") or 0)
+            y = float(get_key(game_id, f"powerup_{powerup_orb.effect_type}_y") or 0)
+            powerups.append({
+                'type': powerup_orb.effect_type,
+                'x': x,
+                'y': y,
+                'color': list(powerup_orb.color)  # Convertir en liste pour JSON
+            })
+
+    # Récupérer les états des bumpers
+    bumpers = []
+    for bumper in bumpers:
+        active = get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_active" or 0)
+        if active and active.decode('utf-8') == '1':
+            x = float(get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_x") or 0)
+            y = float(get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_y") or 0)
+            bumpers.append({
+                'x': x,
+                'y': y,
+                'size': bumper.size,
+                'color': list(bumper.color)  # Convertir en liste pour JSON
+            })
+
+    data = {
+        'type': 'game_state',
+        'ball_x': ball.x,
+        'ball_y': ball.y,
+        'ball_size': ball.size,
+        'ball_speed_x': ball.speed_x,
+        'ball_speed_y': ball.speed_y,
+        'paddle_left_y': paddle_left.y,
+        'paddle_right_y': paddle_right.y,
+        'paddle_width': paddle_left.width,
+        'paddle_left_height': paddle_left.height,
+        'paddle_right_height': paddle_right.height,
+        'score_left': int(get_key(game_id, "score_left") or 0),
+        'score_right': int(get_key(game_id, "score_right") or 0),
+        'powerups': powerups,
+        'bumpers': bumpers,
+    }
+
+    await channel_layer.group_send(f"pong_{game_id}", {
+        'type': 'broadcast_game_state',
+        'data': data
+    })
+    # print(f"[game_loop.py] Broadcast game_state for game_id={game_id}")
+
+
 
 
 # --------- POWER UPS : NOTIFICATIONS -----------
@@ -56,6 +106,34 @@ async def notify_powerup_expired(game_id, powerup_orb):
         }
     )
 
+# --------- BUMPERS : NOTIFICATIONS -----------
+async def notify_bumper_spawned(game_id, bumper):
+    channel_layer = get_channel_layer()
+    await channel_layer.group_send(
+        f"pong_{game_id}",
+        {
+            'type': 'bumper_spawned',
+            'bumper': {
+                'x': bumper.x,
+                'y': bumper.y,
+            }
+        }
+    )
+
+
+async def notify_bumper_expired(game_id, bumper):
+    channel_layer = get_channel_layer()
+    await channel_layer.group_send(
+        f"pong_{game_id}",
+        {
+            'type': 'bumper_expired',
+            'bumper': {
+                'x': bumper.x,
+                'y': bumper.y
+            }
+        }
+    )
+
 # --------- COLLISIONS : NOTIFICATIONS -----------
 async def notify_collision(game_id, collision_info):
     channel_layer = get_channel_layer()
@@ -86,7 +164,7 @@ async def notify_border_collision(game_id, border_side, ball):
     }
     await notify_collision(game_id, collision_info)
 
-    print(f"[collisions.py] Ball collided with {border_side} border at coor x = {ball}.")
+    print(f"[collisions.py] Ball collided with {border_side} border at coor x = {ball.x}.")
 
 async def notify_bumper_collision(game_id, bumper, ball):
     collision_info = {

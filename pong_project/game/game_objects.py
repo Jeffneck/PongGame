@@ -110,6 +110,9 @@ class PowerUpOrb:
 
         return False
 
+    def activate(self):
+        self.active = True
+
     def deactivate(self):
         self.active = False
         self.x = None
@@ -150,6 +153,9 @@ class Bumper:
             return True
 
         return False
+    
+    def activate(self):
+        self.active = True
 
     def deactivate(self):
         self.active = False

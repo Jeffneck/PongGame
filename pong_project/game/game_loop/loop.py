@@ -1,13 +1,14 @@
+# game/game_loop/loop.py
+
 import asyncio
 from django.conf import settings
 from channels.layers import get_channel_layer
 from .models_utils import get_gameSession_status, get_gameSession_parameters
-from .dimensions_utils import get_terrain_rect
 from .initialize_game import initialize_game_objects, initialize_redis
 from .score_utils import handle_score, winner_detected, finish_game
 from .paddles_utils import move_paddles, update_paddles_redis 
 from .bumpers_utils import handle_bumpers, handle_bumper_expiration
-from .collisions import check_collisions
+from .collisions import handle_scoring_or_paddle_collision, handle_border_collisions, handle_bumper_collision, handle_powerup_collision
 from .ball_utils import reset_ball, move_ball, update_ball_redis 
 from .powerups_utils import handle_powerups, handle_powerup_expiration
 from .broadcast import broadcast_game_state
@@ -30,11 +31,11 @@ async def game_loop(game_id):
         parameters = await get_gameSession_parameters(game_id)
         
         # Initialiser les objets de jeu
-        paddle_left, paddle_right, ball, powerup_orbs, bumpers = await initialize_game_objects(game_id, parameters)
+        paddle_left, paddle_right, ball, powerup_orbs, bumpers = initialize_game_objects(game_id, parameters)
         print(f"[game_loop.py] Game objects initialized for game_id={game_id}.")
         
         # Initialiser les positions et vélocités dans Redis
-        await initialize_redis(game_id, paddle_left, paddle_right, ball, powerup_orbs, bumpers)
+        initialize_redis(game_id, paddle_left, paddle_right, ball)
         print(f"[game_loop.py] Game objects positions initialized in Redis for game_id={game_id}.")
         
         last_powerup_spawn_time = time.time()
@@ -57,33 +58,36 @@ async def game_loop(game_id):
             # Mettre à jour les positions des raquettes depuis Redis en fonction de la vélocité
             move_paddles(game_id, paddle_left, paddle_right)
             # Mettre a jour redis avec la nouvelle position des paddles (après le mouvement)
-            await update_paddles_redis(game_id, paddle_left, paddle_right)
+            update_paddles_redis(game_id, paddle_left, paddle_right)
             # print(f"[game_loop.py] game_id={game_id} - Paddles positions updated from Redis.")
 
             # Mettre à jour la position de la balle (ancienne valeur + increment)
             move_ball(game_id, ball)
-            await update_ball_redis(game_id, ball)
+            update_ball_redis(game_id, ball)
             # print(f"[game_loop.py] game_id={game_id} - Ball position updated to ({ball.x}, {ball.y})")
 
-            # 3. Vérifier les collisions
-            scorer = await check_collisions(game_id, paddle_left, paddle_right, ball, bumpers, powerup_orbs)
+            # 3. Vérifier les collisions (et aussi les buts marques)
+            await handle_border_collisions(game_id, ball)
+            await handle_bumper_collision(game_id, ball, bumpers)
+            await handle_powerup_collision(game_id, ball, powerup_orbs)
+            scorer = await handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right, ball)
             if scorer in ['score_left', 'score_right']:
-                await handle_score(game_id, scorer)
-                if (await winner_detected(game_id)):
+                handle_score(game_id, scorer)
+                if (winner_detected(game_id)):
                     await finish_game(game_id)
                     break
                 else:
-                    await reset_ball(game_id, ball)
+                    reset_ball(game_id, ball)
 
             # 4. Gérer les power-ups
             if parameters.bonus_malus_activation:
-                await handle_powerups(game_id, powerup_orbs, current_time, last_powerup_spawn_time, powerup_spawn_interval)
+                await handle_powerups(game_id, powerup_orbs, current_time, last_powerup_spawn_time)
                 await handle_powerup_expiration(game_id, powerup_orbs)
 
 
             # 5. Gérer les bumpers
             if parameters.bumpers_activation:
-                await handle_bumpers(game_id, bumpers, current_time, last_bumper_spawn_time, bumper_spawn_interval)
+                await handle_bumpers(game_id, bumpers, current_time, last_bumper_spawn_time)
                 await handle_bumper_expiration(game_id, bumpers)
 
             # 8. Broadcast l'état actuel du jeu

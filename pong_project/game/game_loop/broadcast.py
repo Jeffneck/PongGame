@@ -10,13 +10,13 @@ async def broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right
     Envoie l'état actuel du jeu aux clients via WebSocket.
     """
     # Récupérer les états des power-ups
-    powerups = []
+    powerups_data = []
     for powerup_orb in powerup_orbs:
         active = get_key(game_id, f"powerup_{powerup_orb.effect_type}_active" or 0)
         if active and active.decode('utf-8') == '1':
             x = float(get_key(game_id, f"powerup_{powerup_orb.effect_type}_x") or 0)
             y = float(get_key(game_id, f"powerup_{powerup_orb.effect_type}_y") or 0)
-            powerups.append({
+            powerups_data.append({
                 'type': powerup_orb.effect_type,
                 'x': x,
                 'y': y,
@@ -24,13 +24,14 @@ async def broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right
             })
 
     # Récupérer les états des bumpers
-    bumpers = []
+    # print(f"[game_loop.py] bumpers to send: {bumpers}")
+    bumpers_data = []
     for bumper in bumpers:
         active = get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_active" or 0)
         if active and active.decode('utf-8') == '1':
             x = float(get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_x") or 0)
             y = float(get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_y") or 0)
-            bumpers.append({
+            bumpers_data.append({
                 'x': x,
                 'y': y,
                 'size': bumper.size,
@@ -51,8 +52,8 @@ async def broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right
         'paddle_right_height': paddle_right.height,
         'score_left': int(get_key(game_id, "score_left") or 0),
         'score_right': int(get_key(game_id, "score_right") or 0),
-        'powerups': powerups,
-        'bumpers': bumpers,
+        'powerups': powerups_data,
+        'bumpers': bumpers_data,
     }
 
     await channel_layer.group_send(f"pong_{game_id}", {
@@ -80,9 +81,8 @@ async def notify_powerup_spawned(game_id, powerup_orb):
         }
     )
 
-async def notify_powerup_applied(game_id, player, effect, channel_layer=None):
-    if not channel_layer:
-        channel_layer = get_channel_layer()
+async def notify_powerup_applied(game_id, player, effect):
+    channel_layer = get_channel_layer()
     await channel_layer.group_send(
         f"pong_{game_id}",
         {

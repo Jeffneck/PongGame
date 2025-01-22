@@ -25,17 +25,69 @@ def update_ball_redis(game_id, ball):
     set_key(game_id, "ball_vy", ball.speed_y)# game/game_loop/broadcast.py
 
 from channels.layers import get_channel_layer
+from .redis_utils import get_key
+
 
 # --------- GAME STATE : NOTIFICATIONS -----------
-async def broadcast_game_state(game_id, data):
-    channel_layer = get_channel_layer()
-    await channel_layer.group_send(
-        f"pong_{game_id}",
-        {
-            'type': 'broadcast_game_state',
-            'data': data
-        }
-    )
+async def broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right, ball, powerup_orbs, bumpers):
+    """
+    Envoie l'état actuel du jeu aux clients via WebSocket.
+    """
+    # Récupérer les états des power-ups
+    powerups = []
+    for powerup_orb in powerup_orbs:
+        active = get_key(game_id, f"powerup_{powerup_orb.effect_type}_active" or 0)
+        if active and active.decode('utf-8') == '1':
+            x = float(get_key(game_id, f"powerup_{powerup_orb.effect_type}_x") or 0)
+            y = float(get_key(game_id, f"powerup_{powerup_orb.effect_type}_y") or 0)
+            powerups.append({
+                'type': powerup_orb.effect_type,
+                'x': x,
+                'y': y,
+                'color': list(powerup_orb.color)  # Convertir en liste pour JSON
+            })
+
+    # Récupérer les états des bumpers
+    # print(f"[game_loop.py] bumpers to send: {bumpers}")
+    bumpers = []
+    for bumper in bumpers:
+        print("BUMPER")
+        active = get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_active" or 0)
+        if active and active.decode('utf-8') == '1':
+            x = float(get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_x") or 0)
+            y = float(get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_y") or 0)
+            bumpers.append({
+                'x': x,
+                'y': y,
+                'size': bumper.size,
+                'color': list(bumper.color)  # Convertir en liste pour JSON
+            })
+
+    data = {
+        'type': 'game_state',
+        'ball_x': ball.x,
+        'ball_y': ball.y,
+        'ball_size': ball.size,
+        'ball_speed_x': ball.speed_x,
+        'ball_speed_y': ball.speed_y,
+        'paddle_left_y': paddle_left.y,
+        'paddle_right_y': paddle_right.y,
+        'paddle_width': paddle_left.width,
+        'paddle_left_height': paddle_left.height,
+        'paddle_right_height': paddle_right.height,
+        'score_left': int(get_key(game_id, "score_left") or 0),
+        'score_right': int(get_key(game_id, "score_right") or 0),
+        'powerups': powerups,
+        'bumpers': bumpers,
+    }
+
+    await channel_layer.group_send(f"pong_{game_id}", {
+        'type': 'broadcast_game_state',
+        'data': data
+    })
+    # print(f"[game_loop.py] Broadcast game_state for game_id={game_id}")
+
+
 
 
 # --------- POWER UPS : NOTIFICATIONS -----------
@@ -54,9 +106,8 @@ async def notify_powerup_spawned(game_id, powerup_orb):
         }
     )
 
-async def notify_powerup_applied(game_id, player, effect, channel_layer=None):
-    if not channel_layer:
-        channel_layer = get_channel_layer()
+async def notify_powerup_applied(game_id, player, effect):
+    channel_layer = get_channel_layer()
     await channel_layer.group_send(
         f"pong_{game_id}",
         {
@@ -173,21 +224,32 @@ from .redis_utils import get_key, set_key, delete_key
 from .dimensions_utils import get_terrain_rect
 from .broadcast import notify_bumper_spawned, notify_bumper_expired
 import random
+
+MAX_ACTIVE_BUMPERS = 3
+SPAWN_INTERVAL_BUMPERS = 7
 # -------------- BUMPERS --------------------
-async def handle_bumpers(game_id, bumpers, current_time, last_bumper_spawn_time, bumper_spawn_interval):
-    if current_time - last_bumper_spawn_time >= bumper_spawn_interval:
-        active_bumpers = await count_active_bumpers(game_id, bumpers)
-        if active_bumpers < 2:  # MAX_BUMPERS = 2
+async def handle_bumpers_spawn(game_id, bumpers, current_time):
+    # Initialisation de last_bumper_spawn_time si elle n'est pas déjà définie
+    if not hasattr(handle_bumpers_spawn, "last_bumper_spawn_time"):
+        handle_bumpers_spawn.last_bumper_spawn_time = current_time  # Initialisation lors du premier appel
+
+    # Utilisation de la variable statique pour vérifier l'intervalle de temps
+    if current_time - handle_bumpers_spawn.last_bumper_spawn_time >= SPAWN_INTERVAL_BUMPERS:
+        active_bumpers = count_active_bumpers(game_id, bumpers)
+        if active_bumpers < MAX_ACTIVE_BUMPERS:
+            # S'assurer qu'on ne génère qu'un seul bumper à la fois
             bumper = random.choice(bumpers)
             if not bumper.active:
-                terrain = get_terrain_rect()
+                terrain = get_terrain_rect(game_id)
                 spawned = await spawn_bumper(game_id, bumper, terrain)
                 if spawned:
-                    last_bumper_spawn_time = current_time
+                    # Mettre à jour le temps de spawn du bumper pour éviter les doubles spawns
+                    handle_bumpers_spawn.last_bumper_spawn_time = current_time
                     print(f"[game_loop.py] game_id={game_id} - Bumper spawned at ({bumper.x}, {bumper.y}).")
 
+
 async def spawn_bumper(game_id, bumper, terrain_rect):
-    if await bumper.spawn(terrain_rect):
+    if bumper.spawn(terrain_rect):
         set_bumper_redis(game_id, bumper)
         print(f"[game_loop.py] Bumper spawned at ({bumper.x}, {bumper.y})")
         await notify_bumper_spawned(game_id, bumper)
@@ -197,8 +259,10 @@ async def spawn_bumper(game_id, bumper, terrain_rect):
 def count_active_bumpers(game_id, bumpers):
     count = 0
     for bumper in bumpers:
-        active = get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_active")
+        # active = int(get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_active") or 0)
+        active = get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_active") or 0
         if active and active.decode('utf-8') == '1':
+        # if active :
             count += 1
     print(f"[loop.py] count_active_bumpers ({count})")
     return count
@@ -206,8 +270,10 @@ def count_active_bumpers(game_id, bumpers):
 async def handle_bumper_expiration(game_id, bumpers):
     current_time = time.time()
     for bumper in bumpers:
-        active = get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_active")
+        active = get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_active") or 0
+        # active = int(get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_active") or 0)
         if active and active.decode('utf-8') == '1'and current_time - bumper.spawn_time >= bumper.duration:
+        # if active and current_time - bumper.spawn_time >= bumper.duration:
             delete_bumper_redis(game_id, bumper)
             print(f"[loop.py] Bumper at ({bumper.x}, {bumper.y}) expired")
             await notify_bumper_expired(game_id, bumper)
@@ -234,26 +300,26 @@ from .powerups_utils import apply_powerup
 from .broadcast import notify_paddle_collision, notify_border_collision, notify_bumper_collision, notify_powerup_applied
 
 # Temps de cooldown pour les collisions avec les bumpers (en secondes)
-COOLDOWN_TIME = 0.5
+# COOLDOWN_TIME = 0.5
 
-async def check_collisions(game_id, paddle_left, paddle_right, ball, bumpers, powerup_orbs):
-    # Gérer les collisions avec les raquettes
-    scoring = await handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right, ball)
-    if scoring:
-        return scoring
+# async def check_collisions(game_id, paddle_left, paddle_right, ball, bumpers, powerup_orbs):
+#     # Gérer les collisions avec les raquettes
+#     scoring = await handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right, ball)
+#     if scoring:
+#         return scoring
 
-    # Gérer les collisions avec les bords
-    handle_border_collisions(game_id, ball)
+#     # Gérer les collisions avec les bords
+#     await handle_border_collisions(game_id, ball)
 
-    # Gérer les collisions avec les bumpers
-    await handle_bumper_collision(game_id, ball, bumpers)
+#     # Gérer les collisions avec les bumpers
+#     await handle_bumper_collision(game_id, ball, bumpers)
 
-    # Gérer les collisions avec les power-ups
-    await handle_powerup_collision(game_id, ball, powerup_orbs)
+#     # Gérer les collisions avec les power-ups
+#     await handle_powerup_collision(game_id, ball, powerup_orbs)
 
-    return None
+#     return None
 
-def handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right, ball):
+async def handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right, ball):
     """
     Gère les collisions avec les paddles gauche et droite.
     Retourne 'score_left', 'score_right' ou None.
@@ -262,7 +328,7 @@ def handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right, ball)
     if ball.x - ball.size <= paddle_left.x + paddle_left.width:
         if paddle_left.y <= ball.y <= paddle_left.y + paddle_left.height:
             ball.last_player = 'left'  # Mettre à jour le dernier joueur
-            process_paddle_collision(game_id, 'left', paddle_left, ball)
+            await process_paddle_collision(game_id, 'left', paddle_left, ball)
             return None
         else:
             return 'score_right'
@@ -271,7 +337,7 @@ def handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right, ball)
     if ball.x + ball.size >= paddle_right.x:
         if paddle_right.y <= ball.y <= paddle_right.y + paddle_right.height:
             ball.last_player = 'right'  # Mettre à jour le dernier joueur
-            process_paddle_collision(game_id, 'right', paddle_right, ball)
+            await process_paddle_collision(game_id, 'right', paddle_right, ball)
             return None
         else:
             return 'score_left'
@@ -279,7 +345,7 @@ def handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right, ball)
     return None
 
 #ball
-def process_paddle_collision(game_id, paddle_side, paddle, ball):
+async def process_paddle_collision(game_id, paddle_side, paddle, ball):
     """
     Gère la logique de collision entre la balle et une raquette.
     Ajuste la vitesse et la direction de la balle, met à jour Redis et notifie les clients.
@@ -301,10 +367,10 @@ def process_paddle_collision(game_id, paddle_side, paddle, ball):
     update_ball_redis(game_id, ball)
 
     # Notifier la collision via WebSocket
-    notify_paddle_collision(game_id, paddle_side, ball)
+    await notify_paddle_collision(game_id, paddle_side, ball)
     
 
-def handle_border_collisions(game_id, ball):
+async def handle_border_collisions(game_id, ball):
     """
     Gère les collisions avec les bords supérieur et inférieur.
     Ajuste la vitesse de la balle en conséquence.
@@ -312,12 +378,14 @@ def handle_border_collisions(game_id, ball):
     if ball.y - ball.size <= 50:
         border_side = "up"
         ball.speed_y = abs(ball.speed_y)  # Rebond vers le bas
+        update_ball_redis(game_id, ball)
+        await notify_border_collision(game_id, border_side, ball)
+
     elif ball.y + ball.size >= 350:
         border_side = "down"
         ball.speed_y = -abs(ball.speed_y)  # Rebond vers le haut
-    
-    # Notifier la collision via WebSocket
-    notify_border_collision(game_id, border_side, ball)
+        update_ball_redis(game_id, ball)
+        await notify_border_collision(game_id, border_side, ball)
 
 
 async def handle_bumper_collision(game_id, ball, bumpers):
@@ -330,20 +398,20 @@ async def handle_bumper_collision(game_id, ball, bumpers):
         if bumper.active:
             dist = math.hypot(ball.x - bumper.x, ball.y - bumper.y)
             if dist <= ball.size + bumper.size:
-                if current_time - bumper.last_collision_time >= COOLDOWN_TIME:
-                    angle = math.atan2(ball.y - bumper.y, ball.x - bumper.x)
-                    speed = math.hypot(ball.speed_x, ball.speed_y) * 1.05  # Augmentation de la vitesse
-                    ball.speed_x = speed * math.cos(angle)
-                    ball.speed_y = speed * math.sin(angle)
+                # if current_time - bumper.last_collision_time >= COOLDOWN_TIME:
+                angle = math.atan2(ball.y - bumper.y, ball.x - bumper.x)
+                speed = math.hypot(ball.speed_x, ball.speed_y) * 1.05  # Augmentation de la vitesse
+                ball.speed_x = speed * math.cos(angle)
+                ball.speed_y = speed * math.sin(angle)
 
-                    # Mettre à jour la balle dans Redis
-                    update_ball_redis(game_id, ball)
+                # Mettre à jour la balle dans Redis
+                update_ball_redis(game_id, ball)
 
-                    # Mettre à jour le temps de la dernière collision
-                    bumper.last_collision_time = current_time
+                # Mettre à jour le temps de la dernière collision
+                bumper.last_collision_time = current_time
 
-                    # Notifier la collision via WebSocket
-                    await notify_bumper_collision(game_id, bumper, ball)
+                # Notifier la collision via WebSocket
+                await notify_bumper_collision(game_id, bumper, ball)
                     
 
 async def handle_powerup_collision(game_id, ball, powerup_orbs):
@@ -443,10 +511,10 @@ from .models_utils import get_gameSession_status, get_gameSession_parameters
 from .initialize_game import initialize_game_objects, initialize_redis
 from .score_utils import handle_score, winner_detected, finish_game
 from .paddles_utils import move_paddles, update_paddles_redis 
-from .bumpers_utils import handle_bumpers, handle_bumper_expiration
-from .collisions import check_collisions
+from .bumpers_utils import handle_bumpers_spawn, handle_bumper_expiration
+from .collisions import handle_scoring_or_paddle_collision, handle_border_collisions, handle_bumper_collision, handle_powerup_collision
 from .ball_utils import reset_ball, move_ball, update_ball_redis 
-from .powerups_utils import handle_powerups, handle_powerup_expiration
+from .powerups_utils import handle_powerups_spawn, handle_powerup_expiration
 from .broadcast import broadcast_game_state
 
 from asgiref.sync import sync_to_async
@@ -464,21 +532,15 @@ async def game_loop(game_id):
 
     try:
         # Récupérer les paramètres du jeu
-        parameters = get_gameSession_parameters(game_id)
+        parameters = await get_gameSession_parameters(game_id)
         
         # Initialiser les objets de jeu
-        paddle_left, paddle_right, ball, powerup_orbs, bumpers = await initialize_game_objects(game_id, parameters)
+        paddle_left, paddle_right, ball, powerup_orbs, bumpers = initialize_game_objects(game_id, parameters)
         print(f"[game_loop.py] Game objects initialized for game_id={game_id}.")
         
         # Initialiser les positions et vélocités dans Redis
         initialize_redis(game_id, paddle_left, paddle_right, ball)
         print(f"[game_loop.py] Game objects positions initialized in Redis for game_id={game_id}.")
-        
-        last_powerup_spawn_time = time.time()
-        powerup_spawn_interval = 10  # Adjust as needed
-
-        last_bumper_spawn_time = time.time()
-        bumper_spawn_interval = 15  # Adjust as needed
 
         while True:
             current_time = time.time()
@@ -494,33 +556,36 @@ async def game_loop(game_id):
             # Mettre à jour les positions des raquettes depuis Redis en fonction de la vélocité
             move_paddles(game_id, paddle_left, paddle_right)
             # Mettre a jour redis avec la nouvelle position des paddles (après le mouvement)
-            await update_paddles_redis(game_id, paddle_left, paddle_right)
+            update_paddles_redis(game_id, paddle_left, paddle_right)
             # print(f"[game_loop.py] game_id={game_id} - Paddles positions updated from Redis.")
 
             # Mettre à jour la position de la balle (ancienne valeur + increment)
             move_ball(game_id, ball)
-            await update_ball_redis(game_id, ball)
+            update_ball_redis(game_id, ball)
             # print(f"[game_loop.py] game_id={game_id} - Ball position updated to ({ball.x}, {ball.y})")
 
-            # 3. Vérifier les collisions
-            scorer = await check_collisions(game_id, paddle_left, paddle_right, ball, bumpers, powerup_orbs)
+            # 3. Vérifier les collisions (et aussi les buts marques)
+            await handle_border_collisions(game_id, ball)
+            await handle_bumper_collision(game_id, ball, bumpers)
+            await handle_powerup_collision(game_id, ball, powerup_orbs)
+            scorer = await handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right, ball)
             if scorer in ['score_left', 'score_right']:
-                await handle_score(game_id, scorer)
-                if (await winner_detected(game_id)):
+                handle_score(game_id, scorer)
+                if (winner_detected(game_id)):
                     await finish_game(game_id)
                     break
                 else:
-                    await reset_ball(game_id, ball)
+                    reset_ball(game_id, ball)
 
             # 4. Gérer les power-ups
             if parameters.bonus_malus_activation:
-                await handle_powerups(game_id, powerup_orbs, current_time, last_powerup_spawn_time, powerup_spawn_interval)
+                await handle_powerups_spawn(game_id, powerup_orbs, current_time)
                 await handle_powerup_expiration(game_id, powerup_orbs)
 
 
             # 5. Gérer les bumpers
             if parameters.bumpers_activation:
-                await handle_bumpers(game_id, bumpers, current_time, last_bumper_spawn_time, bumper_spawn_interval)
+                await handle_bumpers_spawn(game_id, bumpers, current_time)
                 await handle_bumper_expiration(game_id, bumpers)
 
             # 8. Broadcast l'état actuel du jeu
@@ -584,70 +649,83 @@ async def create_gameResults(game_id, endgame_infos):
     except GameSession.DoesNotExist:
         print(f"[create_gameResults] GameSession {game_id} does not exist.")# game/game_loop/paddles_utils.py
 from .redis_utils import get_key, set_key
-
-FIELD_HEIGHT = 400
+from .dimensions_utils import get_terrain_rect
+# FIELD_HEIGHT = 400
 
 # -------------- PADDLES --------------------
 def move_paddles(game_id, paddle_left, paddle_right):
     left_vel = float(get_key(game_id, "paddle_left_velocity") or 0)
     right_vel = float(get_key(game_id, "paddle_right_velocity") or 0)
 
+    terrain_rect = get_terrain_rect(game_id)
+    terrain_top = terrain_rect['top']
+    terrain_bottom = terrain_top + terrain_rect['height']
+
     # Appliquer la vélocité
     paddle_left.y += left_vel
     paddle_right.y += right_vel
 
-    # Contraindre le mouvement dans [50, 350 - paddle.height]
-    paddle_left.y = max(paddle_left.height, min(FIELD_HEIGHT - paddle_left.height, paddle_left.y))
-    paddle_right.y = max(paddle_right.height, min(FIELD_HEIGHT - paddle_right.height, paddle_right.y))
+    # Contraindre le mouvement dans les limites du terrain
+    paddle_left.y = max(terrain_top, min(terrain_bottom - paddle_left.height, paddle_left.y))
+    paddle_right.y = max(terrain_top, min(terrain_bottom - paddle_right.height, paddle_right.y))
 
 # -------------- PADDLES : UPDATE REDIS--------------------
 def update_paddles_redis(game_id, paddle_left, paddle_right):
     set_key(game_id, "paddle_left_y", paddle_left.y)
-    set_key(game_id, "paddle_right_y", paddle_right.y)# game/game_loop/powerups_utils.py
-
-import time
+    set_key(game_id, "paddle_right_y", paddle_right.y)import time
 from .redis_utils import get_key
 from .dimensions_utils import get_terrain_rect
 from .redis_utils import set_key, get_key, delete_key
 from .broadcast import notify_powerup_applied, notify_powerup_spawned, notify_powerup_expired
 import random
-# -------------- POWER UP --------------------
 
-async def handle_powerups(game_id, powerup_orbs, current_time, last_powerup_spawn_time, powerup_spawn_interval):
-    if current_time - last_powerup_spawn_time >= powerup_spawn_interval:
-        active_powerups = await count_active_powerups(game_id, powerup_orbs)
-        if active_powerups < 2:  # MAX_ACTIVE_POWERUPS = 2
+MAX_ACTIVE_POWERUPS = 2
+SPAWN_INTERVAL_POWERUPS = 5
+
+# -------------- POWER UP --------------------
+async def handle_powerups_spawn(game_id, powerup_orbs, current_time):
+    # Initialisation de last_powerup_spawn_time si elle n'est pas déjà définie
+    if not hasattr(handle_powerups_spawn, "last_powerup_spawn_time"):
+        handle_powerups_spawn.last_powerup_spawn_time = current_time  # Initialisation lors du premier appel
+
+    # Utilisation de la variable statique pour vérifier l'intervalle de temps
+    if current_time - handle_powerups_spawn.last_powerup_spawn_time >= SPAWN_INTERVAL_POWERUPS:
+        active_powerups = count_active_powerups(game_id, powerup_orbs)
+        if active_powerups < MAX_ACTIVE_POWERUPS:
+            # S'assurer qu'on ne génère qu'un seul powerup à la fois
             powerup_orb = random.choice(powerup_orbs)
             if not powerup_orb.active:
-                terrain = get_terrain_rect()
+                terrain = get_terrain_rect(game_id)
                 spawned = await spawn_powerup(game_id, powerup_orb, terrain)
                 if spawned:
-                    last_powerup_spawn_time = current_time
+                    # Mettre à jour le temps de spawn du powerup pour éviter les doubles spawns
+                    handle_powerups_spawn.last_powerup_spawn_time = current_time
                     print(f"[game_loop.py] game_id={game_id} - PowerUp {powerup_orb.effect_type} spawned.")
+
 
 
 async def spawn_powerup(game_id, powerup_orb, terrain_rect):
     # Ne pas faire spawn 2 fois le même powerup sur le terrain
-    # if powerup_orb.active:
-    #     print(f"[powerups.py] PowerUp {powerup_orb.effect_type} is already active, skipping spawn.")
-    #     return False
+    if powerup_orb.active:
+        print(f"[powerups.py] PowerUp {powerup_orb.effect_type} is already active, skipping spawn.")
+        return False
 
-    if powerup_orb.spawn(terrain_rect):
+    if (powerup_orb.spawn)(terrain_rect):
         set_powerup_redis(game_id, powerup_orb)
         print(f"[powerups.py] PowerUp {powerup_orb.effect_type} spawned at ({powerup_orb.x}, {powerup_orb.y})")
         await notify_powerup_spawned(game_id, powerup_orb)
         return True
     return False
 
-async def apply_powerup(game_id, player, powerup_orb, channel_layer):
+async def apply_powerup(game_id, player, powerup_orb):
     print(f"[powerups.py] Applying power-up {powerup_orb.effect_type} to {player}")
     delete_powerup_redis(game_id, powerup_orb)
-    await notify_powerup_applied(game_id, player, powerup_orb.effect_type, channel_layer)
+    await notify_powerup_applied(game_id, player, powerup_orb.effect_type)
 
 def count_active_powerups(game_id, powerup_orbs):
     count = 0
     for powerup_orb in powerup_orbs:
-        active = get_key(game_id, f"powerup_{powerup_orb.effect_type}_active")
+        active = get_key(game_id, f"powerup_{powerup_orb.effect_type}_active") or 0
         if active and active.decode('utf-8') == '1':
             count += 1
     print(f"[loop.py] count_active_powerups ({count})")
@@ -673,7 +751,8 @@ def delete_powerup_redis(game_id, powerup_orb):
     powerup_orb.deactivate()
     delete_key(game_id, f"powerup_{powerup_orb.effect_type}_active")
     delete_key(game_id, f"powerup_{powerup_orb.effect_type}_x")
-    delete_key(game_id, f"powerup_{powerup_orb.effect_type}_y")# game/game_loop/redis_utils.py
+    delete_key(game_id, f"powerup_{powerup_orb.effect_type}_y")
+# game/game_loop/redis_utils.py
 
 import redis
 from django.conf import settings

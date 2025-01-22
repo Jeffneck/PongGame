@@ -7,10 +7,10 @@ from .models_utils import get_gameSession_status, get_gameSession_parameters
 from .initialize_game import initialize_game_objects, initialize_redis
 from .score_utils import handle_score, winner_detected, finish_game
 from .paddles_utils import move_paddles, update_paddles_redis 
-from .bumpers_utils import handle_bumpers, handle_bumper_expiration
+from .bumpers_utils import handle_bumpers_spawn, handle_bumper_expiration
 from .collisions import handle_scoring_or_paddle_collision, handle_border_collisions, handle_bumper_collision, handle_powerup_collision
 from .ball_utils import reset_ball, move_ball, update_ball_redis 
-from .powerups_utils import handle_powerups, handle_powerup_expiration
+from .powerups_utils import handle_powerups_spawn, handle_powerup_expiration
 from .broadcast import broadcast_game_state
 
 from asgiref.sync import sync_to_async
@@ -37,12 +37,6 @@ async def game_loop(game_id):
         # Initialiser les positions et vélocités dans Redis
         initialize_redis(game_id, paddle_left, paddle_right, ball)
         print(f"[game_loop.py] Game objects positions initialized in Redis for game_id={game_id}.")
-        
-        last_powerup_spawn_time = time.time()
-        powerup_spawn_interval = 10  # Adjust as needed
-
-        last_bumper_spawn_time = time.time()
-        bumper_spawn_interval = 15  # Adjust as needed
 
         while True:
             current_time = time.time()
@@ -81,13 +75,13 @@ async def game_loop(game_id):
 
             # 4. Gérer les power-ups
             if parameters.bonus_malus_activation:
-                await handle_powerups(game_id, powerup_orbs, current_time, last_powerup_spawn_time)
+                await handle_powerups_spawn(game_id, powerup_orbs, current_time)
                 await handle_powerup_expiration(game_id, powerup_orbs)
 
 
             # 5. Gérer les bumpers
             if parameters.bumpers_activation:
-                await handle_bumpers(game_id, bumpers, current_time, last_bumper_spawn_time)
+                await handle_bumpers_spawn(game_id, bumpers, current_time)
                 await handle_bumper_expiration(game_id, bumpers)
 
             # 8. Broadcast l'état actuel du jeu

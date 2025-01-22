@@ -4,7 +4,7 @@ from channels.layers import get_channel_layer
 from asgiref.sync import sync_to_async
 from .broadcast import notify_game_finished
 from .redis_utils import set_key, get_key, scan_and_delete_keys
-from .models_utils import set_gameSession_as_finished, create_gameResults, get_LocalTournament
+from .models_utils import set_gameSession_status, create_gameResults, get_LocalTournament
 
 # transformer en parametre ajustable GameParameters?
 WIN_SCORE = 4  
@@ -52,7 +52,7 @@ async def finish_game(game_id):
     score_right = int(get_key(game_id, "score_right") or 0)
 
     # Marquer la session comme terminée et récupérer ses informations
-    gameSession = await set_gameSession_as_finished(game_id)
+    gameSession = await set_gameSession_status(game_id, "finished")
     if not gameSession:
         print(f"[finish_game] GameSession {game_id} does not exist.")
         return

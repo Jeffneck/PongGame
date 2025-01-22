@@ -12,11 +12,11 @@ async def get_gameSession_status(game_id):
         return 'finished'
 
 
-async def set_gameSession_as_finished(game_id):
+async def set_gameSession_status(game_id, status):
     GameSession = apps.get_model('game', 'GameSession')
     try:
         session = await sync_to_async(GameSession.objects.get)(pk=game_id)
-        session.status = 'finished'
+        session.status = status
         await sync_to_async(session.save)()
         return session
     except GameSession.DoesNotExist:
@@ -34,9 +34,9 @@ async def get_gameSession_parameters(game_id):
     
 async def get_LocalTournament(game_id, phase):
     LocalTournament = apps.get_model('game', 'LocalTournament')
-    if phase is "semifinal1":
+    if phase == "semifinal1":
         tournament = LocalTournament.objects.filter(semifinal1__id=game_id).first()
-    elif phase is "semifinal2":
+    elif phase == "semifinal2":
         tournament = LocalTournament.objects.filter(semifinal2__id=game_id).first()
     else:
         tournament = LocalTournament.objects.filter(final__id=game_id).first()

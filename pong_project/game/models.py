@@ -11,8 +11,8 @@ class GameSession(models.Model):
     player_right = models.CharField(max_length=50, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    # ex: "running", "finished"
-    status = models.CharField(max_length=10, default='running')
+    # ex: "waiting", "running", "finished"
+    status = models.CharField(max_length=10, default='waiting')
 
     def __str__(self):
         return f"GameSession {self.id} (status={self.status})"
@@ -64,9 +64,9 @@ class LocalTournament(models.Model):
     player3 = models.CharField(max_length=50)
     player4 = models.CharField(max_length=50)
 
-    # Si tu veux stocker des références aux parties qui composent le tournoi :
+    # Parties du bracket : 2 demi-finales + 1 finale
     semifinal1 = models.ForeignKey(
-        'GameSession',  # référence à ta classe GameSession
+        'GameSession',
         on_delete=models.SET_NULL,
         null=True, blank=True,
         related_name='tournament_semifinal1'
@@ -82,6 +82,15 @@ class LocalTournament(models.Model):
         on_delete=models.SET_NULL,
         null=True, blank=True,
         related_name='tournament_final'
+    )
+
+    # Paramètres de jeu (pour dupliquer sur chaque partie)
+    # On met un on_delete = SET_NULL (ou CASCADE si tu préfères)
+    parameters = models.OneToOneField(
+        GameParameters,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='tournament_parameters'
     )
 
     created_at = models.DateTimeField(auto_now_add=True)

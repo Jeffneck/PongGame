@@ -1,5 +1,9 @@
 # game/views.py
 
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+from .models import GameSession
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 import time
@@ -26,7 +30,7 @@ def create_game(request):
         form = GameParametersForm(request.POST)
         if form.is_valid():
             # Créer une nouvelle GameSession
-            session = GameSession.objects.create(status='running') 
+            session = GameSession.objects.create(status='waiting') 
             game_id = str(session.id)
 
             # Créer les GameParameters liés à cette session
@@ -67,6 +71,24 @@ def game(request, game_id):
     """
     return render(request, 'game/game.html', {'game_id': game_id})
 
+
+# @csrf_exempt
+def ready_game(request, game_id):
+    """
+    Marque la partie comme prête à être lancée.
+    """
+    if request.method == 'POST':
+        print(f"[DEBUG] game_id reçu dans la vue : {game_id}")  # Debug
+        try:
+            game_session = GameSession.objects.get(pk=game_id)
+            print(f"[DEBUG] gamesession trouvee : {game_session}")  # Debug
+            game_session.status = 'ready'  # On passe le statut à 'ready'
+            game_session.save()
+            return JsonResponse({'success': True, 'message': 'Game marked as ready'})
+        except GameSession.DoesNotExist:
+            return JsonResponse({'success': False, 'message': 'Game session not found'}, status=404)
+    return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=400)
+
 def list_results(request):
     """
     Affiche la liste des parties terminées.
@@ -86,13 +108,13 @@ def create_local_tournament(request):
             game1 = GameSession.objects.create(
                 player_left=tournament.player1,
                 player_right=tournament.player2,
-                status='running'
+                status='waiting'
             )
             tournament.semifinal1 = game1
             game2 = GameSession.objects.create(
                 player_left=tournament.player3,
                 player_right=tournament.player4,
-                status='running'
+                status='waiting'
             )
             tournament.semifinal2 = game2
             
@@ -176,22 +198,35 @@ def prepare_game(request, tournament_id, match_type):
 
 # tournoi
 def start_game(request, tournament_id, match_type):
-    """
-    Crée ou récupère la GameSession pour ce match, puis redirige vers la page du jeu.
-    """
     tournament = get_object_or_404(LocalTournament, pk=tournament_id)
 
     if match_type == 'semifinal1':
-        # si semifinal1 n'existe pas, on la crée
         if not tournament.semifinal1:
             gs = GameSession.objects.create(
                 player_left=tournament.player1,
                 player_right=tournament.player2,
-                status='running'
+                status='waiting'
             )
+            # Dupliquer les paramètres du tournoi
+            if tournament.parameters:  
+                # On crée un nouveau GameParameters *pour* la GameSession
+                GameParameters.objects.create(
+                    game_session=gs,  # cette fois on associe la session
+                    ball_speed=tournament.parameters.ball_speed,
+                    racket_size=tournament.parameters.racket_size,
+                    bonus_malus_activation=tournament.parameters.bonus_malus_activation,
+                    bumpers_activation=tournament.parameters.bumpers_activation
+                )
+
+            # Associer la session au tournoi
             tournament.semifinal1 = gs
             tournament.status = 'semifinal1_in_progress'
             tournament.save()
+
+            # schedule_game
+            from .manager import schedule_game
+            schedule_game(game_id)
+
         else:
             gs = tournament.semifinal1
 
@@ -200,7 +235,7 @@ def start_game(request, tournament_id, match_type):
             gs = GameSession.objects.create(
                 player_left=tournament.player3,
                 player_right=tournament.player4,
-                status='running'
+                status='waiting'
             )
             tournament.semifinal2 = gs
             tournament.status = 'semifinal2_in_progress'
@@ -209,29 +244,19 @@ def start_game(request, tournament_id, match_type):
             gs = tournament.semifinal2
 
     elif match_type == 'final':
-        if not tournament.final:
-            # On va chercher les winners des 2 demi-finales
-            from .models import GameResult
-            semi1_result = GameResult.objects.filter(game=tournament.semifinal1).first()
-            semi2_result = GameResult.objects.filter(game=tournament.semifinal2).first()
-            if not semi1_result or not semi2_result:
-                # Pas normal, on redirige
-                return redirect('detail_local_tournament', tournament_id=tournament.id)
-
-            gs = GameSession.objects.create(
-                player_left=semi1_result.winner,
-                player_right=semi2_result.winner,
-                status='running'
-            )
-            tournament.final = gs
-            tournament.status = 'final_in_progress'
-            tournament.save()
-        else:
-            gs = tournament.final
+        # Dans le cas de la finale, tu peux récupérer les vainqueurs
+        # depuis les GameResult des demi-finales, etc.
+        # Mais le plus important est de créer la GameSession finale.
+        # ...
+        pass
+        # (même principe, on la crée en 'waiting' si elle n'existe pas)
 
     else:
         return redirect('detail_local_tournament', tournament_id=tournament.id)
 
-    # Rediriger vers la page de la partie
-    # Supposons que la vue s'appelle "live_game" et prend un param "game_id"
-    return redirect('live_game', game_id=gs.id)
+    # 1) Lancer la loop du jeu (schedule_game) => on doit donner l'id sous forme de string
+    schedule_game(str(gs.id))
+
+    # 2) Rediriger vers la vue "game" (canvas) pour cette partie
+    #    Ton URL est de type: path('<uuid:game_id>/', views.game, name='game')
+    return redirect('game', game_id=gs.id)

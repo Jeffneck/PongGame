@@ -1,4 +1,787 @@
-# game/game_loop/ball_utils.py
+# game/admin.py
+
+from django.contrib import admin
+from .models import GameSession, GameResult, GameParameters, GameInvitation
+
+@admin.register(GameSession)
+class GameSessionAdmin(admin.ModelAdmin):
+    list_display = ('id', 'player_left', 'player_right', 'status', 'created_at')
+
+@admin.register(GameResult)
+class GameResultAdmin(admin.ModelAdmin):
+    list_display = ('game', 'winner', 'score_left', 'score_right', 'ended_at')
+
+@admin.register(GameParameters)
+class GameParametersAdmin(admin.ModelAdmin):
+    list_display = ('game_session', 'ball_speed', 'racket_size', 'bonus_malus_activation', 'bumpers_activation')
+
+@admin.register(GameInvitation)
+class GameInvitationAdmin(admin.ModelAdmin):
+    list_display = ('from_user', 'to_user', 'status', 'created_at')
+from django.apps import AppConfig
+
+
+class GameConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'game'
+# game/consumers.py
+
+import json
+import redis
+from django.conf import settings
+from channels.generic.websocket import AsyncWebsocketConsumer
+
+from .game_loop.redis_utils import get_key
+
+r = redis.Redis(
+    host=settings.REDIS_HOST,
+    port=settings.REDIS_PORT,
+    db=0
+)
+
+class PongConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        self.game_id = self.scope['url_route']['kwargs']['game_id']
+        self.group_name = f"pong_{self.game_id}"
+
+        await self.accept()
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        print(f"[PongConsumer] WebSocket connected for game_id={self.game_id}")
+
+    async def disconnect(self, close_code):
+        await self.channel_layer.group_discard(self.group_name, self.channel_name)
+        print(f"[PongConsumer] WebSocket disconnected for game_id={self.game_id}")
+
+    async def receive(self, text_data=None, bytes_data=None):
+        data = json.loads(text_data)
+        action = data.get('action')
+        player = data.get('player')
+
+        if action == 'start_move':
+            direction = data.get('direction')  # 'up' ou 'down'
+            self.start_move_paddle(player, direction)
+
+        elif action == 'stop_move':
+            self.stop_move_paddle(player)
+
+    def start_move_paddle(self, player, direction):
+        velocity = 0
+        if direction == 'up':
+            velocity = -8  # Ajustez la vitesse selon vos préférences
+        elif direction == 'down':
+            velocity = 8
+
+        r.set(f"{self.game_id}:paddle_{player}_velocity", velocity)
+        print(f"[PongConsumer] start_move_paddle: player={player}, velocity={velocity}")
+
+    def stop_move_paddle(self, player):
+        r.set(f"{self.game_id}:paddle_{player}_velocity", 0)
+        print(f"[PongConsumer] stop_move_paddle: player={player}")
+
+    # Handlers pour les événements du groupe
+    async def broadcast_game_state(self, event):
+        await self.send(json.dumps(event['data']))
+        # print(f"[PongConsumer] Broadcast game_state for game_id={self.game_id}")
+
+    async def game_over(self, event):
+        await self.send(json.dumps({
+            'type': 'game_over',
+            'winner': event['winner'],
+            'looser': event.get('looser', None),
+        }))
+        print(f"[PongConsumer] Broadcast game_over for game_id={self.game_id}")
+
+    async def powerup_applied(self, event):
+        await self.send(json.dumps({
+            'type': 'powerup_applied',
+            'player': event['player'],
+            'effect': event['effect']
+        }))
+        print(f"[PongConsumer] Broadcast powerup_applied for game_id={self.game_id}, player={event['player']}, effect={event['effect']}")
+
+    async def powerup_spawned(self, event):
+        await self.send(json.dumps({
+            'type': 'powerup_spawned',
+            'powerup': event['powerup']
+        }))
+        print(f"[PongConsumer] Broadcast powerup_spawned for game_id={self.game_id}")
+
+    async def powerup_expired(self, event):
+        await self.send(json.dumps({
+            'type': 'powerup_expired',
+            'powerup': event['powerup']
+        }))
+        print(f"[PongConsumer] Broadcast powerup_expired for game_id={self.game_id}")
+
+    async def bumper_spawned(self, event):
+        await self.send(json.dumps({
+            'type': 'bumper_spawned',
+            'bumper': event['bumper']
+        }))
+        print(f"[PongConsumer] Broadcast bumper_spawned for game_id={self.game_id}")
+
+    async def bumper_expired(self, event):
+        await self.send(json.dumps({
+            'type': 'bumper_expired',
+            'bumper': event['bumper']
+        }))
+        print(f"[PongConsumer] Broadcast bumper_expired for game_id={self.game_id}")
+
+    async def collision_event(self, event):
+        await self.send(json.dumps({
+            'type': 'collision_event',
+            'collision': event['collision']
+        }))
+        print(f"[PongConsumer] Broadcast collision_event for game_id={self.game_id}")
+
+
+# [IMPROVE] adapter le consummer  aux notifications envoyees par broadcast.py# game/forms.py
+
+from django import forms
+from .models import GameParameters, LocalTournament
+
+class GameParametersForm(forms.ModelForm):
+    class Meta:
+        model = GameParameters
+        fields = ['ball_speed', 'racket_size', 'bonus_malus_activation', 'bumpers_activation']
+        widgets = {
+            'ball_speed': forms.Select(attrs={'class': 'form-control'}),
+            'racket_size': forms.Select(attrs={'class': 'form-control'}),
+            'bonus_malus_activation': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'bumpers_activation': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        labels = {
+            'ball_speed': 'Vitesse de la balle',
+            'racket_size': 'Taille de la raquette',
+            'bonus_malus_activation': 'Activer les bonus/malus',
+            'bumpers_activation': 'Activer les bumpers/obstacles',
+        }
+
+class LocalTournamentForm(forms.ModelForm):
+    class Meta:
+        model = LocalTournament
+        fields = ['name', 'player1', 'player2', 'player3', 'player4']
+        labels = {
+            'name': 'Nom du Tournoi',
+            'player1': 'Pseudo joueur 1',
+            'player2': 'Pseudo joueur 2',
+            'player3': 'Pseudo joueur 3',
+            'player4': 'Pseudo joueur 4',
+        }
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'player1': forms.TextInput(attrs={'class': 'form-control'}),
+            'player2': forms.TextInput(attrs={'class': 'form-control'}),
+            'player3': forms.TextInput(attrs={'class': 'form-control'}),
+            'player4': forms.TextInput(attrs={'class': 'form-control'}),
+        }# game/game_objects.py
+
+import random
+import math
+import time
+
+class Paddle:
+    def __init__(self, position, size, speed):
+        """
+        position: 'left' ou 'right'
+        size: taille initiale de la raquette
+        speed: vitesse de déplacement
+        """
+        self.position = position
+        self.width = 10
+        self.height = size
+        self.x = 50 if position == 'left' else 750
+        self.y = 200 - self.height // 2
+        self.speed = speed
+        self.velocity = 0
+        self.on_ice = False
+        self.shown_size = size  # Current displayed size
+
+    def move(self, direction, is_on_ice, terrain_top, terrain_bottom, speed_boost=False):
+        if is_on_ice:
+            acceleration = 0.5
+            friction = 0.02
+            self.velocity += direction * acceleration
+            self.velocity *= (1 - friction)
+        else:
+            self.velocity = direction * (self.speed * 1.5 if speed_boost else self.speed)
+
+        # Apply movement with boundary checking
+        new_y = self.y + self.velocity
+        if new_y < terrain_top:
+            new_y = terrain_top
+            self.velocity = 0
+        elif new_y + self.height > terrain_bottom:
+            new_y = terrain_bottom - self.height
+            self.velocity = 0
+
+        self.y = new_y
+
+    def resize(self, new_height):
+        self.height = new_height
+
+class Ball:
+    def __init__(self, x, y, speed_x, speed_y, size=7):
+        self.x = x
+        self.y = y
+        self.speed_x = speed_x
+        self.speed_y = speed_y
+        self.size = size
+        self.last_player = None  # Nouvel attribut pour suivre le dernier joueur
+
+    # def move(self):
+    #     self.x += self.speed_x
+    #     self.y += self.speed_y
+
+    def reset(self, x, y, speed_x, speed_y):
+        self.x = x
+        self.y = y
+        self.speed_x = speed_x
+        self.speed_y = speed_y
+        self.last_player = None  # Réinitialiser le dernier joueur
+
+class PowerUpOrb:
+    def __init__(self, game_id, effect_type, terrain_rect, color=None):
+        self.game_id = game_id
+        self.effect_type = effect_type  # 'invert', 'shrink', 'ice', 'speed', 'sticky', 'flash'
+        self.size = 15
+        self.color = color or self.get_default_color()
+        self.active = False
+        self.x = 0
+        self.y = 0
+        self.rect = None
+        self.spawn_time = 0
+        self.duration = 0
+
+    def get_default_color(self):
+        colors = {
+            'invert': (255, 105, 180),  # Pink
+            'shrink': (255, 0, 0),      # Red
+            'ice': (0, 255, 255),       # Cyan
+            'speed': (255, 215, 0),     # Gold
+            'flash': (255, 255, 0),     # Yellow
+            'sticky': (50, 205, 50)     # Lime green
+        }
+        return colors.get(self.effect_type, (255, 255, 255))
+
+    def spawn(self, terrain_rect):
+        left = terrain_rect['left']
+        right = terrain_rect['left'] + terrain_rect['width']
+        top = terrain_rect['top']
+        bottom = terrain_rect['top'] + terrain_rect['height']
+
+        max_attempts = 100
+        for _ in range(max_attempts):
+            new_x = random.randint(left + 50, right - 50)
+            new_y = random.randint(top + 50, bottom - 50)
+
+            # Ici on suppose qu'il n'y a pas d'autres collisions à vérifier.
+            self.x = new_x
+            self.y = new_y
+            self.rect = (self.x, self.y, self.size, self.size)
+            self.active = True
+            self.spawn_time = time.time()
+            self.duration = 10
+            return True
+
+        return False
+
+    def activate(self):
+        self.active = True
+
+    def deactivate(self):
+        self.active = False
+        self.x = None
+        self.y = None
+        self.spawn_time = None
+
+class Bumper:
+    def __init__(self, game_id, terrain_rect):
+        self.game_id = game_id
+        self.size = 20
+        self.color = (255, 255, 255)  # White
+        self.active = False
+        self.x = 0
+        self.y = 0
+        self.rect = None
+        self.spawn_time = 0
+        self.duration = 0
+        self.last_collision_time = 0 
+
+    def spawn(self, terrain_rect):
+        left = terrain_rect['left']
+        right = terrain_rect['left'] + terrain_rect['width']
+        top = terrain_rect['top']
+        bottom = terrain_rect['top'] + terrain_rect['height']
+
+        max_attempts = 100
+        for _ in range(max_attempts):
+            new_x = random.randint(left + 50, right - 50)
+            new_y = random.randint(top + 50, bottom - 50)
+
+            # Ici on suppose qu'il n'y a pas d'autres collisions à vérifier.
+            self.x = new_x
+            self.y = new_y
+            self.rect = (self.x, self.y, self.size, self.size)
+            self.active = True
+            self.spawn_time = time.time()
+            self.duration = 10
+            return True
+
+        return False
+    
+    def activate(self):
+        self.active = True
+
+    def deactivate(self):
+        self.active = False
+# game/manager.py
+
+import asyncio
+from .tasks import start_game_loop
+import sys
+
+_GLOBAL_LOOP = None
+
+def set_global_loop(loop):
+    global _GLOBAL_LOOP
+    _GLOBAL_LOOP = loop
+    print(f"[manager.py] Global loop set: {loop}")
+
+def get_global_loop():
+    return _GLOBAL_LOOP
+
+def schedule_game(game_id):
+    try:
+        current_loop = asyncio.get_event_loop()
+        if not current_loop.is_running():
+            raise RuntimeError("Event loop is not running")
+        current_loop.create_task(start_game_loop(game_id))
+        print(f"[schedule_game] create_task OK dans loop={current_loop} pour game_id={game_id}")
+    except (RuntimeError, AttributeError) as e:
+        print("No current event loop in this thread, fallback run_coroutine_threadsafe", file=sys.stderr)
+        global_loop = get_global_loop()
+        if global_loop and global_loop.is_running():
+            future = asyncio.run_coroutine_threadsafe(start_game_loop(game_id), global_loop)
+            print(f"[schedule_game] run_coroutine_threadsafe OK dans global_loop={global_loop} pour game_id={game_id}")
+        else:
+            print("No global loop available or loop is not running, game cannot be scheduled.", file=sys.stderr)
+import uuid
+from django.db import models
+from django.conf import settings
+
+class GameSession(models.Model):
+    """
+    Un enregistrement pour représenter une partie (en cours ou terminée).
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    player_left = models.CharField(max_length=50, null=True, blank=True)
+    player_right = models.CharField(max_length=50, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    # ex: "waiting", "running", "finished"
+    status = models.CharField(max_length=10, default='waiting')
+
+    def __str__(self):
+        return f"GameSession {self.id} (status={self.status})"
+
+
+class GameParameters(models.Model):
+    game_session = models.OneToOneField(GameSession, related_name='parameters', on_delete=models.CASCADE)
+    BALL_SPEED_CHOICES = [(1, 'Slow'), (2, 'Medium'), (3, 'Fast'),]
+    ball_speed = models.PositiveSmallIntegerField(choices=BALL_SPEED_CHOICES, default=2)
+
+    RACKET_SIZE_CHOICES = [(1, 'Small'), (2, 'Medium'), (3, 'Large'),]
+    racket_size = models.PositiveSmallIntegerField(choices=RACKET_SIZE_CHOICES, default=2)
+
+    bonus_malus_activation = models.BooleanField(default=True)
+    bumpers_activation = models.BooleanField(default=False)
+
+
+    def __str__(self):
+        return (f"Ball speed: {self.get_ball_speed_display()}, "
+                f"Racket size: {self.get_racket_size_display()}, "
+                f"Bonus/Malus: {'On' if self.bonus_malus_activation else 'Off'}, "
+                f"Bumpers: {'On' if self.bumpers_activation else 'Off'}")
+
+#remplacer game par game_session
+class GameResult(models.Model):
+    """
+    Enregistre le score final d'une partie terminée.
+    """
+    game = models.ForeignKey(GameSession, on_delete=models.CASCADE)
+    winner = models.CharField(max_length=10)  # "left" ou "right"
+    looser = models.CharField(max_length=10)  # "left" ou "right"
+    score_left = models.IntegerField()
+    score_right = models.IntegerField()
+    ended_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"[{self.game.id}] winner={self.winner} looser={self.looser} => {self.score_left}-{self.score_right}"
+
+
+class LocalTournament(models.Model):
+    """
+    Modèle pour gérer un tournoi local à 4 joueurs (type 'mini-bracket').
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=100, default='Local Tournament')
+    # Les pseudos ou Users pour les 4 joueurs
+    player1 = models.CharField(max_length=50)
+    player2 = models.CharField(max_length=50)
+    player3 = models.CharField(max_length=50)
+    player4 = models.CharField(max_length=50)
+
+    # Si tu veux stocker des références aux parties qui composent le tournoi :
+    semifinal1 = models.ForeignKey(
+        'GameSession',  # référence à ta classe GameSession
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='tournament_semifinal1'
+    )
+    semifinal2 = models.ForeignKey(
+        'GameSession',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='tournament_semifinal2'
+    )
+    final = models.ForeignKey(
+        'GameSession',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='tournament_final'
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(
+        max_length=20,
+        default='pending',  
+        help_text="Status du tournoi: 'pending', 'in_progress', 'finished', etc."
+    )
+
+    def __str__(self):
+        return f"Tournament {self.name} - {self.id}"
+
+class GameInvitation(models.Model):
+    from_user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='invitations_sent', on_delete=models.CASCADE)
+    to_user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='invitations_received', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(
+        max_length=10,
+        choices=[('pending', 'Pending'), ('accepted', 'Accepted'), ('rejected', 'Rejected')],
+        default='pending'
+    )
+    
+    def __str__(self):
+        return f"Invitation de {self.from_user.username} à {self.to_user.username} - {self.status}"
+from django.urls import re_path
+from .consumers import PongConsumer
+
+websocket_urlpatterns = [
+    # ws://host/ws/pong/<uuid>/
+    re_path(r'^ws/pong/(?P<game_id>[0-9a-f-]+)/$', PongConsumer.as_asgi()),
+]
+# game/tasks.py
+
+import asyncio
+from .game_loop.loop import game_loop
+
+ACTIVE_GAMES = {}  # Dict: { game_id -> asyncio.Task }
+
+async def start_game_loop(game_id):
+
+    task = asyncio.create_task(game_loop(game_id))
+    ACTIVE_GAMES[game_id] = task
+
+    print(f"[tasks.py] Game loop started for game_id={game_id}")
+
+    try:
+        await task
+    except asyncio.CancelledError:
+        print(f"[tasks.py] Game loop for game_id={game_id} was cancelled.")
+    finally:
+        del ACTIVE_GAMES[game_id]
+        print(f"[tasks.py] Game loop ended for game_id={game_id}")
+
+def is_game_running(game_id):
+    return game_id in ACTIVE_GAMES
+
+def stop_game(game_id):
+    task = ACTIVE_GAMES.get(game_id)
+    if task:
+        task.cancel()
+        print(f"[tasks.py] Game loop for game_id={game_id} has been cancelled.")
+from django.test import TestCase
+
+# Create your tests here.
+# game/urls.py
+
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('', views.index, name='index'),
+    path('create/', views.create_game, name='create_game'),
+    path('<uuid:game_id>/', views.game, name='game'),
+    # path('a/', views.ready_game, name='ready_game'),
+    path('ready-game/<uuid:game_id>/', views.ready_game, name='ready_game'),
+    path('results/', views.list_results, name='list_results'),
+    path('tournament/create/', views.create_local_tournament, name='create_local_tournament'),
+    path('tournament/<uuid:tournament_id>/', views.detail_local_tournament, name='detail_local_tournament'),
+    path('tournament/<uuid:tournament_id>/<str:match_type>/prepare/', views.prepare_game, name='prepare_game'),
+    path('tournament/<uuid:tournament_id>/<str:match_type>/start/', views.start_game, name='start_game'),
+]
+# game/views.py
+
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+from .models import GameSession
+from django.shortcuts import render, get_object_or_404, redirect
+from django.urls import reverse
+import time
+from .models import GameSession, GameResult, GameParameters, LocalTournament
+from .manager import schedule_game
+from .forms import GameParametersForm, LocalTournamentForm
+from .game_loop.redis_utils import set_key
+import redis
+from django.conf import settings
+
+r = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=0)
+
+def index(request):
+    """
+    Page d'accueil -> bouton pour créer une partie
+    """
+    return render(request, 'game/index.html')
+
+def create_game(request):
+    """
+    Crée un GameSession (UUID), init Redis avec les paramètres personnalisés, lance la loop en non-bloquant
+    """
+    if request.method == 'POST':
+        form = GameParametersForm(request.POST)
+        if form.is_valid():
+            # Créer une nouvelle GameSession
+            session = GameSession.objects.create(status='waiting') 
+            game_id = str(session.id)
+
+            # Créer les GameParameters liés à cette session
+            parameters = form.save(commit=False)
+            parameters.game_session = session
+            parameters.save()
+
+            # Initialiser Redis avec les paramètres personnalisés
+            set_key(game_id, "score_left", 0)
+            set_key(game_id, "score_right", 0)
+            set_key(game_id, "paddle_left_y", 150)
+            set_key(game_id, "paddle_right_y", 150)
+            set_key(game_id, "ball_x", 300)
+            set_key(game_id, "ball_y", 200)
+            # Ajuster la vitesse de la balle selon le paramètre
+            ball_vx = 2 * parameters.ball_speed
+            ball_vy = 1 * parameters.ball_speed
+            set_key(game_id, "ball_vx", ball_vx)
+            set_key(game_id, "ball_vy", ball_vy)
+
+            print(f"[create_game] GameSession {game_id} created avec paramètres personnalisés. Scheduling game_loop.")
+            schedule_game(game_id)
+
+            return redirect('game', game_id=game_id)
+    else:
+        form = GameParametersForm()
+
+    return render(request, 'game/create_game.html', {'form': form})
+
+
+
+
+
+
+def game(request, game_id):
+    """
+    Affiche la page HTML (canvas + websocket) pour la partie <game_id>
+    """
+    return render(request, 'game/game.html', {'game_id': game_id})
+
+
+# @csrf_exempt
+def ready_game(request, game_id):
+    """
+    Marque la partie comme prête à être lancée.
+    """
+    if request.method == 'POST':
+        print(f"[DEBUG] game_id reçu dans la vue : {game_id}")  # Debug
+        try:
+            game_session = GameSession.objects.get(pk=game_id)
+            print(f"[DEBUG] gamesession trouvee : {game_session}")  # Debug
+            game_session.status = 'ready'  # On passe le statut à 'ready'
+            game_session.save()
+            return JsonResponse({'success': True, 'message': 'Game marked as ready'})
+        except GameSession.DoesNotExist:
+            return JsonResponse({'success': False, 'message': 'Game session not found'}, status=404)
+    return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=400)
+
+def list_results(request):
+    """
+    Affiche la liste des parties terminées.
+    """
+    results = GameResult.objects.select_related('game').order_by('-ended_at')[:20]
+    return render(request, 'game/results.html', {'results': results})
+
+def create_local_tournament(request):
+    if request.method == 'POST':
+        form = LocalTournamentForm(request.POST)
+        if form.is_valid():
+            tournament = form.save()
+            # Ici, tu peux éventuellement créer tes 2 GameSession (demi-finales)
+            # en fonction de player1/player2 vs player3/player4, etc.
+            # Par exemple :
+            
+            game1 = GameSession.objects.create(
+                player_left=tournament.player1,
+                player_right=tournament.player2,
+                status='waiting'
+            )
+            tournament.semifinal1 = game1
+            game2 = GameSession.objects.create(
+                player_left=tournament.player3,
+                player_right=tournament.player4,
+                status='waiting'
+            )
+            tournament.semifinal2 = game2
+            
+            tournament.save()
+            
+            # Ensuite, rediriger ou afficher la page du tournoi
+            return redirect('detail_local_tournament', tournament_id=tournament.id)
+    else:
+        form = LocalTournamentForm()
+    return render(request, 'game/create_local_tournament.html', {'form': form})
+
+
+
+def detail_local_tournament(request, tournament_id):
+    """
+    Affiche le bracket du tournoi (2 demi-finales, 1 finale).
+    Au bout de X secondes, on rend visible un bouton vers la prochaine étape.
+    """
+    tournament = get_object_or_404(LocalTournament, pk=tournament_id)
+
+    # Récupérer les résultats éventuellement existants pour mettre à jour l'affichage
+    semifinal1_result = None
+    semifinal2_result = None
+    final_result = None
+
+    if tournament.semifinal1:
+        semifinal1_result = GameResult.objects.filter(game=tournament.semifinal1).first()
+    if tournament.semifinal2:
+        semifinal2_result = GameResult.objects.filter(game=tournament.semifinal2).first()
+    if tournament.final:
+        final_result = GameResult.objects.filter(game=tournament.final).first()
+
+    context = {
+        'tournament': tournament,
+        'semifinal1_result': semifinal1_result,
+        'semifinal2_result': semifinal2_result,
+        'final_result': final_result,
+    }
+    return render(request, 'game/detail_local_tournament.html', context)
+
+
+def prepare_game(request, tournament_id, match_type):
+    """
+    Affiche un écran de 'préparation' pour la partie à venir (ex: semifinal1, semifinal2, final).
+    Au bout de 3 sec, un bouton "Commencer la partie" apparaît.
+    """
+    tournament = get_object_or_404(LocalTournament, pk=tournament_id)
+
+    if match_type == 'semifinal1':
+        player_left = tournament.player1
+        player_right = tournament.player2
+    elif match_type == 'semifinal2':
+        player_left = tournament.player3
+        player_right = tournament.player4
+    elif match_type == 'final':
+        # Pour la finale, on suppose que les vainqueurs des 2 semi-finals sont déjà connus.
+        # On peut aller chercher les winners via les GameResults:
+        from .models import GameResult
+        semi1_result = GameResult.objects.filter(game=tournament.semifinal1).first()
+        semi2_result = GameResult.objects.filter(game=tournament.semifinal2).first()
+        if semi1_result and semi2_result:
+            # On récupère le pseudo vainqueur = "left" ou "right" correspond aux pseudos initiaux
+            # ou stocker autrement. Ici on suppose qu'on a stocké direct "player1" ou "player2" dans winner.
+            player_left = semi1_result.winner
+            player_right = semi2_result.winner
+        else:
+            # Erreur ou fallback
+            player_left = "????"
+            player_right = "????"
+    else:
+        # Cas non géré
+        return redirect('detail_local_tournament', tournament_id=tournament_id)
+
+    context = {
+        'tournament': tournament,
+        'match_type': match_type,
+        'player_left': player_left,
+        'player_right': player_right,
+    }
+    return render(request, 'game/prepare_game.html', context)
+
+# tournoi
+def start_game(request, tournament_id, match_type):
+    """
+    Crée (ou récupère) la GameSession pour ce match (semifinal1, semifinal2 ou final),
+    la planifie (schedule_game) et redirige vers la page du jeu (canvas).
+    """
+    tournament = get_object_or_404(LocalTournament, pk=tournament_id)
+
+    if match_type == 'semifinal1':
+        # S’il n’y a pas encore de GameSession pour semifinal1
+        if not tournament.semifinal1:
+            gs = GameSession.objects.create(
+                player_left=tournament.player1,
+                player_right=tournament.player2,
+                status='waiting'
+            )
+            # On stocke la session dans le tournoi
+            tournament.semifinal1 = gs
+            tournament.status = 'semifinal1_in_progress'
+            tournament.save()
+        else:
+            gs = tournament.semifinal1
+
+    elif match_type == 'semifinal2':
+        if not tournament.semifinal2:
+            gs = GameSession.objects.create(
+                player_left=tournament.player3,
+                player_right=tournament.player4,
+                status='waiting'
+            )
+            tournament.semifinal2 = gs
+            tournament.status = 'semifinal2_in_progress'
+            tournament.save()
+        else:
+            gs = tournament.semifinal2
+
+    elif match_type == 'final':
+        # Dans le cas de la finale, tu peux récupérer les vainqueurs
+        # depuis les GameResult des demi-finales, etc.
+        # Mais le plus important est de créer la GameSession finale.
+        # ...
+        pass
+        # (même principe, on la crée en 'waiting' si elle n'existe pas)
+
+    else:
+        return redirect('detail_local_tournament', tournament_id=tournament.id)
+
+    # 1) Lancer la loop du jeu (schedule_game) => on doit donner l'id sous forme de string
+    schedule_game(str(gs.id))
+
+    # 2) Rediriger vers la vue "game" (canvas) pour cette partie
+    #    Ton URL est de type: path('<uuid:game_id>/', views.game, name='game')
+    return redirect('game', game_id=gs.id)# game/game_loop/ball_utils.py
 from .redis_utils import get_key, set_key
 from .dimensions_utils import get_terrain_rect
 
@@ -34,13 +817,13 @@ async def broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right
     Envoie l'état actuel du jeu aux clients via WebSocket.
     """
     # Récupérer les états des power-ups
-    powerups = []
+    powerups_data = []
     for powerup_orb in powerup_orbs:
         active = get_key(game_id, f"powerup_{powerup_orb.effect_type}_active" or 0)
         if active and active.decode('utf-8') == '1':
             x = float(get_key(game_id, f"powerup_{powerup_orb.effect_type}_x") or 0)
             y = float(get_key(game_id, f"powerup_{powerup_orb.effect_type}_y") or 0)
-            powerups.append({
+            powerups_data.append({
                 'type': powerup_orb.effect_type,
                 'x': x,
                 'y': y,
@@ -49,14 +832,13 @@ async def broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right
 
     # Récupérer les états des bumpers
     # print(f"[game_loop.py] bumpers to send: {bumpers}")
-    bumpers = []
+    bumpers_data = []
     for bumper in bumpers:
-        print("BUMPER")
         active = get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_active" or 0)
         if active and active.decode('utf-8') == '1':
             x = float(get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_x") or 0)
             y = float(get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_y") or 0)
-            bumpers.append({
+            bumpers_data.append({
                 'x': x,
                 'y': y,
                 'size': bumper.size,
@@ -77,8 +859,8 @@ async def broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right
         'paddle_right_height': paddle_right.height,
         'score_left': int(get_key(game_id, "score_left") or 0),
         'score_right': int(get_key(game_id, "score_right") or 0),
-        'powerups': powerups,
-        'bumpers': bumpers,
+        'powerups': powerups_data,
+        'bumpers': bumpers_data,
     }
 
     await channel_layer.group_send(f"pong_{game_id}", {
@@ -505,101 +1287,123 @@ def initialize_redis(game_id, paddle_left, paddle_right, ball):
     set_key(game_id, "ball_vy", ball.speed_y)# game/game_loop/loop.py
 
 import asyncio
+import time
 from django.conf import settings
 from channels.layers import get_channel_layer
-from .models_utils import get_gameSession_status, get_gameSession_parameters
+from asgiref.sync import sync_to_async
+
+from .models_utils import get_gameSession_status, set_gameSession_status, get_gameSession_parameters
 from .initialize_game import initialize_game_objects, initialize_redis
+from .paddles_utils import move_paddles, update_paddles_redis
+from .ball_utils import move_ball, update_ball_redis, reset_ball
+from .collisions import (
+    handle_scoring_or_paddle_collision,
+    handle_border_collisions,
+    handle_bumper_collision,
+    handle_powerup_collision
+)
 from .score_utils import handle_score, winner_detected, finish_game
-from .paddles_utils import move_paddles, update_paddles_redis 
 from .bumpers_utils import handle_bumpers_spawn, handle_bumper_expiration
-from .collisions import handle_scoring_or_paddle_collision, handle_border_collisions, handle_bumper_collision, handle_powerup_collision
-from .ball_utils import reset_ball, move_ball, update_ball_redis 
 from .powerups_utils import handle_powerups_spawn, handle_powerup_expiration
 from .broadcast import broadcast_game_state
-
-from asgiref.sync import sync_to_async
-import random
-import time
 
 async def game_loop(game_id):
     """
     Boucle principale pour UNE partie identifiée par game_id.
-    Tourne ~60 fois/s tant que la partie est "running".
+    Tourne ~60 fois/s tant que la partie n'est pas 'finished'.
     """
     channel_layer = get_channel_layer()
     dt = 1/60
     print(f"[game_loop.py] Starting loop for game_id={game_id}.")
 
     try:
-        # Récupérer les paramètres du jeu
+        # Récupérer/charger les paramètres
         parameters = await get_gameSession_parameters(game_id)
-        
-        # Initialiser les objets de jeu
+        if not parameters:
+            print(f"[game_loop] Pas de paramètres pour le game_id={game_id}, on quitte.")
+            return
+
+        # Construire les objets (raquettes, balle, powerups, bumpers)
         paddle_left, paddle_right, ball, powerup_orbs, bumpers = initialize_game_objects(game_id, parameters)
-        print(f"[game_loop.py] Game objects initialized for game_id={game_id}.")
-        
-        # Initialiser les positions et vélocités dans Redis
         initialize_redis(game_id, paddle_left, paddle_right, ball)
-        print(f"[game_loop.py] Game objects positions initialized in Redis for game_id={game_id}.")
+        print(f"[game_loop] Game objects initialisés pour game_id={game_id}")
+
+        # 1) Attendre que le statut devienne 'ready' (durée max 60s)
+        timeout = 60
+        start_time = time.time()
 
         while True:
-            current_time = time.time()
-            # print(f"[game_loop.py] game_id={game_id} - Loop iteration at {current_time}")
-
-            # Vérifier si la partie est encore "running"
             session_status = await get_gameSession_status(game_id)
-            # print(f"[game_loop.py] game_id={game_id} - Session status: {session_status}")
-            if session_status != 'running':
-                print(f"[game_loop.py] game_id={game_id} is not running (status={session_status}), breaking loop.")
+            print(f"[game_loop] game_id={game_id} en attente du statut 'ready'. Actuel={session_status}")
+
+            if session_status == 'ready':
+                print(f"[game_loop] game_id={game_id} => statut 'ready' détecté. On lance le jeu.")
                 break
 
-            # Mettre à jour les positions des raquettes depuis Redis en fonction de la vélocité
-            move_paddles(game_id, paddle_left, paddle_right)
-            # Mettre a jour redis avec la nouvelle position des paddles (après le mouvement)
-            update_paddles_redis(game_id, paddle_left, paddle_right)
-            # print(f"[game_loop.py] game_id={game_id} - Paddles positions updated from Redis.")
+            if time.time() - start_time > timeout:
+                print(f"[game_loop] Timeout: la partie {game_id} n'est jamais passée en 'ready' après {timeout}s.")
+                return  # On abandonne
 
-            # Mettre à jour la position de la balle (ancienne valeur + increment)
+            await asyncio.sleep(1)
+
+        # 2) Passer en 'running' et faire la boucle ~60fps
+        await set_gameSession_status(game_id, 'running')
+        print(f"[game_loop] game_id={game_id} => statut 'running'. Début de la boucle.")
+
+        while True:
+            # Vérifier si la partie est encore 'running' ou si on l'a terminée
+            session_status = await get_gameSession_status(game_id)
+            if session_status != 'running':
+                print(f"[game_loop] game_id={game_id} => statut={session_status}. Fin de la boucle.")
+                break
+
+            current_time = time.time()
+
+            # 2.1 - Mouvements
+            move_paddles(game_id, paddle_left, paddle_right)
+            update_paddles_redis(game_id, paddle_left, paddle_right)
+
             move_ball(game_id, ball)
             update_ball_redis(game_id, ball)
-            # print(f"[game_loop.py] game_id={game_id} - Ball position updated to ({ball.x}, {ball.y})")
 
-            # 3. Vérifier les collisions (et aussi les buts marques)
+            # 2.2 - Collisions
             await handle_border_collisions(game_id, ball)
             await handle_bumper_collision(game_id, ball, bumpers)
             await handle_powerup_collision(game_id, ball, powerup_orbs)
+
+            # 2.3 - Paddles / Score
             scorer = await handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right, ball)
             if scorer in ['score_left', 'score_right']:
                 handle_score(game_id, scorer)
-                if (winner_detected(game_id)):
+
+                # Vérifier si on a un gagnant
+                if winner_detected(game_id):
                     await finish_game(game_id)
                     break
                 else:
+                    # Sinon reset de la balle
                     reset_ball(game_id, ball)
 
-            # 4. Gérer les power-ups
+            # 2.4 - Powerups & Bumpers
             if parameters.bonus_malus_activation:
                 await handle_powerups_spawn(game_id, powerup_orbs, current_time)
                 await handle_powerup_expiration(game_id, powerup_orbs)
 
-
-            # 5. Gérer les bumpers
             if parameters.bumpers_activation:
                 await handle_bumpers_spawn(game_id, bumpers, current_time)
                 await handle_bumper_expiration(game_id, bumpers)
 
-            # 8. Broadcast l'état actuel du jeu
+            # 2.5 - Broadcast de l'état
             await broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right, ball, powerup_orbs, bumpers)
-            # print(f"[game_loop.py] game_id={game_id} - Broadcasted game state.")
 
-            # Attendre le prochain cycle
+            # 2.6 - Attendre ~16ms
             await asyncio.sleep(dt)
-    
+
     except Exception as e:
-        print(f"[game_loop.py] game_id={game_id} encountered an exception: {e}")
-    
+        print(f"[game_loop] Exception pour game_id={game_id} : {e}")
+
     finally:
-        print(f"[game_loop.py] game_id={game_id} loop ended.")# game/game_loop/models_utils.py
+        print(f"[game_loop] Fin du game_loop pour game_id={game_id}.")# game/game_loop/models_utils.py
 from django.apps import apps  # Import retardé pour éviter les conflits d'import
 from asgiref.sync import sync_to_async
 
@@ -613,11 +1417,11 @@ async def get_gameSession_status(game_id):
         return 'finished'
 
 
-async def set_gameSession_as_finished(game_id):
+async def set_gameSession_status(game_id, status):
     GameSession = apps.get_model('game', 'GameSession')
     try:
         session = await sync_to_async(GameSession.objects.get)(pk=game_id)
-        session.status = 'finished'
+        session.status = status
         await sync_to_async(session.save)()
         return session
     except GameSession.DoesNotExist:
@@ -632,6 +1436,16 @@ async def get_gameSession_parameters(game_id):
         return parameters
     except GameSession.DoesNotExist:
         return None
+    
+async def get_LocalTournament(game_id, phase):
+    LocalTournament = apps.get_model('game', 'LocalTournament')
+    if phase == "semifinal1":
+        tournament = LocalTournament.objects.filter(semifinal1__id=game_id).first()
+    elif phase == "semifinal2":
+        tournament = LocalTournament.objects.filter(semifinal2__id=game_id).first()
+    else:
+        tournament = LocalTournament.objects.filter(final__id=game_id).first()
+    return(tournament)
 
 
 async def create_gameResults(game_id, endgame_infos):
@@ -779,7 +1593,7 @@ from channels.layers import get_channel_layer
 from asgiref.sync import sync_to_async
 from .broadcast import notify_game_finished
 from .redis_utils import set_key, get_key, scan_and_delete_keys
-from .models_utils import set_gameSession_as_finished, create_gameResults
+from .models_utils import set_gameSession_status, create_gameResults, get_LocalTournament
 
 # transformer en parametre ajustable GameParameters?
 WIN_SCORE = 4  
@@ -827,7 +1641,7 @@ async def finish_game(game_id):
     score_right = int(get_key(game_id, "score_right") or 0)
 
     # Marquer la session comme terminée et récupérer ses informations
-    gameSession = await set_gameSession_as_finished(game_id)
+    gameSession = await set_gameSession_status(game_id, "finished")
     if not gameSession:
         print(f"[finish_game] GameSession {game_id} does not exist.")
         return
@@ -851,9 +1665,787 @@ async def finish_game(game_id):
     # Créer un enregistrement des résultats
     await create_gameResults(game_id, endgame_infos)
 
+    # Une fois qu'on a créé le GameResult (disons new_result), on peut faire :
+    # Chercher s’il y a un LocalTournament qui pointe sur ce game_id en semifinal1, semifinal2 ou final
+    tournament = get_LocalTournament(game_id, "semifinal1")
+    if tournament:
+        # C'était la semifinal1
+        tournament.status = 'semifinal1_done'
+        tournament.save()
+    else:
+        tournament = get_LocalTournament(game_id, "semifinal2")
+        if tournament:
+            # C'était la semifinal2
+            tournament.status = 'semifinal2_done'
+            tournament.save()
+        else:
+            # Peut-être la finale
+            tournament = get_LocalTournament(game_id, "final")
+            if tournament:
+                tournament.status = 'finished'
+                tournament.save()
+
     # Notifier les utilisateurs via WebSocket
     await notify_game_finished(game_id, winner, looser)
 
     # Nettoyer les clés Redis
     scan_and_delete_keys(game_id)
-    print(f"[loop.py] Redis keys deleted for game_id={game_id}")
+    print(f"[loop.py] Redis keys deleted for game_id={game_id}")<!DOCTYPE html>
+<html>
+<head>
+    <title>Créer une Partie Personnalisée</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1>Créer une Partie Personnalisée</h1>
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                {{ form.ball_speed.label_tag }}
+                {{ form.ball_speed }}
+            </div>
+            <div class="form-group">
+                {{ form.racket_size.label_tag }}
+                {{ form.racket_size }}
+            </div>
+            <div class="form-group form-check">
+                {{ form.bonus_malus_activation }}
+                {{ form.bonus_malus_activation.label_tag }}
+            </div>
+            <div class="form-group form-check">
+                {{ form.bumpers_activation }}
+                {{ form.bumpers_activation.label_tag }}
+            </div>
+            <button type="submit" class="btn btn-primary">Créer la Partie</button>
+        </form>
+        <br>
+        <a href="{% url 'index' %}" class="btn btn-secondary">Retour à l'Accueil</a>
+    </div>
+</body>
+</html>
+<!-- templates/game/create_local_tournament.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Créer un Tournoi Local</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1>Créer un Tournoi Local (4 joueurs)</h1>
+        <form method="post">
+            {% csrf_token %}
+            {{ form.non_field_errors }}
+            
+            <div class="form-group">
+                {{ form.name.label_tag }}
+                {{ form.name }}
+            </div>
+            <div class="form-group">
+                {{ form.player1.label_tag }}
+                {{ form.player1 }}
+            </div>
+            <div class="form-group">
+                {{ form.player2.label_tag }}
+                {{ form.player2 }}
+            </div>
+            <div class="form-group">
+                {{ form.player3.label_tag }}
+                {{ form.player3 }}
+            </div>
+            <div class="form-group">
+                {{ form.player4.label_tag }}
+                {{ form.player4 }}
+            </div>
+
+            <button type="submit" class="btn btn-primary">Créer le Tournoi</button>
+        </form>
+        <br>
+        <a href="{% url 'index' %}" class="btn btn-secondary">Retour à l'Accueil</a>
+    </div>
+</body>
+</html>
+<!-- game/templates/game/detail_local_tournament.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Détail du Tournoi</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
+    <script>
+    // Au bout de 3 secondes, on supprime la classe 'd-none' pour afficher le bouton
+    window.onload = function(){
+      setTimeout(function(){
+        let btn = document.getElementById('nextStepBtn');
+        if(btn) { btn.classList.remove('d-none'); }
+      }, 3000);
+    }
+    </script>
+</head>
+<body class="container mt-5">
+
+<h1>Détail du tournoi : {{ tournament.name }}</h1>
+
+<div>
+    <h3>1re demi-finale : {{ tournament.player1 }} vs {{ tournament.player2 }}</h3>
+    {% if semifinal1_result %}
+        <p>Résultat : {{ semifinal1_result.winner }} a gagné</p>
+    {% else %}
+        <p>Pas encore joué.</p>
+    {% endif %}
+</div>
+
+<div>
+    <h3>2e demi-finale : {{ tournament.player3 }} vs {{ tournament.player4 }}</h3>
+    {% if semifinal2_result %}
+        <p>Résultat : {{ semifinal2_result.winner }} a gagné</p>
+    {% else %}
+        <p>Pas encore joué.</p>
+    {% endif %}
+</div>
+
+<div>
+    <h3>Finale :</h3>
+    {% if final_result %}
+        <p>Résultat : {{ final_result.winner }} a gagné la finale !</p>
+    {% elif tournament.final %}
+        <p>Finale en cours ou pas encore terminée.</p>
+    {% else %}
+        <p>Pas encore définie.</p>
+    {% endif %}
+</div>
+
+<!-- Bouton caché pendant 3 sec, puis apparaît -->
+{% if tournament.status == 'pending' %}
+    <!-- Prochaine étape : préparer la 1re demi-finale -->
+    <a id="nextStepBtn" class="btn btn-primary d-none"
+       href="{% url 'prepare_game' tournament.id 'semifinal1' %}">
+       Passer à la demi-finale 1
+    </a>
+{% elif tournament.status == 'semifinal1_done' %}
+    <a id="nextStepBtn" class="btn btn-warning d-none"
+       href="{% url 'prepare_game' tournament.id 'semifinal2' %}">
+       Passer à la demi-finale 2
+    </a>
+{% elif tournament.status == 'semifinal2_done' %}
+    <a id="nextStepBtn" class="btn btn-success d-none"
+       href="{% url 'prepare_game' tournament.id 'final' %}">
+       Passer à la Finale
+    </a>
+{% elif tournament.status == 'finished' %}
+    <p>Tournoi terminé !</p>
+{% else %}
+    <p>En cours : {{ tournament.status }}</p>
+{% endif %}
+
+</body>
+</html>
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Game</title>
+  <style>
+    #gameCanvas {
+      background: black;
+      border: 2px solid white;
+      display: block;
+      margin: 0 auto;
+      max-width: 100%;
+    }
+
+    body {
+        margin: 0;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+        height: 100vh;  /* Force full height */
+        background: #1a1a1a;
+        color: white;
+        overflow: hidden;  /* Prevent scrolling */
+        box-sizing: border-box;  /* Include padding in height calculation */
+    }
+
+    h1 {
+        text-align: center;
+        font-size: clamp(1.5rem, 4vw, 2.5rem); /* Responsive font size */
+    }
+
+    .game-container {
+        width: 100%;
+        max-width: 1200px; /* Maximum game width */
+        position: relative;
+        aspect-ratio: 2/1;
+    }
+  </style>
+</head>
+<body>
+  <h1>Pong Game - ID : {{ game_id }}</h1>
+  <!-- Bouton de lancement -->
+  <button id="startGameBtn" class="btn btn-success" disabled onclick="startGame()">Lancer la Partie</button>
+  <div class="game-container">
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+  </div>
+
+  <script>
+    // Débloquer le bouton après 3 secondes
+    setTimeout(() => {
+      document.getElementById('startGameBtn').disabled = false;
+    }, 3000);
+  
+    function startGame() {
+      // Envoie une requête au backend pour lancer la partie
+      fetch(`/game/ready-game/${gameId}/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token }}'  // Assurez-vous que le template inclut un CSRF token
+        },
+        body: JSON.stringify({ start: true })
+      })
+        .then(response => {
+          if (response.ok) {
+            alert("La partie va commencer !");
+            // Tu peux mettre ici une autre logique si nécessaire
+          } else {
+            alert("Erreur lors du démarrage de la partie.");
+          }
+        })
+        .catch(error => {
+          console.error("Erreur lors de la requête:", error);
+        });
+    }
+  </script>
+
+  <script>
+    const ORIGINAL_WIDTH = 800;
+    const ORIGINAL_HEIGHT = 400;
+    let scale = 1;
+
+    const gameId = "{{ game_id }}";
+    const protocol = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
+    const wsUrl = protocol + '//' + window.location.host + '/ws/pong/' + gameId + '/';
+    const socket = new WebSocket(wsUrl);
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Handle canvas resize
+    function handleResize() {
+      const container = document.querySelector('.game-container');
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+      
+      // Calculate new scale
+      scale = Math.min(containerWidth / ORIGINAL_WIDTH, containerHeight / ORIGINAL_HEIGHT);
+      
+      // Set canvas size
+      canvas.style.width = (ORIGINAL_WIDTH * scale) + 'px';
+      canvas.style.height = (ORIGINAL_HEIGHT * scale) + 'px';
+      
+      // Keep canvas resolution sharp
+      canvas.width = ORIGINAL_WIDTH;
+      canvas.height = ORIGINAL_HEIGHT;
+      
+      // Reset context properties
+      ctx.imageSmoothingEnabled = false;
+    }
+
+    // Add resize event listener
+    window.addEventListener('resize', handleResize);
+    // Initial resize
+    handleResize();
+
+  // Function to create SVG power-up data URLs
+    function createPowerupSVG(type) {
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("viewBox", "0 0 50 50");
+      svg.setAttribute("width", "30");
+      svg.setAttribute("height", "30");
+      
+      const powerupStyles = {
+          'invert': {
+              colors: {main: '#FF69B4', glow: '#FF1493'},
+              icon: 'M25 15 A10 10 0 1 1 25 35 M25 35 L20 30 M25 35 L30 30'
+          },
+          'shrink': {
+              colors: {main: '#FF0000', glow: '#8B0000'},
+              icon: 'M25 25 L35 15 M33 15 L35 15 L35 17 M25 25 L15 15 M17 15 L15 15 L15 17 M25 25 L35 35 M33 35 L35 35 L35 33 M25 25 L15 35 M17 35 L15 35 L15 33'
+          },
+          'ice': {
+              colors: {main: '#00FFFF', glow: '#00CED1'},
+              paths: [
+                  {d: 'M25 10 L25 40 M18 14 L32 36 M32 14 L18 36 M20 25 L30 25', 
+                  fill: 'none', stroke: 'white', width: 3},
+                  {d: 'M25 25 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0', 
+                  fill: 'white', stroke: 'none', width: 0}
+              ]
+          },
+          'speed': {
+              colors: {main: '#FFD700', glow: '#FFA500'},
+              icon: 'M30 10 L20 25 L27 25 L17 40 L32 25 L25 25 L35 10',
+              fill: 'white'
+          },
+          'flash': {
+              colors: {main: '#FFFF00', glow: '#FFD700'},
+              paths: [
+                  {d: 'M25 10 m-8,0 a8,8 0 1,0 16,0 a8,8 0 1,0 -16,0', 
+                  fill: 'white', stroke: 'none', width: 0},
+                  {d: 'M25 10 L25 17 M25 33 L25 40 M35 25 L42 25 M8 25 L15 25 M32 18 L37 13 M13 37 L18 32 M32 32 L37 37 M13 13 L18 18',
+                  fill: 'none', stroke: 'white', width: 3}
+              ]
+          },
+          'sticky': {
+              colors: {main: '#32CD32', glow: '#228B22'},
+              icon: 'M25 10 C15 10 15 20 25 20 C35 20 35 10 25 10 M17 20 C17 40 33 40 33 20',
+              fill: 'white'
+          }
+      };
+      
+      const style = powerupStyles[type] || powerupStyles['speed'];
+      
+      // Create gradient
+      const gradient = document.createElementNS("http://www.w3.org/2000/svg", "radialGradient");
+      gradient.id = `${type}Glow`;
+      
+      const stops = [
+          {offset: '0%', color: style.colors.main, opacity: '1'},
+          {offset: '100%', color: style.colors.glow, opacity: '0.6'}
+      ];
+      
+      stops.forEach(stop => {
+          const stopEl = document.createElementNS("http://www.w3.org/2000/svg", "stop");
+          stopEl.setAttribute("offset", stop.offset);
+          stopEl.setAttribute("stop-color", stop.color);
+          stopEl.setAttribute("stop-opacity", stop.opacity);
+          gradient.appendChild(stopEl);
+      });
+      
+      svg.appendChild(gradient);
+      
+      // Create base circle
+      const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      circle.setAttribute("cx", "25");
+      circle.setAttribute("cy", "25");
+      circle.setAttribute("r", "20");
+      circle.setAttribute("fill", `url(#${type}Glow)`);
+      svg.appendChild(circle);
+      
+      // Add icon(s)
+      if (style.paths) {
+          // For complex icons with multiple paths
+          style.paths.forEach(pathData => {
+              const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+              path.setAttribute("d", pathData.d);
+              path.setAttribute("stroke", pathData.stroke);
+              path.setAttribute("stroke-width", pathData.width);
+              path.setAttribute("fill", pathData.fill);
+              svg.appendChild(path);
+          });
+      } else {
+          // For single path icons
+          const icon = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          icon.setAttribute("d", style.icon);
+          icon.setAttribute("stroke", "white");
+          icon.setAttribute("stroke-width", "3");
+          icon.setAttribute("fill", style.fill || "none");
+          svg.appendChild(icon);
+      }
+      
+      return `data:image/svg+xml;base64,${btoa(new XMLSerializer().serializeToString(svg))}`;
+  }
+
+  function createBumperSVG() {
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("viewBox", "0 0 100 100");
+      
+      // Create white orb gradient
+      const whiteGradient = document.createElementNS("http://www.w3.org/2000/svg", "radialGradient");
+      whiteGradient.id = "whiteOrbGradient";
+      whiteGradient.setAttribute("cx", "40%");
+      whiteGradient.setAttribute("cy", "40%");
+      whiteGradient.setAttribute("r", "60%");
+      
+      const whiteStops = [
+        {offset: '0%', color: 'white', opacity: '1'},
+        {offset: '90%', color: '#e0e0e0', opacity: '1'}
+      ];
+      
+      whiteStops.forEach(stop => {
+        const stopEl = document.createElementNS("http://www.w3.org/2000/svg", "stop");
+        stopEl.setAttribute("offset", stop.offset);
+        stopEl.setAttribute("stop-color", stop.color);
+        stopEl.setAttribute("stop-opacity", stop.opacity);
+        whiteGradient.appendChild(stopEl);
+      });
+      
+      // Create blue ring gradient
+      const blueGradient = document.createElementNS("http://www.w3.org/2000/svg", "radialGradient");
+      blueGradient.id = "blueRingGradient";
+      blueGradient.setAttribute("cx", "50%");
+      blueGradient.setAttribute("cy", "50%");
+      blueGradient.setAttribute("r", "50%");
+      
+      const blueStops = [
+        {offset: '0%', color: '#4169E1', opacity: '1'},
+        {offset: '100%', color: '#1E90FF', opacity: '1'}
+      ];
+      
+      blueStops.forEach(stop => {
+        const stopEl = document.createElementNS("http://www.w3.org/2000/svg", "stop");
+        stopEl.setAttribute("offset", stop.offset);
+        stopEl.setAttribute("stop-color", stop.color);
+        stopEl.setAttribute("stop-opacity", stop.opacity);
+        blueGradient.appendChild(stopEl);
+      });
+      
+      // Add gradients to defs
+      const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+      defs.appendChild(whiteGradient);
+      defs.appendChild(blueGradient);
+      svg.appendChild(defs);
+      
+      // Blue exterior ring
+      const ringCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      ringCircle.setAttribute("cx", "50");
+      ringCircle.setAttribute("cy", "50");
+      ringCircle.setAttribute("r", "45");
+      ringCircle.setAttribute("fill", "none");
+      ringCircle.setAttribute("stroke", "url(#blueRingGradient)");
+      ringCircle.setAttribute("stroke-width", "8");
+      
+      // White orb center
+      const whiteOrb = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      whiteOrb.setAttribute("cx", "50");
+      whiteOrb.setAttribute("cy", "50");
+      whiteOrb.setAttribute("r", "35");
+      whiteOrb.setAttribute("fill", "url(#whiteOrbGradient)");
+      
+      // Highlight for 3D effect
+      const highlight = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      highlight.setAttribute("cx", "35");
+      highlight.setAttribute("cy", "35");
+      highlight.setAttribute("r", "15");
+      highlight.setAttribute("fill", "white");
+      highlight.setAttribute("opacity", "0.3");
+      
+      svg.appendChild(ringCircle);
+      svg.appendChild(whiteOrb);
+      svg.appendChild(highlight);
+      
+      return `data:image/svg+xml;base64,${btoa(new XMLSerializer().serializeToString(svg))}`;
+    }
+
+
+  // Create and cache power-up images
+  const powerupImages = {
+      'invert': new Image(),
+      'shrink': new Image(),
+      'ice': new Image(),
+      'speed': new Image(),
+      'flash': new Image(),
+      'sticky': new Image()
+  };
+
+  // Initialize power-up images
+  function initPowerupImages() {
+      Object.keys(powerupImages).forEach(type => {
+          powerupImages[type].src = createPowerupSVG(type);
+      });
+  }
+
+  //modifie le gameState pour y indiquer l'effet flash
+  function applyFlashEffect() {
+    gameState.flash_effect = true;
+    setTimeout(() => {
+      gameState.flash_effect = false;
+    }, 300);  // 300 millisecondes = 0.3 secondes
+  }
+
+  // Create and cache bumper image
+  const bumperImage = new Image();
+  bumperImage.src = createBumperSVG();
+
+  // Call initialization
+  initPowerupImages();
+
+    // État initial du jeu côté client
+    let gameState = {
+      type: 'game_state',
+      ball_x: 400, 
+      ball_y: 200,
+      ball_size: 7,
+      ball_speed_x: 4,
+      ball_speed_y: 4,
+      paddle_left_y: 170,
+      paddle_right_y: 170,
+      paddle_width: 10,
+      paddle_left_height: 60,
+      paddle_right_height: 60,
+      score_left: 0, 
+      score_right: 0,
+      powerups: [],
+      bumpers: [],
+      flash_effect: false
+    };
+
+    socket.onopen = () => {
+      console.log("[Frontend] WebSocket connection opened.");
+    };
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      // console.log("[Frontend] Received data:", data);
+      
+      if (data.type === 'game_state') {
+        gameState = data;
+      } else if (data.type === 'game_over') {
+        alert("Game Over! Winner = " + data.winner);
+        socket.close();
+      } else if (data.type === 'powerup_applied') {
+        console.log(`[Frontend] Power-up applied to ${data.player}: ${data.effect}`);
+        
+        if (data.effect === 'flash') {
+          applyFlashEffect();
+        }
+        // Vous pourrez gérer d'autres effets ici plus tard
+      }
+    };
+
+    socket.onclose = () => {
+      console.log("[Frontend] WebSocket connection closed.");
+    };
+
+    let keysPressed = {};
+
+    document.addEventListener('keydown', (evt) => {
+      if (evt.repeat) return;
+
+      let action = "start_move", player = null, direction = null;
+      
+      switch(evt.key) {
+        case 'w':
+        case 'W':
+          player = 'left';
+          direction = 'up';
+          break;
+        case 's':
+        case 'S':
+          player = 'left';
+          direction = 'down';
+          break;
+        case 'ArrowUp':
+          player = 'right';
+          direction = 'up';
+          break;
+        case 'ArrowDown':
+          player = 'right';
+          direction = 'down';
+          break;
+      }
+      if (player && direction && !keysPressed[evt.key]) {
+        socket.send(JSON.stringify({
+          action: action,
+          player: player,
+          direction: direction
+        }));
+        console.log(`[Frontend] Sent start_move: player=${player}, direction=${direction}`);
+        keysPressed[evt.key] = true;
+      }
+    });
+
+    document.addEventListener('keyup', (evt) => {
+      let action = "stop_move", player = null;
+
+      switch(evt.key) {
+        case 'w':
+        case 'W':
+          player = 'left';
+          break;
+        case 's':
+        case 'S':
+          player = 'left';
+          break;
+        case 'ArrowUp':
+          player = 'right';
+          break;
+        case 'ArrowDown':
+          player = 'right';
+          break;
+      }
+      if (player && keysPressed[evt.key]) {
+        socket.send(JSON.stringify({
+          action: action,
+          player: player
+        }));
+        console.log(`[Frontend] Sent stop_move: player=${player}`);
+        keysPressed[evt.key] = false;
+      }
+    });
+
+    function draw() {
+      if (gameState.flash_effect) {
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      } else {
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Terrain
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(50, 50, canvas.width - 100, canvas.height - 100);
+        
+        // Paddles
+        ctx.fillStyle = 'white';
+        ctx.fillRect(50, gameState.paddle_left_y, 
+          gameState.paddle_width, gameState.paddle_left_height);
+        ctx.fillRect(canvas.width - 50 - gameState.paddle_width, 
+          gameState.paddle_right_y, 
+          gameState.paddle_width, 
+          gameState.paddle_right_height);
+        
+        // Ball
+        ctx.beginPath();
+        ctx.arc(gameState.ball_x, gameState.ball_y, gameState.ball_size, 0, 2*Math.PI);
+        ctx.fill();
+
+        // Power-ups with scaling
+        gameState.powerups.forEach(orb => {
+            const type = orb.type || 'speed';
+            const img = powerupImages[type];
+            if (img.complete) {
+                ctx.save();
+                
+                // Add glow effect based on type
+                const glowColors = {
+                    'invert': '#FF69B4',
+                    'shrink': '#FF0000',
+                    'ice': '#00FFFF',
+                    'speed': '#FFD700',
+                    'flash': '#FFFF00',
+                    'sticky': '#32CD32'
+                };
+                
+                ctx.shadowColor = glowColors[type] || glowColors['speed'];
+                ctx.shadowBlur = 10;
+                
+                ctx.drawImage(img, 
+                    orb.x - 15,
+                    orb.y - 15, 
+                    30, 
+                    30
+                );
+                
+                ctx.restore();
+            }
+        });
+
+        // Bumpers
+        gameState.bumpers.forEach(bumper => {
+          if (bumperImage.complete) {
+            ctx.save();
+            ctx.shadowColor = '#4169E1';
+            ctx.shadowBlur = 10 * scale;
+            ctx.drawImage(bumperImage,
+              bumper.x - bumper.size,     // Correction ici
+              bumper.y - bumper.size,     // Correction ici
+              bumper.size * 2,            // Correction ici
+              bumper.size * 2             // Correction ici
+            );
+            ctx.restore();
+          }
+        });
+      }
+
+      // Scores
+      ctx.fillStyle='white';
+      ctx.font="20px Arial";
+      ctx.fillText(`${gameState.score_left}`, 20, 30);
+      ctx.fillText(`${gameState.score_right}`, canvas.width - 40, 30);
+
+      requestAnimationFrame(draw);
+    }
+    requestAnimationFrame(draw);
+  </script>
+</body>
+</html><!-- game/templates/game/index.html -->
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pong Multi-Game</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1>Accueil Pong</h1>
+        <a href="{% url 'create_game' %}" class="btn btn-primary">Créer une Nouvelle Partie Locale</a> <br><br>
+        <a href="{% url 'create_local_tournament' %}" class="btn btn-primary">Créer un Tournoi Local</a> <br><br>
+        <a href="{% url 'list_results' %}" class="btn btn-secondary">Voir les Résultats</a>
+    </div>
+</body>
+</html>
+<!-- game/templates/game/prepare_game.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Préparation du match</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
+    <script>
+    window.onload = function(){
+      setTimeout(function(){
+        let btn = document.getElementById('startGameBtn');
+        if(btn) { btn.classList.remove('d-none'); }
+      }, 3000);
+    }
+    </script>
+</head>
+<body class="container mt-5">
+
+<h2>Match à venir : {{ player_left }} vs {{ player_right }}</h2>
+
+<p>Préparez-vous... Le match va bientôt commencer !</p>
+
+<!-- Bouton caché pendant 3 sec, puis apparaît -->
+<a id="startGameBtn" class="btn btn-primary d-none"
+   href="{% url 'start_game' tournament.id match_type %}">
+   Commencer la Partie
+</a>
+
+</body>
+</html>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Liste des Parties Terminées</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1>Historique des Parties</h1>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Game ID</th>
+                    <th>Winner</th>
+                    <th>Score</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in results %}
+                <tr>
+                    <td>{{ r.game.id }}</td>
+                    <td>{{ r.winner }}</td>
+                    <td>{{ r.score_left }} - {{ r.score_right }}</td>
+                    <td>{{ r.ended_at }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <p><a href="{% url 'index' %}" class="btn btn-secondary">Retour Accueil</a></p>
+    </div>
+</body>
+</html>

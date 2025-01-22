@@ -40,9 +40,41 @@
 </head>
 <body>
   <h1>Pong Game - ID : {{ game_id }}</h1>
+  <!-- Bouton de lancement -->
+  <button id="startGameBtn" class="btn btn-success" disabled onclick="startGame()">Lancer la Partie</button>
   <div class="game-container">
     <canvas id="gameCanvas" width="800" height="400"></canvas>
   </div>
+
+  <script>
+    // Débloquer le bouton après 3 secondes
+    setTimeout(() => {
+      document.getElementById('startGameBtn').disabled = false;
+    }, 3000);
+  
+    function startGame() {
+      // Envoie une requête au backend pour lancer la partie
+      fetch(`/game/ready-game/${gameId}/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token }}'  // Assurez-vous que le template inclut un CSRF token
+        },
+        body: JSON.stringify({ start: true })
+      })
+        .then(response => {
+          if (response.ok) {
+            alert("La partie va commencer !");
+            // Tu peux mettre ici une autre logique si nécessaire
+          } else {
+            alert("Erreur lors du démarrage de la partie.");
+          }
+        })
+        .catch(error => {
+          console.error("Erreur lors de la requête:", error);
+        });
+    }
+  </script>
 
   <script>
     const ORIGINAL_WIDTH = 800;

@@ -105,18 +105,18 @@ def create_local_tournament(request):
             # en fonction de player1/player2 vs player3/player4, etc.
             # Par exemple :
             
-            game1 = GameSession.objects.create(
-                player_left=tournament.player1,
-                player_right=tournament.player2,
-                status='waiting'
-            )
-            tournament.semifinal1 = game1
-            game2 = GameSession.objects.create(
-                player_left=tournament.player3,
-                player_right=tournament.player4,
-                status='waiting'
-            )
-            tournament.semifinal2 = game2
+            # game1 = GameSession.objects.create(
+            #     player_left=tournament.player1,
+            #     player_right=tournament.player2,
+            #     status='waiting'
+            # )
+            # tournament.semifinal1 = game1
+            # game2 = GameSession.objects.create(
+            #     player_left=tournament.player3,
+            #     player_right=tournament.player4,
+            #     status='waiting'
+            # )
+            # tournament.semifinal2 = game2
             
             tournament.save()
             
@@ -201,68 +201,82 @@ def start_game(request, tournament_id, match_type):
     tournament = get_object_or_404(LocalTournament, pk=tournament_id)
 
     if match_type == 'semifinal1':
-        if not tournament.semifinal1:
-            gs = GameSession.objects.create(
-                player_left=tournament.player1,
-                player_right=tournament.player2,
-                status='waiting'
+        # Créer systématiquement la GameSession pour la demi-finale 1
+        gs = GameSession.objects.create(
+            player_left=tournament.player1,
+            player_right=tournament.player2,
+            status='waiting'
+        )
+
+        # Associer des paramètres à cette GameSession
+        if tournament.parameters:
+            GameParameters.objects.create(
+                game_session=gs,
+                ball_speed=tournament.parameters.ball_speed,
+                racket_size=tournament.parameters.racket_size,
+                bonus_malus_activation=tournament.parameters.bonus_malus_activation,
+                bumpers_activation=tournament.parameters.bumpers_activation
             )
-            # Dupliquer les paramètres du tournoi
-            if tournament.parameters:  
-                # On crée un nouveau GameParameters *pour* la GameSession
-                GameParameters.objects.create(
-                    game_session=gs,  # cette fois on associe la session
-                    ball_speed=tournament.parameters.ball_speed,
-                    racket_size=tournament.parameters.racket_size,
-                    bonus_malus_activation=tournament.parameters.bonus_malus_activation,
-                    bumpers_activation=tournament.parameters.bumpers_activation
-                )
 
-            # Associer la session au tournoi
-            tournament.semifinal1 = gs
-            tournament.status = 'semifinal1_in_progress'
-            tournament.save()
-
-        else:
-            gs = tournament.semifinal1
+        # Enregistrer cette demi-finale dans le tournoi
+        tournament.semifinal1 = gs
+        tournament.status = 'semifinal1_in_progress'
+        tournament.save()
 
     elif match_type == 'semifinal2':
-        if not tournament.semifinal2:
-            gs = GameSession.objects.create(
-                player_left=tournament.player3,
-                player_right=tournament.player4,
-                status='waiting'
+        # Créer la GameSession pour la demi-finale 2
+        gs = GameSession.objects.create(
+            player_left=tournament.player3,
+            player_right=tournament.player4,
+            status='waiting'
+        )
+        # Associer des paramètres à cette GameSession
+        if tournament.parameters:
+            GameParameters.objects.create(
+                game_session=gs,
+                ball_speed=tournament.parameters.ball_speed,
+                racket_size=tournament.parameters.racket_size,
+                bonus_malus_activation=tournament.parameters.bonus_malus_activation,
+                bumpers_activation=tournament.parameters.bumpers_activation
             )
-            # ==> Dupliquer la création de GameParameters :
-            if tournament.parameters:
-                GameParameters.objects.create(
-                    game_session=gs,
-                    ball_speed=tournament.parameters.ball_speed,
-                    racket_size=tournament.parameters.racket_size,
-                    bonus_malus_activation=tournament.parameters.bonus_malus_activation,
-                    bumpers_activation=tournament.parameters.bumpers_activation
-                )
-
-            tournament.semifinal2 = gs
-            tournament.status = 'semifinal2_in_progress'
-            tournament.save()
-        else:
-            gs = tournament.semifinal2
+        tournament.semifinal2 = gs
+        tournament.status = 'semifinal2_in_progress'
+        tournament.save()
 
     elif match_type == 'final':
-        # Dans le cas de la finale, tu peux récupérer les vainqueurs
-        # depuis les GameResult des demi-finales, etc.
-        # Mais le plus important est de créer la GameSession finale.
-        # ...
-        pass
-        # (même principe, on la crée en 'waiting' si elle n'existe pas)
+        # Pour la finale, on récupère éventuellement les vainqueurs
+        semi1_result = GameResult.objects.filter(game=tournament.semifinal1).first()
+        semi2_result = GameResult.objects.filter(game=tournament.semifinal2).first()
+
+        # Récupérer les pseudos vainqueurs ou fallback
+        winner_semifinal1 = semi1_result.winner if semi1_result else tournament.player1
+        winner_semifinal2 = semi2_result.winner if semi2_result else tournament.player3
+
+        # Créer la GameSession pour la finale
+        gs = GameSession.objects.create(
+            player_left=winner_semifinal1,
+            player_right=winner_semifinal2,
+            status='waiting'
+        )
+        # Associer des paramètres à la finale
+        if tournament.parameters:
+            GameParameters.objects.create(
+                game_session=gs,
+                ball_speed=tournament.parameters.ball_speed,
+                racket_size=tournament.parameters.racket_size,
+                bonus_malus_activation=tournament.parameters.bonus_malus_activation,
+                bumpers_activation=tournament.parameters.bumpers_activation
+            )
+        tournament.final = gs
+        tournament.status = 'final_in_progress'
+        tournament.save()
 
     else:
+        # Cas non géré (erreur ou retour)
         return redirect('detail_local_tournament', tournament_id=tournament.id)
 
-    # 1) Lancer la loop du jeu (schedule_game) => on doit donner l'id sous forme de string
+    # Lance la loop asynchrone pour la partie
     schedule_game(str(gs.id))
 
-    # 2) Rediriger vers la vue "game" (canvas) pour cette partie
-    #    Ton URL est de type: path('<uuid:game_id>/', views.game, name='game')
+    # Redirige vers la page de la partie
     return redirect('game', game_id=gs.id)

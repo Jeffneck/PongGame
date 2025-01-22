@@ -138,7 +138,7 @@ class PongConsumer(AsyncWebsocketConsumer):
 # [IMPROVE] adapter le consummer  aux notifications envoyees par broadcast.py# game/forms.py
 
 from django import forms
-from .models import GameParameters, LocalTournament
+from .models import GameParameters, LocalTournament, TournamentParameters
 
 class GameParametersForm(forms.ModelForm):
     class Meta:
@@ -157,7 +157,48 @@ class GameParametersForm(forms.ModelForm):
             'bumpers_activation': 'Activer les bumpers/obstacles',
         }
 
+# class LocalTournamentForm(forms.ModelForm):
+#     class Meta:
+#         model = LocalTournament
+#         fields = ['name', 'player1', 'player2', 'player3', 'player4']
+#         labels = {
+#             'name': 'Nom du Tournoi',
+#             'player1': 'Pseudo joueur 1',
+#             'player2': 'Pseudo joueur 2',
+#             'player3': 'Pseudo joueur 3',
+#             'player4': 'Pseudo joueur 4',
+#         }
+#         widgets = {
+#             'name': forms.TextInput(attrs={'class': 'form-control'}),
+#             'player1': forms.TextInput(attrs={'class': 'form-control'}),
+#             'player2': forms.TextInput(attrs={'class': 'form-control'}),
+#             'player3': forms.TextInput(attrs={'class': 'form-control'}),
+#             'player4': forms.TextInput(attrs={'class': 'form-control'}),
+#         }
+
 class LocalTournamentForm(forms.ModelForm):
+    # Champs "injectés" depuis GameParameters
+    ball_speed = forms.ChoiceField(
+        choices=GameParameters.BALL_SPEED_CHOICES,
+        label='Vitesse de la balle',
+        initial=2
+    )
+    racket_size = forms.ChoiceField(
+        choices=GameParameters.RACKET_SIZE_CHOICES,
+        label='Taille de la raquette',
+        initial=2
+    )
+    bonus_malus_activation = forms.BooleanField(
+        label='Activer bonus/malus',
+        required=False,
+        initial=True
+    )
+    bumpers_activation = forms.BooleanField(
+        label='Activer bumpers',
+        required=False,
+        initial=False
+    )
+
     class Meta:
         model = LocalTournament
         fields = ['name', 'player1', 'player2', 'player3', 'player4']
@@ -174,7 +215,32 @@ class LocalTournamentForm(forms.ModelForm):
             'player2': forms.TextInput(attrs={'class': 'form-control'}),
             'player3': forms.TextInput(attrs={'class': 'form-control'}),
             'player4': forms.TextInput(attrs={'class': 'form-control'}),
-        }# game/game_objects.py
+        }
+
+    def save(self, commit=True):
+        """
+        1) Crée le LocalTournament (pseudos, name).
+        2) Crée un GameParameters 'temporaire' (sans GameSession) avec 
+           les champs provenant du formulaire.
+        3) Associe ce GameParameters au LocalTournament.
+        """
+        tournament = super().save(commit=False)
+
+        if commit:
+            # On doit d'abord sauvegarder le LocalTournament
+            tournament.save()
+
+            # Créer un GameParameters "isolé" (pas lié à une GameSession)
+            tp = TournamentParameters.objects.create(
+                ball_speed=self.cleaned_data['ball_speed'],
+                racket_size=self.cleaned_data['racket_size'],
+                bonus_malus_activation=self.cleaned_data['bonus_malus_activation'],
+                bumpers_activation=self.cleaned_data['bumpers_activation'],
+            )
+            tournament.parameters = tp
+            tournament.save()
+
+        return tournament# game/game_objects.py
 
 import random
 import math
@@ -420,6 +486,32 @@ class GameResult(models.Model):
         return f"[{self.game.id}] winner={self.winner} looser={self.looser} => {self.score_left}-{self.score_right}"
 
 
+
+class GameInvitation(models.Model):
+    from_user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='invitations_sent', on_delete=models.CASCADE)
+    to_user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='invitations_received', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(
+        max_length=10,
+        choices=[('pending', 'Pending'), ('accepted', 'Accepted'), ('rejected', 'Rejected')],
+        default='pending'
+    )
+    
+    def __str__(self):
+        return f"Invitation de {self.from_user.username} à {self.to_user.username} - {self.status}"
+    
+# TOURNAMENT MODELS
+
+class TournamentParameters(models.Model):
+    BALL_SPEED_CHOICES = [(1, 'Slow'), (2, 'Medium'), (3, 'Fast')]
+    ball_speed = models.PositiveSmallIntegerField(choices=BALL_SPEED_CHOICES, default=2)
+
+    RACKET_SIZE_CHOICES = [(1, 'Small'), (2, 'Medium'), (3, 'Large')]
+    racket_size = models.PositiveSmallIntegerField(choices=RACKET_SIZE_CHOICES, default=2)
+
+    bonus_malus_activation = models.BooleanField(default=True)
+    bumpers_activation = models.BooleanField(default=False)
+
 class LocalTournament(models.Model):
     """
     Modèle pour gérer un tournoi local à 4 joueurs (type 'mini-bracket').
@@ -432,9 +524,9 @@ class LocalTournament(models.Model):
     player3 = models.CharField(max_length=50)
     player4 = models.CharField(max_length=50)
 
-    # Si tu veux stocker des références aux parties qui composent le tournoi :
+    # Parties du bracket : 2 demi-finales + 1 finale
     semifinal1 = models.ForeignKey(
-        'GameSession',  # référence à ta classe GameSession
+        'GameSession',
         on_delete=models.SET_NULL,
         null=True, blank=True,
         related_name='tournament_semifinal1'
@@ -452,6 +544,14 @@ class LocalTournament(models.Model):
         related_name='tournament_final'
     )
 
+    # Paramètres de jeu (pour dupliquer sur chaque partie)
+    # On met un on_delete = SET_NULL (ou CASCADE si tu préfères)
+    parameters = models.OneToOneField(
+        TournamentParameters,
+        on_delete=models.SET_NULL,
+        null=True, blank=True
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(
         max_length=20,
@@ -460,21 +560,7 @@ class LocalTournament(models.Model):
     )
 
     def __str__(self):
-        return f"Tournament {self.name} - {self.id}"
-
-class GameInvitation(models.Model):
-    from_user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='invitations_sent', on_delete=models.CASCADE)
-    to_user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='invitations_received', on_delete=models.CASCADE)
-    created_at = models.DateTimeField(auto_now_add=True)
-    status = models.CharField(
-        max_length=10,
-        choices=[('pending', 'Pending'), ('accepted', 'Accepted'), ('rejected', 'Rejected')],
-        default='pending'
-    )
-    
-    def __str__(self):
-        return f"Invitation de {self.from_user.username} à {self.to_user.username} - {self.status}"
-from django.urls import re_path
+        return f"Tournament {self.name} - {self.id}"from django.urls import re_path
 from .consumers import PongConsumer
 
 websocket_urlpatterns = [
@@ -731,24 +817,31 @@ def prepare_game(request, tournament_id, match_type):
 
 # tournoi
 def start_game(request, tournament_id, match_type):
-    """
-    Crée (ou récupère) la GameSession pour ce match (semifinal1, semifinal2 ou final),
-    la planifie (schedule_game) et redirige vers la page du jeu (canvas).
-    """
     tournament = get_object_or_404(LocalTournament, pk=tournament_id)
 
     if match_type == 'semifinal1':
-        # S’il n’y a pas encore de GameSession pour semifinal1
         if not tournament.semifinal1:
             gs = GameSession.objects.create(
                 player_left=tournament.player1,
                 player_right=tournament.player2,
                 status='waiting'
             )
-            # On stocke la session dans le tournoi
+            # Dupliquer les paramètres du tournoi
+            if tournament.parameters:  
+                # On crée un nouveau GameParameters *pour* la GameSession
+                GameParameters.objects.create(
+                    game_session=gs,  # cette fois on associe la session
+                    ball_speed=tournament.parameters.ball_speed,
+                    racket_size=tournament.parameters.racket_size,
+                    bonus_malus_activation=tournament.parameters.bonus_malus_activation,
+                    bumpers_activation=tournament.parameters.bumpers_activation
+                )
+
+            # Associer la session au tournoi
             tournament.semifinal1 = gs
             tournament.status = 'semifinal1_in_progress'
             tournament.save()
+
         else:
             gs = tournament.semifinal1
 
@@ -1738,6 +1831,7 @@ async def finish_game(game_id):
             {% csrf_token %}
             {{ form.non_field_errors }}
             
+            <!-- Champs LocalTournament -->
             <div class="form-group">
                 {{ form.name.label_tag }}
                 {{ form.name }}
@@ -1757,6 +1851,25 @@ async def finish_game(game_id):
             <div class="form-group">
                 {{ form.player4.label_tag }}
                 {{ form.player4 }}
+            </div>
+
+            <hr>
+            <!-- Champs GameParameters injectés dans LocalTournamentForm -->
+            <div class="form-group">
+                {{ form.ball_speed.label_tag }}
+                {{ form.ball_speed }}
+            </div>
+            <div class="form-group">
+                {{ form.racket_size.label_tag }}
+                {{ form.racket_size }}
+            </div>
+            <div class="form-group form-check">
+                {{ form.bonus_malus_activation }}
+                {{ form.bonus_malus_activation.label_tag }}
+            </div>
+            <div class="form-group form-check">
+                {{ form.bumpers_activation }}
+                {{ form.bumpers_activation.label_tag }}
             </div>
 
             <button type="submit" class="btn btn-primary">Créer le Tournoi</button>

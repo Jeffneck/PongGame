@@ -1,7 +1,7 @@
 # game/forms.py
 
 from django import forms
-from .models import GameParameters, LocalTournament
+from .models import GameParameters, LocalTournament, TournamentParameters
 
 class GameParametersForm(forms.ModelForm):
     class Meta:
@@ -94,16 +94,13 @@ class LocalTournamentForm(forms.ModelForm):
             tournament.save()
 
             # Créer un GameParameters "isolé" (pas lié à une GameSession)
-            gp = GameParameters.objects.create(
-                game_session=None,  # pas de GameSession => plus tard on dupliquera
+            tp = TournamentParameters.objects.create(
                 ball_speed=self.cleaned_data['ball_speed'],
                 racket_size=self.cleaned_data['racket_size'],
                 bonus_malus_activation=self.cleaned_data['bonus_malus_activation'],
-                bumpers_activation=self.cleaned_data['bumpers_activation']
+                bumpers_activation=self.cleaned_data['bumpers_activation'],
             )
-
-            # Associer
-            tournament.parameters = gp
+            tournament.parameters = tp
             tournament.save()
 
         return tournament

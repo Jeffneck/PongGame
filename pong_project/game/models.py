@@ -52,6 +52,32 @@ class GameResult(models.Model):
         return f"[{self.game.id}] winner={self.winner} looser={self.looser} => {self.score_left}-{self.score_right}"
 
 
+
+class GameInvitation(models.Model):
+    from_user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='invitations_sent', on_delete=models.CASCADE)
+    to_user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='invitations_received', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(
+        max_length=10,
+        choices=[('pending', 'Pending'), ('accepted', 'Accepted'), ('rejected', 'Rejected')],
+        default='pending'
+    )
+    
+    def __str__(self):
+        return f"Invitation de {self.from_user.username} à {self.to_user.username} - {self.status}"
+    
+# TOURNAMENT MODELS
+
+class TournamentParameters(models.Model):
+    BALL_SPEED_CHOICES = [(1, 'Slow'), (2, 'Medium'), (3, 'Fast')]
+    ball_speed = models.PositiveSmallIntegerField(choices=BALL_SPEED_CHOICES, default=2)
+
+    RACKET_SIZE_CHOICES = [(1, 'Small'), (2, 'Medium'), (3, 'Large')]
+    racket_size = models.PositiveSmallIntegerField(choices=RACKET_SIZE_CHOICES, default=2)
+
+    bonus_malus_activation = models.BooleanField(default=True)
+    bumpers_activation = models.BooleanField(default=False)
+
 class LocalTournament(models.Model):
     """
     Modèle pour gérer un tournoi local à 4 joueurs (type 'mini-bracket').
@@ -87,10 +113,9 @@ class LocalTournament(models.Model):
     # Paramètres de jeu (pour dupliquer sur chaque partie)
     # On met un on_delete = SET_NULL (ou CASCADE si tu préfères)
     parameters = models.OneToOneField(
-        GameParameters,
+        TournamentParameters,
         on_delete=models.SET_NULL,
-        null=True, blank=True,
-        related_name='tournament_parameters'
+        null=True, blank=True
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -102,16 +127,3 @@ class LocalTournament(models.Model):
 
     def __str__(self):
         return f"Tournament {self.name} - {self.id}"
-
-class GameInvitation(models.Model):
-    from_user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='invitations_sent', on_delete=models.CASCADE)
-    to_user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='invitations_received', on_delete=models.CASCADE)
-    created_at = models.DateTimeField(auto_now_add=True)
-    status = models.CharField(
-        max_length=10,
-        choices=[('pending', 'Pending'), ('accepted', 'Accepted'), ('rejected', 'Rejected')],
-        default='pending'
-    )
-    
-    def __str__(self):
-        return f"Invitation de {self.from_user.username} à {self.to_user.username} - {self.status}"

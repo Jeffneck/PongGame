@@ -223,10 +223,6 @@ def start_game(request, tournament_id, match_type):
             tournament.status = 'semifinal1_in_progress'
             tournament.save()
 
-            # schedule_game
-            from .manager import schedule_game
-            schedule_game(game_id)
-
         else:
             gs = tournament.semifinal1
 
@@ -237,6 +233,16 @@ def start_game(request, tournament_id, match_type):
                 player_right=tournament.player4,
                 status='waiting'
             )
+            # ==> Dupliquer la création de GameParameters :
+            if tournament.parameters:
+                GameParameters.objects.create(
+                    game_session=gs,
+                    ball_speed=tournament.parameters.ball_speed,
+                    racket_size=tournament.parameters.racket_size,
+                    bonus_malus_activation=tournament.parameters.bonus_malus_activation,
+                    bumpers_activation=tournament.parameters.bumpers_activation
+                )
+
             tournament.semifinal2 = gs
             tournament.status = 'semifinal2_in_progress'
             tournament.save()

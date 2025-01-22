@@ -117,44 +117,43 @@ async def game_loop(game_id):
             await update_paddles_from_redis(game_id, paddle_left, paddle_right)
             # print(f"[game_loop.py] game_id={game_id} - Paddles positions updated from Redis.")
             # check if ball is stuck to any paddle
+            # In game_loop.py, replace the ball movement section in the game loop with:
+
+            # check if ball is stuck to any paddle
             left_stuck = r.get(f"{game_id}:ball_stuck_to_left")
             right_stuck = r.get(f"{game_id}:ball_stuck_to_right")
+            ball_moved = False
 
+            left_stuck = r.get(f"{game_id}:ball_stuck_to_left")
+            right_stuck = r.get(f"{game_id}:ball_stuck_to_right")
             ball_moved = False
 
             if left_stuck or right_stuck:
                 stuck_side = 'left' if left_stuck else 'right'
                 sticky_start = float(r.get(f"{game_id}:sticky_start_{stuck_side}") or 0)
                 relative_pos = float(r.get(f"{game_id}:sticky_relative_pos_{stuck_side}") or 0)
+                current_paddle = paddle_left if stuck_side == 'left' else paddle_right
                 
-                # Check if 1 second has passed or if the user wants to release
+                # Check if 1 second has passed
                 if time.time() - sticky_start >= 1.0:
                     # Get the original speed that was stored when the ball got stuck
                     original_speed_x = float(r.get(f"{game_id}:ball_original_speed_x") or ball.speed_x)
                     original_speed_y = float(r.get(f"{game_id}:ball_original_speed_y") or ball.speed_y)
                     
-                    # Calculate the original speed magnitude
+                    # Calculate the original speed magnitude and boost it
                     original_speed = math.hypot(original_speed_x, original_speed_y)
+                    new_speed = original_speed * 1.3
                     
-                    # Apply speed boost
-                    speed_multiplier = 1.3
-                    new_speed = original_speed * speed_multiplier
-
-                    # First, make sure the ball is in the correct position relative to the paddle
-                    relative_pos = float(r.get(f"{game_id}:sticky_relative_pos_{stuck_side}") or 0)
+                    # Position the ball and set its velocity
                     if stuck_side == 'left':
-                        ball.x = paddle_left.x + paddle_left.width
-                        ball.y = paddle_left.y + relative_pos
+                        ball.x = paddle_left.x + paddle_left.width + ball.size
+                        ball.speed_x = new_speed  # Move right
                     else:
-                        ball.x = paddle_right.x
-                        ball.y = paddle_right.y + relative_pos
+                        ball.x = paddle_right.x - ball.size
+                        ball.speed_x = -new_speed  # Move left
                     
-                    # Then set the release velocity (away from paddle)
-                    ball.speed_x = new_speed * (1 if stuck_side == 'right' else -1)
-                    ball.speed_y = random.uniform(-0.5, 0.5) * new_speed
-                    
-                    # Update ball position in Redis immediately
-                    await update_ball_redis(game_id, ball)
+                    # Add slight vertical component to prevent straight-line motion
+                    ball.speed_y = new_speed * 0.2 * random.choice([-1, 1])
                     
                     # Clean up Redis keys
                     r.delete(f"{game_id}:ball_stuck_to_{stuck_side}")
@@ -164,9 +163,21 @@ async def game_loop(game_id):
                     r.delete(f"{game_id}:ball_original_speed_y")
                     
                     ball_moved = True
+                else:
+                    # Update ball position to follow paddle
+                    paddle_y = float(r.get(f"{game_id}:paddle_{stuck_side}_y") or current_paddle.y)
+                    if stuck_side == 'left':
+                        ball.x = paddle_left.x + paddle_left.width + ball.size
+                    else:
+                        ball.x = paddle_right.x - ball.size
+                    ball.y = paddle_y + relative_pos
+                    ball_moved = True
+            
             if not ball_moved:
                 ball.move()
-                await update_ball_redis(game_id, ball)
+            
+            await update_ball_redis(game_id, ball)
+
             # 3. Vérifier les collisions
             collision = await check_collisions(game_id, paddle_left, paddle_right, ball, bumpers, powerup_orbs)
             if collision in ['score_left', 'score_right']:
@@ -373,10 +384,19 @@ async def check_collisions(game_id, paddle_left, paddle_right, ball, bumpers, po
     return None
 
 
-async def handle_paddle_collisions(game_id, paddle_left, paddle_right, ball):
+async def handle_paddle_collisions(game_id, paddle_left, paddle_right, ball): #added
     """
     Gère les collisions avec les paddles gauche et droite.
     """
+
+    # Check if ball is stuck to any paddle
+    left_stuck = bool(r.get(f"{game_id}:ball_stuck_to_left"))
+    right_stuck = bool(r.get(f"{game_id}:ball_stuck_to_right"))
+
+    # If ball is stuck, no need to check for collisions/scoring
+    if left_stuck or right_stuck:
+        return None
+
     # Left paddle
     if ball.x - ball.size <= paddle_left.x + paddle_left.width:
         if paddle_left.y <= ball.y <= paddle_left.y + paddle_left.height:
@@ -434,40 +454,47 @@ async def handle_bumper_collision(game_id, ball, bumpers):
 async def handle_paddle_collision(game_id, paddle_side, paddle, ball):
     """Handles paddle collision with improved sticky effect."""
     
-    # Determine if sticky power-up is active for this side
-    is_sticky = r.get(f"{game_id}:paddle_{paddle_side}_sticky")
+    # Check if sticky power-up is active for this paddle
+    is_sticky = bool(r.get(f"{game_id}:paddle_{paddle_side}_sticky"))
     
     if is_sticky:
-        # Calculate precise relative position of ball to paddle
+        # Calculate relative position where ball hit the paddle
         relative_pos = ball.y - paddle.y
         
-        # Only stick if the ball is within the paddle's width
-        if 0 <= relative_pos <= paddle.height:
-            # Set a flag that the ball is stuck
-            r.set(f"{game_id}:ball_stuck_to_{paddle_side}", 1)
-            
-            # Store the start time, relative position and original speed
-            r.set(f"{game_id}:sticky_start_{paddle_side}", time.time())
-            r.set(f"{game_id}:sticky_relative_pos_{paddle_side}", relative_pos)
+        if 0 <= relative_pos <= paddle.height:  # Only stick if within paddle bounds
+            # Store the original ball speed for later use
             r.set(f"{game_id}:ball_original_speed_x", ball.speed_x)
             r.set(f"{game_id}:ball_original_speed_y", ball.speed_y)
             
-            # Optionally, modify ball speed to zero or minimal movement
+            # Set sticky state in Redis
+            r.set(f"{game_id}:ball_stuck_to_{paddle_side}", 1)
+            r.set(f"{game_id}:sticky_start_{paddle_side}", time.time())
+            r.set(f"{game_id}:sticky_relative_pos_{paddle_side}", relative_pos)
+            
+            # Stop the ball
             ball.speed_x = 0
             ball.speed_y = 0
-    
-    # Normal paddle collision mechanics (angle-based reflection)
-    relative_y = (ball.y - (paddle.y + paddle.height / 2)) / (paddle.height / 2)
-    relative_y = max(-1, min(1, relative_y))
-    angle = relative_y * (math.pi / 4)
-    speed = math.hypot(ball.speed_x, ball.speed_y) * 1.03
-
-    if paddle_side == 'left':
-        ball.speed_x = speed * math.cos(angle)
+            
+            # Position the ball exactly at the paddle
+            if paddle_side == 'left':
+                ball.x = paddle.x + paddle.width + ball.size
+            else:
+                ball.x = paddle.x - ball.size
+            ball.y = paddle.y + relative_pos
     else:
-        ball.speed_x = -speed * math.cos(angle)
+        # Normal paddle collision mechanics
+        relative_y = (ball.y - (paddle.y + paddle.height / 2)) / (paddle.height / 2)
+        relative_y = max(-1, min(1, relative_y))
+        angle = relative_y * (math.pi / 4)
+        speed = math.hypot(ball.speed_x, ball.speed_y) * 1.03
 
-    ball.speed_y = speed * math.sin(angle)
+        if paddle_side == 'left':
+            ball.speed_x = speed * math.cos(angle)
+        else:
+            ball.speed_x = -speed * math.cos(angle)
+
+        ball.speed_y = speed * math.sin(angle)
+    
     await update_ball_redis(game_id, ball)
 
 async def handle_powerup_collision(game_id, ball, powerup_orbs):

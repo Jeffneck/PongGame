@@ -4,7 +4,7 @@ from channels.layers import get_channel_layer
 from asgiref.sync import sync_to_async
 from .broadcast import notify_game_finished
 from .redis_utils import set_key, get_key, scan_and_delete_keys
-from .models_utils import set_gameSession_as_finished, create_gameResults
+from .models_utils import set_gameSession_as_finished, create_gameResults, get_LocalTournament
 
 # transformer en parametre ajustable GameParameters?
 WIN_SCORE = 4  
@@ -75,6 +75,26 @@ async def finish_game(game_id):
 
     # Créer un enregistrement des résultats
     await create_gameResults(game_id, endgame_infos)
+
+    # Une fois qu'on a créé le GameResult (disons new_result), on peut faire :
+    # Chercher s’il y a un LocalTournament qui pointe sur ce game_id en semifinal1, semifinal2 ou final
+    tournament = get_LocalTournament(game_id, "semifinal1")
+    if tournament:
+        # C'était la semifinal1
+        tournament.status = 'semifinal1_done'
+        tournament.save()
+    else:
+        tournament = get_LocalTournament(game_id, "semifinal2")
+        if tournament:
+            # C'était la semifinal2
+            tournament.status = 'semifinal2_done'
+            tournament.save()
+        else:
+            # Peut-être la finale
+            tournament = get_LocalTournament(game_id, "final")
+            if tournament:
+                tournament.status = 'finished'
+                tournament.save()
 
     # Notifier les utilisateurs via WebSocket
     await notify_game_finished(game_id, winner, looser)

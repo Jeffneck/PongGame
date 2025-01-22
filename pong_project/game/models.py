@@ -52,6 +52,48 @@ class GameResult(models.Model):
         return f"[{self.game.id}] winner={self.winner} looser={self.looser} => {self.score_left}-{self.score_right}"
 
 
+class LocalTournament(models.Model):
+    """
+    Modèle pour gérer un tournoi local à 4 joueurs (type 'mini-bracket').
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=100, default='Local Tournament')
+    # Les pseudos ou Users pour les 4 joueurs
+    player1 = models.CharField(max_length=50)
+    player2 = models.CharField(max_length=50)
+    player3 = models.CharField(max_length=50)
+    player4 = models.CharField(max_length=50)
+
+    # Si tu veux stocker des références aux parties qui composent le tournoi :
+    semifinal1 = models.ForeignKey(
+        'GameSession',  # référence à ta classe GameSession
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='tournament_semifinal1'
+    )
+    semifinal2 = models.ForeignKey(
+        'GameSession',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='tournament_semifinal2'
+    )
+    final = models.ForeignKey(
+        'GameSession',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='tournament_final'
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(
+        max_length=20,
+        default='pending',  
+        help_text="Status du tournoi: 'pending', 'in_progress', 'finished', etc."
+    )
+
+    def __str__(self):
+        return f"Tournament {self.name} - {self.id}"
+
 class GameInvitation(models.Model):
     from_user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='invitations_sent', on_delete=models.CASCADE)
     to_user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='invitations_received', on_delete=models.CASCADE)

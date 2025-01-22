@@ -31,6 +31,16 @@ async def get_gameSession_parameters(game_id):
         return parameters
     except GameSession.DoesNotExist:
         return None
+    
+async def get_LocalTournament(game_id, phase):
+    LocalTournament = apps.get_model('game', 'LocalTournament')
+    if phase is "semifinal1":
+        tournament = LocalTournament.objects.filter(semifinal1__id=game_id).first()
+    elif phase is "semifinal2":
+        tournament = LocalTournament.objects.filter(semifinal2__id=game_id).first()
+    else:
+        tournament = LocalTournament.objects.filter(final__id=game_id).first()
+    return(tournament)
 
 
 async def create_gameResults(game_id, endgame_infos):

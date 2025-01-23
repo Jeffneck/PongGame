@@ -89,6 +89,7 @@ class LocalTournament(models.Model):
     player2 = models.CharField(max_length=50)
     player3 = models.CharField(max_length=50)
     player4 = models.CharField(max_length=50)
+    
 
     # Parties du bracket : 2 demi-finales + 1 finale
     semifinal1 = models.ForeignKey(
@@ -120,9 +121,9 @@ class LocalTournament(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(
-        max_length=20,
+        max_length=30,
         default='pending',  
-        help_text="Status du tournoi: 'pending', 'in_progress', 'finished', etc."
+        help_text="Status du tournoi: 'pending', ''semifinal1_in_progress', 'semifinal2_in_progress', 'final_in_progress', 'finished', etc."
     )
 
     def __str__(self):

@@ -8,7 +8,7 @@ from asgiref.sync import sync_to_async
 
 from .models_utils import get_gameSession_status, set_gameSession_status, get_gameSession_parameters
 from .initialize_game import initialize_game_objects, initialize_redis
-from .paddles_utils import move_paddles, update_paddles_redis
+from .paddles_utils import move_paddles
 from .ball_utils import move_ball, update_ball_redis, reset_ball
 from .collisions import (
     handle_scoring_or_paddle_collision,
@@ -76,7 +76,7 @@ async def game_loop(game_id):
 
             # 2.1 - Mouvements
             move_paddles(game_id, paddle_left, paddle_right)
-            update_paddles_redis(game_id, paddle_left, paddle_right)
+            # update_paddles_redis(game_id, paddle_left, paddle_right)
 
             move_ball(game_id, ball)
             update_ball_redis(game_id, ball)

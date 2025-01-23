@@ -12,6 +12,7 @@ from .paddles_utils import move_paddles, update_paddles_redis
 from .ball_utils import move_ball, update_ball_redis, reset_ball
 from .collisions import (
     handle_scoring_or_paddle_collision,
+    # make_paddle_sticky,
     handle_border_collisions,
     handle_bumper_collision,
     handle_powerup_collision
@@ -79,13 +80,18 @@ async def game_loop(game_id):
 
             move_ball(game_id, ball)
             update_ball_redis(game_id, ball)
-
+            # print(f"1")#debug
             # 2.2 - Collisions
             await handle_border_collisions(game_id, ball)
             await handle_bumper_collision(game_id, ball, bumpers)
             await handle_powerup_collision(game_id, ball, powerup_orbs)
+            # print(f"2")#debug
 
             # 2.3 - Paddles / Score
+            # from .redis_utils import get_key
+            # paddle_is_sticky = bool(get_key(f"{game_id}:paddle_{ball.last_player}_sticky") or 0)
+            # if paddle_is_sticky:
+            #     make_paddle_sticky(game_id, ball.last_player, paddle, ball)
             scorer = await handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right, ball)
             if scorer in ['score_left', 'score_right']:
                 handle_score(game_id, scorer)
@@ -98,6 +104,7 @@ async def game_loop(game_id):
                     # Sinon reset de la balle
                     reset_ball(game_id, ball)
 
+            # print(f"3")#debug
             # 2.4 - Powerups & Bumpers
             if parameters.bonus_malus_activation:
                 await handle_powerups_spawn(game_id, powerup_orbs, current_time)
@@ -106,10 +113,12 @@ async def game_loop(game_id):
             if parameters.bumpers_activation:
                 await handle_bumpers_spawn(game_id, bumpers, current_time)
                 await handle_bumper_expiration(game_id, bumpers)
+            # print(f"4")#debug
 
             # 2.5 - Broadcast de l'état
             await broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right, ball, powerup_orbs, bumpers)
 
+            # print(f"5")#debug
             # 2.6 - Attendre ~16ms
             await asyncio.sleep(dt)
 

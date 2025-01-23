@@ -54,7 +54,9 @@ async def broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right
         'score_right': int(get_key(game_id, "score_right") or 0),
         'powerups': powerups_data,
         'bumpers': bumpers_data,
+        'flash_effect': bool(get_key(game_id, f"flash_effect"))
     }
+    # IMPROVE le flash effect peut etre renvoye en notif powerup applied
 
     await channel_layer.group_send(f"pong_{game_id}", {
         'type': 'broadcast_game_state',
@@ -81,14 +83,15 @@ async def notify_powerup_spawned(game_id, powerup_orb):
         }
     )
 
-async def notify_powerup_applied(game_id, player, effect):
+async def notify_powerup_applied(game_id, player, effect, effect_duration):
     channel_layer = get_channel_layer()
     await channel_layer.group_send(
         f"pong_{game_id}",
         {
             'type': 'powerup_applied',
             'player': player,
-            'effect': effect
+            'effect': effect,
+            'duration': effect_duration
         }
     )
 

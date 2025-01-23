@@ -246,7 +246,7 @@ import random
 import math
 import time
 
-class Paddle:
+class Paddle: #added
     def __init__(self, position, size, speed):
         """
         position: 'left' ou 'right'
@@ -260,17 +260,18 @@ class Paddle:
         self.y = 200 - self.height // 2
         self.speed = speed
         self.velocity = 0
-        self.on_ice = False
-        self.shown_size = size  # Current displayed size
+        # self.shown_size = size  # Current displayed size
 
     def move(self, direction, is_on_ice, terrain_top, terrain_bottom, speed_boost=False):
+        ice_acceleration = 0.5
+        ice_friction = 0.02
         if is_on_ice:
-            acceleration = 0.5
-            friction = 0.02
-            self.velocity += direction * acceleration
-            self.velocity *= (1 - friction)
+            if direction != 0:
+                self.velocity += direction * ice_acceleration
+            self.velocity *= (1 - ice_friction)
         else:
-            self.velocity = direction * (self.speed * 1.5 if speed_boost else self.speed)
+            speed = self.speed * 1.5 if speed_boost else self.speed
+            self.velocity = direction * speed
 
         # Apply movement with boundary checking
         new_y = self.y + self.velocity
@@ -326,7 +327,7 @@ class PowerUpOrb:
             'ice': (0, 255, 255),       # Cyan
             'speed': (255, 215, 0),     # Gold
             'flash': (255, 255, 0),     # Yellow
-            'sticky': (50, 205, 50)     # Lime green
+            # 'sticky': (50, 205, 50)     # Lime green
         }
         return colors.get(self.effect_type, (255, 255, 255))
 
@@ -979,7 +980,9 @@ async def broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right
         'score_right': int(get_key(game_id, "score_right") or 0),
         'powerups': powerups_data,
         'bumpers': bumpers_data,
+        'flash_effect': bool(get_key(game_id, f"flash_effect"))
     }
+    # IMPROVE le flash effect peut etre renvoye en notif powerup applied
 
     await channel_layer.group_send(f"pong_{game_id}", {
         'type': 'broadcast_game_state',
@@ -1006,14 +1009,15 @@ async def notify_powerup_spawned(game_id, powerup_orb):
         }
     )
 
-async def notify_powerup_applied(game_id, player, effect):
+async def notify_powerup_applied(game_id, player, effect, effect_duration):
     channel_layer = get_channel_layer()
     await channel_layer.group_send(
         f"pong_{game_id}",
         {
             'type': 'powerup_applied',
             'player': player,
-            'effect': effect
+            'effect': effect,
+            'duration': effect_duration
         }
     )
 
@@ -1193,9 +1197,11 @@ def delete_bumper_redis(game_id, bumper):
     delete_key(game_id, f"bumper_{bumper.x}_{bumper.y}_y")# game/game_loop/collisions.py
 
 import math
+import random
 import time
 from asgiref.sync import sync_to_async
 from .ball_utils import update_ball_redis
+from .redis_utils import get_key, set_key, delete_key
 from .powerups_utils import apply_powerup
 from .broadcast import notify_paddle_collision, notify_border_collision, notify_bumper_collision, notify_powerup_applied
 
@@ -1224,6 +1230,11 @@ async def handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right,
     Gère les collisions avec les paddles gauche et droite.
     Retourne 'score_left', 'score_right' ou None.
     """
+    # print("handle_scoring_or_paddle_collision")
+    # is_sticky = await handle_sticky_paddle_collision(game_id, paddle_left, paddle_right, ball)
+    # if(is_sticky):
+    #     return None
+
     # Collision avec la raquette gauche
     if ball.x - ball.size <= paddle_left.x + paddle_left.width:
         if paddle_left.y <= ball.y <= paddle_left.y + paddle_left.height:
@@ -1244,12 +1255,80 @@ async def handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right,
 
     return None
 
+# async def handle_sticky_paddle_collision(game_id, paddle_left, paddle_right, ball):
+    
+#     print("handle_sticky_paddle_collision")
+#     is_sticky = False
+#     # check if ball is stuck to any paddle
+#     left_stuck = get_key(game_id, f"ball_stuck_to_left")
+#     right_stuck = get_key(game_id, f"ball_stuck_to_right")
+#     ball_moved = False
+
+#     left_stuck = get_key(game_id, f"ball_stuck_to_left")
+#     right_stuck = get_key(game_id, f"ball_stuck_to_right")
+#     ball_moved = False
+
+#     if left_stuck or right_stuck:
+#         is_sticky = True
+#         stuck_side = 'left' if left_stuck else 'right'
+#         sticky_start = float(get_key(game_id, f"sticky_start_{stuck_side}") or 0)
+#         relative_pos = float(get_key(game_id, f"sticky_relative_pos_{stuck_side}") or 0)
+#         current_paddle = paddle_left if stuck_side == 'left' else paddle_right
+        
+#         # Check if 1 second has passed
+#         if time.time() - sticky_start >= 1.0:
+#             # Get the original speed that was stored when the ball got stuck
+#             original_speed_x = float(get_key(game_id, f"ball_original_speed_x") or ball.speed_x)
+#             original_speed_y = float(get_key(game_id, f"ball_original_speed_y") or ball.speed_y)
+            
+#             # Calculate the original speed magnitude and boost it
+#             original_speed = math.hypot(original_speed_x, original_speed_y)
+#             new_speed = original_speed * 1.3
+            
+#             # Position the ball and set its velocity
+#             if stuck_side == 'left':
+#                 ball.x = paddle_left.x + paddle_left.width + ball.size
+#                 ball.speed_x = new_speed  # Move right
+#             else:
+#                 ball.x = paddle_right.x - ball.size
+#                 ball.speed_x = -new_speed  # Move left
+            
+#             # Add slight vertical component to prevent straight-line motion
+#             ball.speed_y = new_speed * 0.2 * random.choice([-1, 1])
+            
+#             # Clean up Redis keys
+#             delete_key(game_id, f"ball_stuck_to_{stuck_side}")
+#             delete_key(game_id, f"sticky_start_{stuck_side}")
+#             delete_key(game_id, f"sticky_relative_pos_{stuck_side}")
+#             delete_key(game_id, f"ball_original_speed_x")
+#             delete_key(game_id, f"ball_original_speed_y")
+            
+#             ball_moved = True
+#         else:
+#             # Update ball position to follow paddle
+#             paddle_y = float(get_key(game_id, f"paddle_{stuck_side}_y") or current_paddle.y)
+#             if stuck_side == 'left':
+#                 ball.x = paddle_left.x + paddle_left.width + ball.size
+#             else:
+#                 ball.x = paddle_right.x - ball.size
+#             ball.y = paddle_y + relative_pos
+#             ball_moved = True
+    
+#     # IMPROVE tester sdans cette condition
+#     if not ball_moved:
+#         ball.move()
+#     return (is_sticky)
+#     #IMPROVE return is_sticky pour pouvoir gerer handle_score...
+
+
 #ball
 async def process_paddle_collision(game_id, paddle_side, paddle, ball):
     """
     Gère la logique de collision entre la balle et une raquette.
     Ajuste la vitesse et la direction de la balle, met à jour Redis et notifie les clients.
     """
+    print("process_paddle_collision")
+
     relative_y = (ball.y - (paddle.y + paddle.height / 2)) / (paddle.height / 2)
     relative_y = max(-1, min(1, relative_y))  # Limiter à l'intervalle [-1, 1]
 
@@ -1269,6 +1348,32 @@ async def process_paddle_collision(game_id, paddle_side, paddle, ball):
     # Notifier la collision via WebSocket
     await notify_paddle_collision(game_id, paddle_side, ball)
     
+# def make_paddle_sticky(game_id, paddle_side, paddle, ball):
+#         print("make_paddle_sticky")
+#         # Calculate relative position where ball hit the paddle
+#         relative_pos = ball.y - paddle.y
+        
+#         if 0 <= relative_pos <= paddle.height:  # Only stick if within paddle bounds
+#             # Store the original ball speed for later use
+#             set_key(game_id, f"ball_original_speed_x", ball.speed_x)
+#             set_key(game_id, f"ball_original_speed_y", ball.speed_y)
+            
+#             # Set sticky state in Redis
+#             set_key(game_id, f"ball_stuck_to_{paddle_side}", 1)
+#             set_key(game_id, f"sticky_start_{paddle_side}", time.time())
+#             set_key(game_id, f"sticky_relative_pos_{paddle_side}", relative_pos)
+            
+#             # Stop the ball
+#             ball.speed_x = 0
+#             ball.speed_y = 0
+            
+#             # Position the ball exactly at the paddle
+#             if paddle_side == 'left':
+#                 ball.x = paddle.x + paddle.width + ball.size
+#             else:
+#                 ball.x = paddle.x - ball.size
+#             ball.y = paddle.y + relative_pos
+
 
 async def handle_border_collisions(game_id, ball):
     """
@@ -1377,7 +1482,7 @@ def initialize_game_objects(game_id, parameters):
         PowerUpOrb(game_id, 'ice', terrain_rect, color=(0, 255, 255)),       # Cyan pour glace
         PowerUpOrb(game_id, 'speed', terrain_rect, color=(255, 215, 0)),     # Or pour vitesse
         PowerUpOrb(game_id, 'flash', terrain_rect, color=(255, 255, 0)),     # Jaune pour flash
-        PowerUpOrb(game_id, 'sticky', terrain_rect, color=(50, 205, 50))     # Vert lime pour collant
+        # PowerUpOrb(game_id, 'sticky', terrain_rect, color=(50, 205, 50))     # Vert lime pour collant
     ]
 
     bumpers = []
@@ -1416,6 +1521,7 @@ from .paddles_utils import move_paddles, update_paddles_redis
 from .ball_utils import move_ball, update_ball_redis, reset_ball
 from .collisions import (
     handle_scoring_or_paddle_collision,
+    # make_paddle_sticky,
     handle_border_collisions,
     handle_bumper_collision,
     handle_powerup_collision
@@ -1483,13 +1589,18 @@ async def game_loop(game_id):
 
             move_ball(game_id, ball)
             update_ball_redis(game_id, ball)
-
+            # print(f"1")#debug
             # 2.2 - Collisions
             await handle_border_collisions(game_id, ball)
             await handle_bumper_collision(game_id, ball, bumpers)
             await handle_powerup_collision(game_id, ball, powerup_orbs)
+            # print(f"2")#debug
 
             # 2.3 - Paddles / Score
+            # from .redis_utils import get_key
+            # paddle_is_sticky = bool(get_key(f"{game_id}:paddle_{ball.last_player}_sticky") or 0)
+            # if paddle_is_sticky:
+            #     make_paddle_sticky(game_id, ball.last_player, paddle, ball)
             scorer = await handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right, ball)
             if scorer in ['score_left', 'score_right']:
                 handle_score(game_id, scorer)
@@ -1502,6 +1613,7 @@ async def game_loop(game_id):
                     # Sinon reset de la balle
                     reset_ball(game_id, ball)
 
+            # print(f"3")#debug
             # 2.4 - Powerups & Bumpers
             if parameters.bonus_malus_activation:
                 await handle_powerups_spawn(game_id, powerup_orbs, current_time)
@@ -1510,10 +1622,12 @@ async def game_loop(game_id):
             if parameters.bumpers_activation:
                 await handle_bumpers_spawn(game_id, bumpers, current_time)
                 await handle_bumper_expiration(game_id, bumpers)
+            # print(f"4")#debug
 
             # 2.5 - Broadcast de l'état
             await broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right, ball, powerup_orbs, bumpers)
 
+            # print(f"5")#debug
             # 2.6 - Attendre ~16ms
             await asyncio.sleep(dt)
 
@@ -1603,16 +1717,69 @@ def move_paddles(game_id, paddle_left, paddle_right):
 
 # -------------- PADDLES : UPDATE REDIS--------------------
 def update_paddles_redis(game_id, paddle_left, paddle_right):
-    set_key(game_id, "paddle_left_y", paddle_left.y)
-    set_key(game_id, "paddle_right_y", paddle_right.y)import time
-from .redis_utils import get_key
+    """Updates paddle positions considering active effects."""
+    left_vel = float(get_key(game_id, f"paddle_left_velocity") or 0)
+    right_vel = float(get_key(game_id, f"paddle_right_velocity") or 0)
+
+    # Apply speed boost if active
+    if get_key(game_id, f"paddle_left_speed_boost"):
+        left_vel *= 1.5  # 50% speed increase
+    if get_key(game_id, f"paddle_right_speed_boost"):
+        right_vel *= 1.5  # 50% speed increase
+
+    # Convert velocity to direction
+    left_direction = 0 if left_vel == 0 else (1 if left_vel > 0 else -1)
+    right_direction = 0 if right_vel == 0 else (1 if right_vel > 0 else -1)
+
+    # Apply inverted controls first
+    if get_key(game_id, f"paddle_left_inverted"):
+        left_direction *= -1
+        left_vel *= -1
+    if get_key(game_id, f"paddle_right_inverted"):
+        right_direction *= -1
+        right_vel *= -1
+
+    # Check ice effects
+    left_on_ice = bool(get_key(game_id, f"paddle_left_ice_effect"))
+    right_on_ice = bool(get_key(game_id, f"paddle_right_ice_effect"))
+
+    # Get current paddle heights from Redis
+    left_height = float(get_key(game_id, f"paddle_left_height") or paddle_left.height)
+    right_height = float(get_key(game_id, f"paddle_right_height") or paddle_right.height)
+
+    # Define boundaries
+    TOP_BOUNDARY = 50
+    BOTTOM_BOUNDARY = 350  # This is the bottom border of the play area
+
+    # Move paddles with ice physics if active, otherwise normal movement
+    if left_on_ice:
+        paddle_left.move(left_direction, left_on_ice, TOP_BOUNDARY, BOTTOM_BOUNDARY)
+    else:
+        # Update position
+        paddle_left.y += left_vel
+        # Constrain movement using current height
+        # Bottom boundary is the maximum y position where the paddle can be placed
+        paddle_left.y = max(TOP_BOUNDARY, min(BOTTOM_BOUNDARY - left_height, paddle_left.y))
+
+    if right_on_ice:
+        paddle_right.move(right_direction, right_on_ice, TOP_BOUNDARY, BOTTOM_BOUNDARY)
+    else:
+        # Update position
+        paddle_right.y += right_vel
+        # Constrain movement using current height
+        paddle_right.y = max(TOP_BOUNDARY, min(BOTTOM_BOUNDARY - right_height, paddle_right.y))
+    set_key(game_id, f"paddle_left_y", paddle_left.y)
+    set_key(game_id, f"paddle_right_y", paddle_right.y)import time
 from .dimensions_utils import get_terrain_rect
 from .redis_utils import set_key, get_key, delete_key
 from .broadcast import notify_powerup_applied, notify_powerup_spawned, notify_powerup_expired
+import asyncio
+import math
 import random
 
 MAX_ACTIVE_POWERUPS = 2
 SPAWN_INTERVAL_POWERUPS = 5
+DURATION_EFFECT_POWERUPS = 5
 
 # -------------- POWER UP --------------------
 async def handle_powerups_spawn(game_id, powerup_orbs, current_time):
@@ -1649,10 +1816,91 @@ async def spawn_powerup(game_id, powerup_orb, terrain_rect):
         return True
     return False
 
+
+
 async def apply_powerup(game_id, player, powerup_orb):
     print(f"[powerups.py] Applying power-up {powerup_orb.effect_type} to {player}")
+    # Create task for handling effect duration
+    asyncio.create_task(handle_powerup_duration(game_id, player, powerup_orb))
+    print(f"[game_loop.py] Creating duration task for {powerup_orb.effect_type}")
     delete_powerup_redis(game_id, powerup_orb)
-    await notify_powerup_applied(game_id, player, powerup_orb.effect_type)
+    await notify_powerup_applied(game_id, player, powerup_orb.effect_type, DURATION_EFFECT_POWERUPS)
+
+
+async def handle_powerup_duration(game_id, player, powerup_orb): 
+    """Handles the duration of a power-up effect asynchronously."""
+    effect_type = powerup_orb.effect_type
+    effect_duration = 5  # 5 seconds for all effects
+
+    print(f"[game_loop.py] Starting effect {effect_type} for {player}")
+
+    # Apply effect
+    #IMPROVE => utiliser shown_size de paddle pour original_height
+    
+
+    print("handle_powerup_duration")
+    if effect_type == 'flash':
+        set_key(game_id, f"flash_effect", 1)
+        await asyncio.sleep(0.3) # Flash lasts 300ms
+        delete_key(game_id, f"flash_effect")
+
+    elif effect_type == 'shrink':
+        opponent = 'left' if player == 'right' else 'right'
+        print(f"[game_loop.py] Applying shrink to {opponent}")  # Debug log
+        
+        # Get current height and store it as original
+        current_height = float(get_key(game_id, f"paddle_{opponent}_height") or 60)
+        print(f"[game_loop.py] Original height: {current_height}")  # Debug log
+        
+        # Store original height for restoration
+        set_key(game_id, f"paddle_{opponent}_original_height", current_height)
+        
+        # Calculate and set new height
+        new_height = current_height * 0.5
+        set_key(game_id, f"paddle_{opponent}_height", new_height)
+        print(f"[game_loop.py] New height set to: {new_height}")  # Debug log
+        
+        # Wait for duration
+        await asyncio.sleep(effect_duration)
+    
+        # Restore original height
+        original_height = float(get_key(game_id, f"paddle_{opponent}_original_height") or 60)
+        set_key(game_id, f"paddle_{opponent}_height", original_height)
+        delete_key(game_id, f"paddle_{opponent}_original_height")
+        print(f"[game_loop.py] Height restored to: {original_height}")  # Debug log
+
+    elif effect_type == 'speed':
+        # Set paddle speed multiplier
+        set_key(game_id, f"paddle_{player}_speed_boost", 1)  # Flag for speed boost
+        print(f"[game_loop.py] Speed boost applied to {player} paddle")
+        
+        await asyncio.sleep(effect_duration)
+        
+        # Remove speed boost
+        delete_key(game_id, f"paddle_{player}_speed_boost")
+        print(f"[game_loop.py] Speed boost removed from {player} paddle")
+
+    elif effect_type == 'ice':
+        opponent = 'left' if player == 'right' else 'right'
+        set_key(game_id, f"paddle_{opponent}_ice_effect", 1)
+        await asyncio.sleep(effect_duration)
+        delete_key(game_id, f"paddle_{opponent}_ice_effect")
+
+    # elif effect_type == 'sticky':
+    #     set_key(game_id, f"paddle_{player}_sticky", 1)
+    #     await asyncio.sleep(effect_duration)
+    #     delete_key(game_id, f"paddle_{player}_sticky")
+
+    elif effect_type == 'invert':
+        opponent = 'left' if player == 'right' else 'right'
+        set_key(game_id, f"paddle_{opponent}_inverted", 1)
+        await asyncio.sleep(effect_duration)
+        delete_key(game_id, f"paddle_{opponent}_inverted")
+    print("END handle_powerup_duration")
+
+
+
+
 
 def count_active_powerups(game_id, powerup_orbs):
     count = 0
@@ -2066,6 +2314,16 @@ async def finish_game(game_id):
     const wsUrl = protocol + '//' + window.location.host + '/ws/pong/' + gameId + '/';
     const socket = new WebSocket(wsUrl);
 
+    // Track active effects {added}
+    const activeEffects = {
+      left: new Set(),
+      right: new Set()
+    };
+
+    // Track effect timers {added}
+    const effectTimers = {};
+
+    //CANVAS
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
 
@@ -2283,7 +2541,7 @@ async def finish_game(game_id):
       'ice': new Image(),
       'speed': new Image(),
       'flash': new Image(),
-      'sticky': new Image()
+      // 'sticky': new Image()
   };
 
   // Initialize power-up images
@@ -2337,17 +2595,58 @@ async def finish_game(game_id):
       // console.log("[Frontend] Received data:", data);
       
       if (data.type === 'game_state') {
+        // Save the current active effects before updating game state
+        const previousActiveEffects = {
+            left: new Set(activeEffects.left),
+            right: new Set(activeEffects.right)
+        };
+        
         gameState = data;
+        
+        // Restore active effects
+        activeEffects.left = previousActiveEffects.left;
+        activeEffects.right = previousActiveEffects.right;
       } else if (data.type === 'game_over') {
         alert("Game Over! Winner = " + data.winner);
         socket.close();
       } else if (data.type === 'powerup_applied') {
-        console.log(`[Frontend] Power-up applied to ${data.player}: ${data.effect}`);
-        
-        if (data.effect === 'flash') {
-          applyFlashEffect();
-        }
-        // Vous pourrez gérer d'autres effets ici plus tard
+          console.log(`[Frontend] Power-up applied to ${data.player}: ${data.effect}`);
+          console.log(`[Frontend] Power-up duration: ${data.duration}`);
+          // Determine which side should show the effect
+          if (data.effect !== 'flash') {
+            let displaySide;
+            if (data.effect === 'speed' || data.effect == 'sticky') {
+                // Speed shows on the side that picked it up
+                displaySide = data.player;
+            } else {
+                // Other effects show on the opponent's side
+                displaySide = data.player === 'left' ? 'right' : 'left';
+            }
+            
+            // Add effect to active effects
+            activeEffects[displaySide].add(data.effect);
+            console.log("Active effects immediately after adding:", {
+                left: Array.from(activeEffects.left),
+                right: Array.from(activeEffects.right)
+            });
+            
+            // Clear previous timer if it exists
+            if (effectTimers[`${displaySide}_${data.effect}`]) {
+                clearTimeout(effectTimers[`${displaySide}_${data.effect}`]);
+            }
+            
+            // Set timer to remove effect
+            effectTimers[`${displaySide}_${data.effect}`] = setTimeout(() => {
+                console.log(`[Frontend] Removing effect ${data.effect} for ${displaySide}`);
+                activeEffects[displaySide].delete(data.effect);
+                console.log("Active effects after removal:", {
+                    left: Array.from(activeEffects.left),
+                    right: Array.from(activeEffects.right)
+                });
+            }, data.duration * 1000);
+          } else {
+              applyFlashEffect();
+          }
       }
     };
 
@@ -2422,7 +2721,9 @@ async def finish_game(game_id):
       }
     });
 
-    function draw() {
+    // Drawing function
+    function draw() { //added
+      // console.log("Active Effects:", activeEffects);
       if (gameState.flash_effect) {
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -2435,49 +2736,72 @@ async def finish_game(game_id):
         ctx.lineWidth = 2;
         ctx.strokeRect(50, 50, canvas.width - 100, canvas.height - 100);
         
-        // Paddles
-        ctx.fillStyle = 'white';
-        ctx.fillRect(50, gameState.paddle_left_y, 
-          gameState.paddle_width, gameState.paddle_left_height);
-        ctx.fillRect(canvas.width - 50 - gameState.paddle_width, 
-          gameState.paddle_right_y, 
-          gameState.paddle_width, 
-          gameState.paddle_right_height);
+        // Paddles with effects
+        ['left', 'right'].forEach(side => {
+          ctx.save();
+          
+          // Add effect glows added
+          if (activeEffects[side].size > 0) {
+            activeEffects[side].forEach(effect => {
+              const glowColor = {
+                'speed': '#FFD700',
+                'shrink': '#FF0000',
+                'ice': '#00FFFF',
+                // 'sticky': '#32CD32',
+                'invert': '#FF69B4'
+              }[effect];
+              ctx.shadowColor = glowColor;
+              ctx.shadowBlur = 10 * scale;
+            });
+          }
+          
+          ctx.fillStyle = 'white';
+          if (side === 'left') {
+            ctx.fillRect(50, gameState.paddle_left_y,
+              gameState.paddle_width, gameState.paddle_left_height);
+          } else {
+            ctx.fillRect(canvas.width - 50 - gameState.paddle_width,
+              gameState.paddle_right_y,
+              gameState.paddle_width, gameState.paddle_right_height);
+          }
+          
+          ctx.restore();
+        });
         
         // Ball
+        ctx.fillStyle = 'white';
         ctx.beginPath();
         ctx.arc(gameState.ball_x, gameState.ball_y, gameState.ball_size, 0, 2*Math.PI);
         ctx.fill();
 
-        // Power-ups with scaling
+        // Power-ups
         gameState.powerups.forEach(orb => {
-            const type = orb.type || 'speed';
-            const img = powerupImages[type];
-            if (img.complete) {
-                ctx.save();
-                
-                // Add glow effect based on type
-                const glowColors = {
-                    'invert': '#FF69B4',
-                    'shrink': '#FF0000',
-                    'ice': '#00FFFF',
-                    'speed': '#FFD700',
-                    'flash': '#FFFF00',
-                    'sticky': '#32CD32'
-                };
-                
-                ctx.shadowColor = glowColors[type] || glowColors['speed'];
-                ctx.shadowBlur = 10;
-                
-                ctx.drawImage(img, 
-                    orb.x - 15,
-                    orb.y - 15, 
-                    30, 
-                    30
-                );
-                
-                ctx.restore();
-            }
+          const type = orb.type || 'speed';
+          const img = powerupImages[type];
+          if (img.complete) {
+            ctx.save();
+            
+            const glowColors = {
+              'invert': '#FF69B4',
+              'shrink': '#FF0000',
+              'ice': '#00FFFF',
+              'speed': '#FFD700',
+              'flash': '#FFFF00',
+              // 'sticky': '#32CD32'
+            };
+            
+            ctx.shadowColor = glowColors[type] || glowColors['speed'];
+            ctx.shadowBlur = 10 * scale;
+            
+            ctx.drawImage(img,
+              orb.x - 15,
+              orb.y - 15,
+              30,
+              30
+            );
+            
+            ctx.restore();
+          }
         });
 
         // Bumpers
@@ -2487,10 +2811,10 @@ async def finish_game(game_id):
             ctx.shadowColor = '#4169E1';
             ctx.shadowBlur = 10 * scale;
             ctx.drawImage(bumperImage,
-              bumper.x - bumper.size,     // Correction ici
-              bumper.y - bumper.size,     // Correction ici
-              bumper.size * 2,            // Correction ici
-              bumper.size * 2             // Correction ici
+              bumper.x - bumper.size,
+              bumper.y - bumper.size,
+              bumper.size * 2,
+              bumper.size * 2
             );
             ctx.restore();
           }
@@ -2498,10 +2822,58 @@ async def finish_game(game_id):
       }
 
       // Scores
-      ctx.fillStyle='white';
-      ctx.font="20px Arial";
+      ctx.fillStyle = 'white';
+      ctx.font = "20px Arial";
       ctx.fillText(`${gameState.score_left}`, 20, 30);
       ctx.fillText(`${gameState.score_right}`, canvas.width - 40, 30);
+
+      // Draw active power-up names
+      const powerupNames = {
+          'speed': 'SPEED',
+          'shrink': 'SHRINK',
+          'ice': 'ICE',
+          // 'sticky': 'STICKY',
+          'invert': 'INVERT'
+      };
+
+      // Left player power-ups
+      if (activeEffects.left.size > 0) {
+          console.log("Drawing left power-ups:", Array.from(activeEffects.left));
+          ctx.font = "16px Arial";
+          let yOffset = 60; // Start below score
+          activeEffects.left.forEach(effect => {
+              ctx.fillStyle = {
+                  'speed': '#FFD700',
+                  'shrink': '#FF0000',
+                  'ice': '#00FFFF',
+                  // 'sticky': '#32CD32',
+                  'invert': '#FF69B4',
+                  'flash': '#FFFF00'
+              }[effect];
+              ctx.fillText(powerupNames[effect], 20, yOffset);
+              yOffset += 25; // Space between effects
+          });
+      }
+
+      // Right player power-ups
+      if (activeEffects.right.size > 0) {
+        console.log("Drawing right power-ups:", Array.from(activeEffects.left));
+          ctx.font = "16px Arial";
+          let yOffset = 60;
+          activeEffects.right.forEach(effect => {
+              ctx.fillStyle = {
+                  'speed': '#FFD700',
+                  'shrink': '#FF0000',
+                  'ice': '#00FFFF',
+                  // 'sticky': '#32CD32',
+                  'invert': '#FF69B4',
+                  'flash': '#FFFF00'
+              }[effect];
+              const textWidth = ctx.measureText(powerupNames[effect]).width;
+              ctx.fillText(powerupNames[effect], canvas.width - 20 - textWidth, yOffset);
+              yOffset += 25;
+          });
+      }
 
       requestAnimationFrame(draw);
     }

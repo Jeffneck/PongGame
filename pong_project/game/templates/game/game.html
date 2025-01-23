@@ -86,6 +86,16 @@
     const wsUrl = protocol + '//' + window.location.host + '/ws/pong/' + gameId + '/';
     const socket = new WebSocket(wsUrl);
 
+    // Track active effects {added}
+    const activeEffects = {
+      left: new Set(),
+      right: new Set()
+    };
+
+    // Track effect timers {added}
+    const effectTimers = {};
+
+    //CANVAS
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
 
@@ -303,7 +313,7 @@
       'ice': new Image(),
       'speed': new Image(),
       'flash': new Image(),
-      'sticky': new Image()
+      // 'sticky': new Image()
   };
 
   // Initialize power-up images
@@ -357,17 +367,58 @@
       // console.log("[Frontend] Received data:", data);
       
       if (data.type === 'game_state') {
+        // Save the current active effects before updating game state
+        const previousActiveEffects = {
+            left: new Set(activeEffects.left),
+            right: new Set(activeEffects.right)
+        };
+        
         gameState = data;
+        
+        // Restore active effects
+        activeEffects.left = previousActiveEffects.left;
+        activeEffects.right = previousActiveEffects.right;
       } else if (data.type === 'game_over') {
         alert("Game Over! Winner = " + data.winner);
         socket.close();
       } else if (data.type === 'powerup_applied') {
-        console.log(`[Frontend] Power-up applied to ${data.player}: ${data.effect}`);
-        
-        if (data.effect === 'flash') {
-          applyFlashEffect();
-        }
-        // Vous pourrez gérer d'autres effets ici plus tard
+          console.log(`[Frontend] Power-up applied to ${data.player}: ${data.effect}`);
+          console.log(`[Frontend] Power-up duration: ${data.duration}`);
+          // Determine which side should show the effect
+          if (data.effect !== 'flash') {
+            let displaySide;
+            if (data.effect === 'speed' || data.effect == 'sticky') {
+                // Speed shows on the side that picked it up
+                displaySide = data.player;
+            } else {
+                // Other effects show on the opponent's side
+                displaySide = data.player === 'left' ? 'right' : 'left';
+            }
+            
+            // Add effect to active effects
+            activeEffects[displaySide].add(data.effect);
+            console.log("Active effects immediately after adding:", {
+                left: Array.from(activeEffects.left),
+                right: Array.from(activeEffects.right)
+            });
+            
+            // Clear previous timer if it exists
+            if (effectTimers[`${displaySide}_${data.effect}`]) {
+                clearTimeout(effectTimers[`${displaySide}_${data.effect}`]);
+            }
+            
+            // Set timer to remove effect
+            effectTimers[`${displaySide}_${data.effect}`] = setTimeout(() => {
+                console.log(`[Frontend] Removing effect ${data.effect} for ${displaySide}`);
+                activeEffects[displaySide].delete(data.effect);
+                console.log("Active effects after removal:", {
+                    left: Array.from(activeEffects.left),
+                    right: Array.from(activeEffects.right)
+                });
+            }, data.duration * 1000);
+          } else {
+              applyFlashEffect();
+          }
       }
     };
 
@@ -442,7 +493,9 @@
       }
     });
 
-    function draw() {
+    // Drawing function
+    function draw() { //added
+      // console.log("Active Effects:", activeEffects);
       if (gameState.flash_effect) {
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -455,49 +508,72 @@
         ctx.lineWidth = 2;
         ctx.strokeRect(50, 50, canvas.width - 100, canvas.height - 100);
         
-        // Paddles
-        ctx.fillStyle = 'white';
-        ctx.fillRect(50, gameState.paddle_left_y, 
-          gameState.paddle_width, gameState.paddle_left_height);
-        ctx.fillRect(canvas.width - 50 - gameState.paddle_width, 
-          gameState.paddle_right_y, 
-          gameState.paddle_width, 
-          gameState.paddle_right_height);
+        // Paddles with effects
+        ['left', 'right'].forEach(side => {
+          ctx.save();
+          
+          // Add effect glows added
+          if (activeEffects[side].size > 0) {
+            activeEffects[side].forEach(effect => {
+              const glowColor = {
+                'speed': '#FFD700',
+                'shrink': '#FF0000',
+                'ice': '#00FFFF',
+                // 'sticky': '#32CD32',
+                'invert': '#FF69B4'
+              }[effect];
+              ctx.shadowColor = glowColor;
+              ctx.shadowBlur = 10 * scale;
+            });
+          }
+          
+          ctx.fillStyle = 'white';
+          if (side === 'left') {
+            ctx.fillRect(50, gameState.paddle_left_y,
+              gameState.paddle_width, gameState.paddle_left_height);
+          } else {
+            ctx.fillRect(canvas.width - 50 - gameState.paddle_width,
+              gameState.paddle_right_y,
+              gameState.paddle_width, gameState.paddle_right_height);
+          }
+          
+          ctx.restore();
+        });
         
         // Ball
+        ctx.fillStyle = 'white';
         ctx.beginPath();
         ctx.arc(gameState.ball_x, gameState.ball_y, gameState.ball_size, 0, 2*Math.PI);
         ctx.fill();
 
-        // Power-ups with scaling
+        // Power-ups
         gameState.powerups.forEach(orb => {
-            const type = orb.type || 'speed';
-            const img = powerupImages[type];
-            if (img.complete) {
-                ctx.save();
-                
-                // Add glow effect based on type
-                const glowColors = {
-                    'invert': '#FF69B4',
-                    'shrink': '#FF0000',
-                    'ice': '#00FFFF',
-                    'speed': '#FFD700',
-                    'flash': '#FFFF00',
-                    'sticky': '#32CD32'
-                };
-                
-                ctx.shadowColor = glowColors[type] || glowColors['speed'];
-                ctx.shadowBlur = 10;
-                
-                ctx.drawImage(img, 
-                    orb.x - 15,
-                    orb.y - 15, 
-                    30, 
-                    30
-                );
-                
-                ctx.restore();
-            }
+          const type = orb.type || 'speed';
+          const img = powerupImages[type];
+          if (img.complete) {
+            ctx.save();
+            
+            const glowColors = {
+              'invert': '#FF69B4',
+              'shrink': '#FF0000',
+              'ice': '#00FFFF',
+              'speed': '#FFD700',
+              'flash': '#FFFF00',
+              // 'sticky': '#32CD32'
+            };
+            
+            ctx.shadowColor = glowColors[type] || glowColors['speed'];
+            ctx.shadowBlur = 10 * scale;
+            
+            ctx.drawImage(img,
+              orb.x - 15,
+              orb.y - 15,
+              30,
+              30
+            );
+            
+            ctx.restore();
+          }
         });
 
         // Bumpers
@@ -507,10 +583,10 @@
             ctx.shadowColor = '#4169E1';
             ctx.shadowBlur = 10 * scale;
             ctx.drawImage(bumperImage,
-              bumper.x - bumper.size,     // Correction ici
-              bumper.y - bumper.size,     // Correction ici
-              bumper.size * 2,            // Correction ici
-              bumper.size * 2             // Correction ici
+              bumper.x - bumper.size,
+              bumper.y - bumper.size,
+              bumper.size * 2,
+              bumper.size * 2
             );
             ctx.restore();
           }
@@ -518,10 +594,58 @@
       }
 
       // Scores
-      ctx.fillStyle='white';
-      ctx.font="20px Arial";
+      ctx.fillStyle = 'white';
+      ctx.font = "20px Arial";
       ctx.fillText(`${gameState.score_left}`, 20, 30);
       ctx.fillText(`${gameState.score_right}`, canvas.width - 40, 30);
+
+      // Draw active power-up names
+      const powerupNames = {
+          'speed': 'SPEED',
+          'shrink': 'SHRINK',
+          'ice': 'ICE',
+          // 'sticky': 'STICKY',
+          'invert': 'INVERT'
+      };
+
+      // Left player power-ups
+      if (activeEffects.left.size > 0) {
+          console.log("Drawing left power-ups:", Array.from(activeEffects.left));
+          ctx.font = "16px Arial";
+          let yOffset = 60; // Start below score
+          activeEffects.left.forEach(effect => {
+              ctx.fillStyle = {
+                  'speed': '#FFD700',
+                  'shrink': '#FF0000',
+                  'ice': '#00FFFF',
+                  // 'sticky': '#32CD32',
+                  'invert': '#FF69B4',
+                  'flash': '#FFFF00'
+              }[effect];
+              ctx.fillText(powerupNames[effect], 20, yOffset);
+              yOffset += 25; // Space between effects
+          });
+      }
+
+      // Right player power-ups
+      if (activeEffects.right.size > 0) {
+        console.log("Drawing right power-ups:", Array.from(activeEffects.left));
+          ctx.font = "16px Arial";
+          let yOffset = 60;
+          activeEffects.right.forEach(effect => {
+              ctx.fillStyle = {
+                  'speed': '#FFD700',
+                  'shrink': '#FF0000',
+                  'ice': '#00FFFF',
+                  // 'sticky': '#32CD32',
+                  'invert': '#FF69B4',
+                  'flash': '#FFFF00'
+              }[effect];
+              const textWidth = ctx.measureText(powerupNames[effect]).width;
+              ctx.fillText(powerupNames[effect], canvas.width - 20 - textWidth, yOffset);
+              yOffset += 25;
+          });
+      }
 
       requestAnimationFrame(draw);
     }

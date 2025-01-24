@@ -51,17 +51,17 @@
 {% if tournament.status == 'pending' %}
     <!-- Prochaine étape : préparer la 1re demi-finale -->
     <a id="nextStepBtn" class="btn btn-primary d-none"
-       href="{% url 'prepare_game' tournament.id 'semifinal1' %}">
+       href="{% url 'next_game_presentation_tournament' tournament.id 'semifinal1' %}">
        Passer à la demi-finale 1
     </a>
 {% elif tournament.status == 'semifinal1_done' %}
     <a id="nextStepBtn" class="btn btn-warning d-none"
-       href="{% url 'prepare_game' tournament.id 'semifinal2' %}">
+       href="{% url 'next_game_presentation_tournament' tournament.id 'semifinal2' %}">
        Passer à la demi-finale 2
     </a>
 {% elif tournament.status == 'semifinal2_done' %}
     <a id="nextStepBtn" class="btn btn-success d-none"
-       href="{% url 'prepare_game' tournament.id 'final' %}">
+       href="{% url 'next_game_presentation_tournament' tournament.id 'final' %}">
        Passer à la Finale
     </a>
 {% elif tournament.status == 'finished' %}

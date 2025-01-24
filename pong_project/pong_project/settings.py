@@ -88,8 +88,10 @@ ROOT_URLCONF = 'pong_project.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
+        'DIRS': [
+            os.path.join(BASE_DIR, 'templates'),  # Répertoire global des templates
+        ],
+        'APP_DIRS': True,  # Permet à Django de chercher les templates dans chaque app
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.debug',

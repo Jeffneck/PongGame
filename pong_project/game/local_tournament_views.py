@@ -1,18 +1,10 @@
-# game/views.py
+# game/local_tournament_views.py
 
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
 from .models import GameSession
 from django.shortcuts import render, get_object_or_404, redirect
-from django.urls import reverse
-import time
 from .models import GameSession, GameResult, GameParameters, LocalTournament
 from .manager import schedule_game
-from .forms import GameParametersForm, LocalTournamentForm
-from .game_loop.redis_utils import set_key
-import redis
-from django.conf import settings
+from .forms import LocalTournamentForm
 
 
 def parameter_local_tournament(request):

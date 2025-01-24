@@ -78,20 +78,20 @@ async def finish_game(game_id):
 
     # Une fois qu'on a créé le GameResult (disons new_result), on peut faire :
     # Chercher s’il y a un LocalTournament qui pointe sur ce game_id en semifinal1, semifinal2 ou final
-    tournament = get_LocalTournament(game_id, "semifinal1")
+    tournament = await get_LocalTournament(game_id, "semifinal1")
     if tournament:
         # C'était la semifinal1
         tournament.status = 'semifinal1_done'
         tournament.save()
     else:
-        tournament = get_LocalTournament(game_id, "semifinal2")
+        tournament = await get_LocalTournament(game_id, "semifinal2")
         if tournament:
             # C'était la semifinal2
             tournament.status = 'semifinal2_done'
             tournament.save()
         else:
             # Peut-être la finale
-            tournament = get_LocalTournament(game_id, "final")
+            tournament = await get_LocalTournament(game_id, "final")
             if tournament:
                 tournament.status = 'finished'
                 tournament.save()

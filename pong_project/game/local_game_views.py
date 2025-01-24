@@ -1,4 +1,4 @@
-# game/views.py
+# local_game_views.py
 
 from django.shortcuts import render,  redirect
 from .models import GameSession
@@ -13,22 +13,25 @@ def parameter_local_game(request):
     if request.method == 'POST':
         form = GameParametersForm(request.POST)
         if form.is_valid():
-            # Créer une nouvelle GameSession
-            session = GameSession.objects.create(status='waiting') 
+            # Créer une nouvelle GameSession avec des joueurs par défaut
+            session = GameSession.objects.create(
+                status='waiting',
+                player_left='Player_left',
+                player_right='Player_right'
+            )
             game_id = str(session.id)
 
             # Créer les GameParameters liés à cette session
             parameters = form.save(commit=False)
             parameters.game_session = session
             parameters.save()
-            print(f"[create_game] GameSession {game_id} created avec paramètres personnalisés. Scheduling game_loop.")
+            print(f"[parameter_local_game] GameSession {game_id} created avec paramètres personnalisés. Scheduling game_loop.")
             schedule_game(game_id)
 
             return redirect('live_local_game', game_id=game_id)
     else:
         form = GameParametersForm()
-    return render(request, 'game/create_game.html', {'form': form})
-
+    return render(request, 'game/local_game/parameter_local_game.html', {'form': form})
 
 def live_local_game(request, game_id):
     """

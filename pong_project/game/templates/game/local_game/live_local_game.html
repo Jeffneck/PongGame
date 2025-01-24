@@ -1,4 +1,4 @@
-<!-- game/templates/game/tournament/live_tournament_game.html -->
+<!-- game/templates/game/local_game/live_local_game.html -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -382,6 +382,8 @@
       } else if (data.type === 'game_over') {
         alert("Game Over! Winner = " + data.winner);
         socket.close();
+        // Rediriger vers la page des résultats
+        window.location.href = "{% url 'list_results' %}";
       } else if (data.type === 'powerup_applied') {
           console.log(`[Frontend] Power-up applied to ${data.player}: ${data.effect}`);
           console.log(`[Frontend] Power-up duration: ${data.duration}`);

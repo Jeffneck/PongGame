@@ -1,4 +1,4 @@
-<!-- game/templates/game/local_game/live_local_game.html -->
+<!-- game/templates/game/tournament/live_tournament_game.html -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -381,6 +381,8 @@
         activeEffects.right = previousActiveEffects.right;
       } else if (data.type === 'game_over') {
         alert("Game Over! Winner = " + data.winner);
+        // Rediriger vers la page des résultats
+        window.location.href = "{% url 'detail_local_tournament' %}";
         socket.close();
       } else if (data.type === 'powerup_applied') {
           console.log(`[Frontend] Power-up applied to ${data.player}: ${data.effect}`);

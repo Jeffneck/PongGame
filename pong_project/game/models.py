@@ -42,8 +42,8 @@ class GameResult(models.Model):
     Enregistre le score final d'une partie terminée.
     """
     game = models.ForeignKey(GameSession, on_delete=models.CASCADE)
-    winner = models.CharField(max_length=10)  # "left" ou "right"
-    looser = models.CharField(max_length=10)  # "left" ou "right"
+    winner = models.CharField(max_length=50)  # "left" ou "right"
+    looser = models.CharField(max_length=50)  # "left" ou "right"
     score_left = models.IntegerField()
     score_right = models.IntegerField()
     ended_at = models.DateTimeField(auto_now_add=True)

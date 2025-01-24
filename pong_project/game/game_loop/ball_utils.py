@@ -5,6 +5,8 @@ import time
 import math
 import random
 
+BALL_MIN_SPEED = 1
+BALL_MAX_SPEED = 20
 # -------------- BALL : UPDATE OBJECTS  --------------------
 def move_ball(game_id, ball):
     ball.x = float(get_key(game_id, "ball_x")) + float(get_key(game_id, "ball_vx"))
@@ -47,18 +49,18 @@ def move_ball_sticky(game_id, paddle_left, paddle_right, ball):
     start_t = float(get_key(game_id, f"sticky_start_time_{stuck_side}") or 0)
     if time.time() - start_t >= 1.0:
         # Relâcher la balle avec un petit boost
-        release_ball_sticky(game_id, stuck_side, ball)
+        release_ball_sticky(game_id, current_paddle, stuck_side, ball)
 
 
 
 # -------------- BALL : UPDATE REDIS KEYS  --------------------
-def stick_ball_to_paddle(game_id, stuck_side, paddle, ball):
+def stick_ball_to_paddle(game_id, stuck_side, current_paddle, ball):
     """
     Colle la balle sur la raquette <stuck_side>.
     """
     print(f"[sticky] stick ball to {stuck_side} paddle")
     # Calcul de la position relative
-    relative_pos = ball.y - paddle.y
+    relative_pos = ball.y - current_paddle.y
 
     # Stocker la vitesse originale de la balle pour la remettre plus tard (facultatif)
     set_key(game_id, "ball_original_vx", ball.speed_x)
@@ -76,30 +78,23 @@ def stick_ball_to_paddle(game_id, stuck_side, paddle, ball):
 
     # Positionner la balle contre la raquette
     if stuck_side == 'left':
-        ball.x = paddle.x + paddle.width + ball.size
+        ball.x = current_paddle.x + current_paddle.width + ball.size
     else:
-        ball.x = paddle.x - ball.size
+        ball.x = current_paddle.x - ball.size
 
-def release_ball_sticky(game_id, stuck_side, ball):
+def release_ball_sticky(game_id, current_paddle, stuck_side, ball):
     print(f"[sticky] Releasing ball from {stuck_side} paddle")
+    # on conserve l'ancienne
 
     # On récupère la vitesse originale (si on l'avait stockée)
-    original_vx = float(get_key(game_id, "ball_original_vx") or 3)
-    original_vy = float(get_key(game_id, "ball_original_vy") or 0)
+    ball.speed_x = float(get_key(game_id, "ball_original_vx") or BALL_MIN_SPEED)
+    ball.speed_y = float(get_key(game_id, "ball_original_vy") or BALL_MIN_SPEED)
 
-    # Petit boost
-    speed = math.hypot(original_vx, original_vy)
-    new_speed = speed * 1.3  # 30% de boost
-    # On choisit la direction en X selon le côté
-    if stuck_side == 'left':
-        ball.speed_x = +abs(new_speed)  # vers la droite
-    else:
-        ball.speed_x = -abs(new_speed)  # vers la gauche
+    # on donne le status speed boosted pour la rendre plus rapide lors de la prochaine collision avec le paddle
+    set_key(game_id, "ball_speed_boosted", 1)
+    # manage_ball_speed_and_angle(game_id, current_paddle, stuck_side, ball)
 
-    # On met un léger angle en Y pour éviter la ligne pure horizontale
-    ball.speed_y = 0.3 * new_speed * random.choice([-1, 1])
-
-    # Nettoyage
+    # Nettoyage des cles ayant permis a la balle de stuck
     delete_key(game_id, "ball_stuck")
     delete_key(game_id, "ball_stuck_side")
     delete_key(game_id, f"sticky_relative_pos_{stuck_side}")
@@ -107,7 +102,53 @@ def release_ball_sticky(game_id, stuck_side, ball):
     delete_key(game_id, "ball_original_vx")
     delete_key(game_id, "ball_original_vy")
 
+    # Nettoyer le flag sticky de la raquette
+    delete_key(game_id, f"paddle_{stuck_side}_sticky")
+
 # -------------- BALL : UPDATE REDIS GENERAL KEYS --------------------
+
+def manage_ball_speed_and_angle(game_id, current_paddle, paddle_side, ball):
+    
+    ball_already_boosted = get_key(game_id, "ball_speed_already_boosted")
+    ball_speed_boosted = get_key(game_id, "ball_speed_boosted")
+    if ball_already_boosted and ball_already_boosted.decode('utf-8') == '1':
+        print("SPEED KILL")
+        ball.speed_x = float(get_key(game_id, "ball_speed_x_before_boost") or BALL_MIN_SPEED)
+        ball.speed_y = float(get_key(game_id, "ball_speed_y_before_boost") or BALL_MIN_SPEED)
+        delete_key(game_id, "ball_speed_x_before_boost")
+        delete_key(game_id, "ball_speed_y_before_boost")
+        delete_key(game_id, "ball_speed_already_boosted")
+    
+    if ball_speed_boosted and ball_speed_boosted.decode('utf-8') == '1':
+        print("SPEED BOOST")
+        set_key(game_id, "ball_speed_x_before_boost", ball.speed_x)
+        set_key(game_id, "ball_speed_y_before_boost", ball.speed_y)
+        set_key(game_id, "ball_speed_already_boosted", 1)
+        delete_key(game_id, "ball_speed_boosted")
+        tmp_speed = math.hypot(ball.speed_x, ball.speed_y) * 2
+    else :
+        tmp_speed = math.hypot(ball.speed_x, ball.speed_y) + 0.3
+    
+    #calculer la vitesse de renvoi de la balle
+    new_speed = max(BALL_MIN_SPEED, min(BALL_MAX_SPEED, tmp_speed)) 
+    print(f"ball new speed = {new_speed}")
+
+    # calculer l'angle de renvoi de la balle
+    relative_y = (ball.y - (current_paddle.y + current_paddle.height / 2)) / (current_paddle.height / 2)
+    relative_y = max(-1, min(1, relative_y))  # Limiter à l'intervalle [-1, 1]
+    angle = relative_y * (math.pi / 4)  # Max 45 degrés
+
+    # definir la speed_x et y grace à la vitesse generale et l'angle de renvoi calculé
+    new_speed_x = new_speed * math.cos(angle)
+    if paddle_side == 'left':
+        ball.speed_x = new_speed_x
+    else:
+        ball.speed_x = -new_speed_x
+
+    ball.speed_y = new_speed * math.sin(angle)
+
+
+
 def update_ball_redis(game_id, ball):
     set_key(game_id, "ball_x", ball.x)
     set_key(game_id, "ball_y", ball.y)

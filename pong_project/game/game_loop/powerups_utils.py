@@ -137,7 +137,7 @@ def count_active_powerups(game_id, powerup_orbs):
         active = get_key(game_id, f"powerup_{powerup_orb.effect_type}_active") or 0
         if active and active.decode('utf-8') == '1':
             count += 1
-    print(f"[loop.py] count_active_powerups ({count})")
+    # print(f"[loop.py] count_active_powerups ({count})")
     return count
 
 async def handle_powerup_expiration(game_id, powerup_orbs):

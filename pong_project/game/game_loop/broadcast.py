@@ -182,7 +182,7 @@ async def notify_bumper_collision(game_id, bumper, ball):
     print(f"[collisions.py] Ball collided with bumper at ({bumper.x}, {bumper.y}). New speed: ({ball.speed_x}, {ball.speed_y})")
 
 
-# --------- END GAME : NOTIFICATIONS -----------
+# --------- END GAME : NOTIFICATIONS  -----------
 
 async def notify_game_finished(game_id, winner, looser):
     channel_layer = get_channel_layer()

@@ -4,11 +4,12 @@ import math
 import random
 import time
 from asgiref.sync import sync_to_async
-from .ball_utils import update_ball_redis
+from .ball_utils import  stick_ball_to_paddle, update_ball_redis
 from .redis_utils import get_key, set_key, delete_key
 from .powerups_utils import apply_powerup
 from .broadcast import notify_paddle_collision, notify_border_collision, notify_bumper_collision, notify_powerup_applied
 
+MIN_SPEED = 1.0
 # Temps de cooldown pour les collisions avec les bumpers (en secondes)
 # COOLDOWN_TIME = 0.5
 
@@ -31,98 +32,48 @@ from .broadcast import notify_paddle_collision, notify_border_collision, notify_
 
 async def handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right, ball):
     """
-    Gère les collisions avec les paddles gauche et droite.
-    Retourne 'score_left', 'score_right' ou None.
+    Gère le fait qu'on marque un point ou qu'on ait juste un rebond sur la raquette.
+    Retourne 'score_left', 'score_right' ou None si on continue le jeu.
     """
-    # print("handle_scoring_or_paddle_collision")
-    # is_sticky = await handle_sticky_paddle_collision(game_id, paddle_left, paddle_right, ball)
-    # if(is_sticky):
-    #     return None
-
-    # Collision avec la raquette gauche
+    
+    # 1) Vérifier si la balle sort à gauche => point pour la droite
     if ball.x - ball.size <= paddle_left.x + paddle_left.width:
+        # Soit on a collision, soit c'est un but
         if paddle_left.y <= ball.y <= paddle_left.y + paddle_left.height:
-            ball.last_player = 'left'  # Mettre à jour le dernier joueur
-            await process_paddle_collision(game_id, 'left', paddle_left, ball)
-            return None
+            # Collision raquette gauche
+            # Vérifier sticky
+            is_sticky = bool(get_key(game_id, "paddle_left_sticky") or 0)
+            if is_sticky:
+                # On "colle" la balle
+                stick_ball_to_paddle(game_id, 'left', paddle_left, ball)
+                return None
+            else:
+                
+                # Rebond classique
+                ball.last_player = 'left'
+                await process_paddle_collision(game_id, 'left', paddle_left, ball)
+                return None
         else:
+            # Balle sortie côté gauche => score pour la droite
             return 'score_right'
 
-    # Collision avec la raquette droite
+    # 2) Vérifier si la balle sort à droite => point pour la gauche
     if ball.x + ball.size >= paddle_right.x:
         if paddle_right.y <= ball.y <= paddle_right.y + paddle_right.height:
-            ball.last_player = 'right'  # Mettre à jour le dernier joueur
-            await process_paddle_collision(game_id, 'right', paddle_right, ball)
-            return None
+            # Collision raquette droite
+            is_sticky = bool(get_key(game_id, "paddle_right_sticky") or 0)
+            if is_sticky:
+                stick_ball_to_paddle(game_id, 'right', paddle_right, ball)
+                return None
+            else:
+                ball.last_player = 'right'
+                await process_paddle_collision(game_id, 'right', paddle_right, ball)
+                return None
         else:
             return 'score_left'
 
     return None
 
-# async def handle_sticky_paddle_collision(game_id, paddle_left, paddle_right, ball):
-    
-#     print("handle_sticky_paddle_collision")
-#     is_sticky = False
-#     # check if ball is stuck to any paddle
-#     left_stuck = get_key(game_id, f"ball_stuck_to_left")
-#     right_stuck = get_key(game_id, f"ball_stuck_to_right")
-#     ball_moved = False
-
-#     left_stuck = get_key(game_id, f"ball_stuck_to_left")
-#     right_stuck = get_key(game_id, f"ball_stuck_to_right")
-#     ball_moved = False
-
-#     if left_stuck or right_stuck:
-#         is_sticky = True
-#         stuck_side = 'left' if left_stuck else 'right'
-#         sticky_start = float(get_key(game_id, f"sticky_start_{stuck_side}") or 0)
-#         relative_pos = float(get_key(game_id, f"sticky_relative_pos_{stuck_side}") or 0)
-#         current_paddle = paddle_left if stuck_side == 'left' else paddle_right
-        
-#         # Check if 1 second has passed
-#         if time.time() - sticky_start >= 1.0:
-#             # Get the original speed that was stored when the ball got stuck
-#             original_speed_x = float(get_key(game_id, f"ball_original_speed_x") or ball.speed_x)
-#             original_speed_y = float(get_key(game_id, f"ball_original_speed_y") or ball.speed_y)
-            
-#             # Calculate the original speed magnitude and boost it
-#             original_speed = math.hypot(original_speed_x, original_speed_y)
-#             new_speed = original_speed * 1.3
-            
-#             # Position the ball and set its velocity
-#             if stuck_side == 'left':
-#                 ball.x = paddle_left.x + paddle_left.width + ball.size
-#                 ball.speed_x = new_speed  # Move right
-#             else:
-#                 ball.x = paddle_right.x - ball.size
-#                 ball.speed_x = -new_speed  # Move left
-            
-#             # Add slight vertical component to prevent straight-line motion
-#             ball.speed_y = new_speed * 0.2 * random.choice([-1, 1])
-            
-#             # Clean up Redis keys
-#             delete_key(game_id, f"ball_stuck_to_{stuck_side}")
-#             delete_key(game_id, f"sticky_start_{stuck_side}")
-#             delete_key(game_id, f"sticky_relative_pos_{stuck_side}")
-#             delete_key(game_id, f"ball_original_speed_x")
-#             delete_key(game_id, f"ball_original_speed_y")
-            
-#             ball_moved = True
-#         else:
-#             # Update ball position to follow paddle
-#             paddle_y = float(get_key(game_id, f"paddle_{stuck_side}_y") or current_paddle.y)
-#             if stuck_side == 'left':
-#                 ball.x = paddle_left.x + paddle_left.width + ball.size
-#             else:
-#                 ball.x = paddle_right.x - ball.size
-#             ball.y = paddle_y + relative_pos
-#             ball_moved = True
-    
-#     # IMPROVE tester sdans cette condition
-#     if not ball_moved:
-#         ball.move()
-#     return (is_sticky)
-#     #IMPROVE return is_sticky pour pouvoir gerer handle_score...
 
 
 #ball
@@ -138,6 +89,9 @@ async def process_paddle_collision(game_id, paddle_side, paddle, ball):
 
     angle = relative_y * (math.pi / 4)  # Max 45 degrés
     speed = math.hypot(ball.speed_x, ball.speed_y) * 1.03  # Augmenter la vitesse
+
+    if speed < MIN_SPEED:
+        speed = MIN_SPEED
 
     if paddle_side == 'left':
         ball.speed_x = speed * math.cos(angle)

@@ -115,10 +115,10 @@ async def handle_powerup_duration(game_id, player, powerup_orb):
         await asyncio.sleep(effect_duration)
         delete_key(game_id, f"paddle_{opponent}_ice_effect")
 
-    # elif effect_type == 'sticky':
-    #     set_key(game_id, f"paddle_{player}_sticky", 1)
-    #     await asyncio.sleep(effect_duration)
-    #     delete_key(game_id, f"paddle_{player}_sticky")
+    elif effect_type == 'sticky':
+        set_key(game_id, f"paddle_{player}_sticky", 1)
+        await asyncio.sleep(effect_duration)
+        delete_key(game_id, f"paddle_{player}_sticky")
 
     elif effect_type == 'invert':
         opponent = 'left' if player == 'right' else 'right'

@@ -6,10 +6,11 @@ from django.conf import settings
 from channels.layers import get_channel_layer
 from asgiref.sync import sync_to_async
 
+from .redis_utils import get_key
 from .models_utils import get_gameSession_status, set_gameSession_status, get_gameSession_parameters
 from .initialize_game import initialize_game_objects, initialize_redis
 from .paddles_utils import move_paddles
-from .ball_utils import move_ball, update_ball_redis, reset_ball
+from .ball_utils import move_ball, move_ball_sticky, reset_ball
 from .collisions import (
     handle_scoring_or_paddle_collision,
     # make_paddle_sticky,
@@ -76,10 +77,13 @@ async def game_loop(game_id):
 
             # 2.1 - Mouvements
             move_paddles(game_id, paddle_left, paddle_right)
-            # update_paddles_redis(game_id, paddle_left, paddle_right)
 
-            move_ball(game_id, ball)
-            update_ball_redis(game_id, ball)
+            #creer fonction is_sticky dans powerup utils ou ball utils
+            stuck_flag = get_key(game_id, "ball_stuck")
+            if stuck_flag and stuck_flag.decode('utf-8') == '1':
+                move_ball_sticky(game_id, paddle_left, paddle_right, ball)
+            else :
+                move_ball(game_id, ball)
             # print(f"1")#debug
             # 2.2 - Collisions
             await handle_border_collisions(game_id, ball)
@@ -88,10 +92,6 @@ async def game_loop(game_id):
             # print(f"2")#debug
 
             # 2.3 - Paddles / Score
-            # from .redis_utils import get_key
-            # paddle_is_sticky = bool(get_key(f"{game_id}:paddle_{ball.last_player}_sticky") or 0)
-            # if paddle_is_sticky:
-            #     make_paddle_sticky(game_id, ball.last_player, paddle, ball)
             scorer = await handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right, ball)
             if scorer in ['score_left', 'score_right']:
                 handle_score(game_id, scorer)

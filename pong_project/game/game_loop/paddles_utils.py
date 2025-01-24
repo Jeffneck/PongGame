@@ -9,9 +9,12 @@ def move_paddles(game_id, paddle_left, paddle_right):
     left_vel = float(get_key(game_id, "paddle_left_velocity") or 0)
     right_vel = float(get_key(game_id, "paddle_right_velocity") or 0)
 
+    # Get initial height for both paddles / added
+    initial_height = float(get_key(game_id, "initial_paddle_height"))
+
     # Hauteurs
-    new_left_height = float(get_key(game_id, "paddle_left_height") or paddle_left.height)
-    new_right_height = float(get_key(game_id, "paddle_right_height") or paddle_right.height)
+    new_left_height = float(get_key(game_id, "paddle_left_height") or initial_height) # modified
+    new_right_height = float(get_key(game_id, "paddle_right_height") or initial_height) # modified
 
     # Effets
     is_left_inverted = bool(get_key(game_id, "paddle_left_inverted"))
@@ -45,7 +48,7 @@ def move_paddles(game_id, paddle_left, paddle_right):
     direction_left = 0
     if left_vel > 0: direction_left = 1
     elif left_vel < 0: direction_left = -1
-
+ #???
     direction_right = 0
     if right_vel > 0: direction_right = 1
     elif right_vel < 0: direction_right = -1

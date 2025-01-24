@@ -78,22 +78,22 @@ async def handle_powerup_duration(game_id, player, powerup_orb):
         print(f"[game_loop.py] Applying shrink to {opponent}")  # Debug log
         
         # Get current height and store it as original
-        current_height = float(get_key(game_id, f"paddle_{opponent}_height") or 60)
+        current_height = float(get_key(game_id, f"paddle_{opponent}_height")) #modified
         print(f"[game_loop.py] Original height: {current_height}")  # Debug log
         
-        # Store original height for restoration
+        # Store original height for restoration 
         set_key(game_id, f"paddle_{opponent}_original_height", current_height)
         
         # Calculate and set new height
         new_height = current_height * 0.5
         set_key(game_id, f"paddle_{opponent}_height", new_height)
-        print(f"[game_loop.py] New height set to: {new_height}")  # Debug log
-        
+        print(f"[game_loop.py] New height set to: {new_height}")  # Debug log 
+
         # Wait for duration
         await asyncio.sleep(effect_duration)
-    
+
         # Restore original height
-        original_height = float(get_key(game_id, f"paddle_{opponent}_original_height") or 60)
+        original_height = float(get_key(game_id, f"paddle_{opponent}_original_height"))
         set_key(game_id, f"paddle_{opponent}_height", original_height)
         delete_key(game_id, f"paddle_{opponent}_original_height")
         print(f"[game_loop.py] Height restored to: {original_height}")  # Debug log

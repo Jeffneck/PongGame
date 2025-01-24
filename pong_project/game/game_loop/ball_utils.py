@@ -16,7 +16,12 @@ def reset_ball(game_id, ball):
     terrain_rect = get_terrain_rect(game_id)
     center_x = terrain_rect['left'] + terrain_rect['width'] // 2
     center_y = terrain_rect['top'] + terrain_rect['height'] // 2
-    ball.reset(center_x, center_y, 4, 4)  # Vitesse X/Y à ajuster
+
+    # Get the initial ball speed multiplier from Redis / added
+    speed_multiplier = float(get_key(game_id, "initial_ball_speed_multiplier"))
+    initial_speed = 4 * speed_multiplier  # Base speed * multiplier
+
+    ball.reset(center_x, center_y, initial_speed, initial_speed) #modified
     update_ball_redis(game_id, ball)
     print(f"[game_loop.py] Ball reset to ({ball.x}, {ball.y}) with speed ({ball.speed_x}, {ball.speed_y})")
 
@@ -83,13 +88,18 @@ def stick_ball_to_paddle(game_id, stuck_side, paddle, ball):
 def release_ball_sticky(game_id, stuck_side, ball):
     print(f"[sticky] Releasing ball from {stuck_side} paddle")
 
-    # On récupère la vitesse originale (si on l'avait stockée)
-    original_vx = float(get_key(game_id, "ball_original_vx") or 3)
-    original_vy = float(get_key(game_id, "ball_original_vy") or 0)
+    # # On récupère la vitesse originale (si on l'avait stockée)
+    # original_vx = float(get_key(game_id, "ball_original_vx") or 3)
+    # original_vy = float(get_key(game_id, "ball_original_vy") or 0) / removed
 
-    # Petit boost
-    speed = math.hypot(original_vx, original_vy)
-    new_speed = speed * 1.3  # 30% de boost
+    # Get the initial ball speed multiplier / added
+    speed_multiplier = float(get_key(game_id, "initial_ball_speed_multiplier"))
+    base_speed = 4 * speed_multiplier
+
+    # # Petit boost
+    # speed = math.hypot(original_vx, original_vy) / removed
+    new_speed = base_speed * 1.3  # 30% de boost / modified
+
     # On choisit la direction en X selon le côté
     if stuck_side == 'left':
         ball.speed_x = +abs(new_speed)  # vers la droite

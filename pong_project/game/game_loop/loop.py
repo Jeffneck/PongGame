@@ -41,7 +41,7 @@ async def game_loop(game_id):
 
         # Construire les objets (raquettes, balle, powerups, bumpers)
         paddle_left, paddle_right, ball, powerup_orbs, bumpers = initialize_game_objects(game_id, parameters)
-        initialize_redis(game_id, paddle_left, paddle_right, ball)
+        initialize_redis(game_id, paddle_left, paddle_right, ball, parameters) # modified
         print(f"[game_loop] Game objects initialisés pour game_id={game_id}")
 
         # 1) Attendre que le statut devienne 'ready' (durée max 60s)

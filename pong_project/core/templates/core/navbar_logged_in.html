@@ -1,0 +1,28 @@
+<nav id="navbar" class="navbar navbar-expand">
+    <div class="container-fluid">
+        <button id="home-btn" class="navbar-brand text-white btn btn-link">PONGAME</button>
+
+        <div class="d-flex ms-auto" id="navbar-right">
+            <!-- Bouton burger avec avatar -->
+            <button id="burger-menu-toggle" class="navbar-toggler rounded-circle" type="button"></button>
+
+        </div>
+    </div>
+</nav>
+<!-- Inclure le contenu du burger-menu -->
+{{ burger_menu|safe }}
+<div id="overlay" style="display: none;" onclick="toggleBurgerMenu()"></div>
+
+<style>
+    
+    #burger-menu-toggle {
+        display: block;
+        width: 50px;
+        height: 50px;
+        background-image: url('{{ avatar_url }}'); /* Utilise l'avatar comme fond */
+        background-size: cover; /* L'image remplit complètement le bouton */
+        background-position: center; /* Centre l'image */
+        background-repeat: no-repeat; /* Pas de répétition de l'image */
+        border: 2px solid rgb(255, 255, 255);
+    }
+</style>

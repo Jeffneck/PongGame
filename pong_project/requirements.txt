@@ -7,3 +7,4 @@ gunicorn==20.1.0      # Optionnel si tu veux Gunicorn pour la partie HTTP "class
 redis==4.5.5  
 uvicorn[standard]>=0.23.0
 psycopg2==2.9.6
+

@@ -3,9 +3,11 @@
 
 set -e
 
+echo "==> Waiting for postgreSQL"
+python wait-for-postgres.py
 echo "==> Applying migrations"
-python manage.py makemigrations game --noinput
-./wait-for-postgres.sh db python manage.py migrate
+python manage.py makemigrations
+python manage.py migrate
 
 echo "==> Collecting static files"
 python manage.py collectstatic --noinput

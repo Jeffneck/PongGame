@@ -1,0 +1,477 @@
+@font-face {
+	font-family: "Jersey 10";
+	src: url('fonts/Jersey10-Regular.ttf');
+
+}
+@font-face {
+
+	font-family: "Jersey 25";
+	src: url('fonts/Jersey25-Regular.ttf');
+
+}
+/* base pour tous les html */
+
+html, body {
+	height: 100%;
+	width: 100%;
+	background-color: #101A32;
+	color:white;
+	overflow: auto;
+	margin: 0;
+	padding: 0;
+	font-family: "Jersey 25";
+	font-size: 18px;
+}
+
+.navbar {
+	/* min-width: 300px;  */
+	height: 50px;
+	width: 100%;
+    max-width: 100%;
+	background-color: rgba(45, 180, 243);
+	text-align: left;
+	z-index: 30; /* Garder la barre au-dessus de tout */
+	position: fixed;
+	top:0;
+	justify-content: center;
+
+}
+
+.navbar-brand {
+	font-family: "Jersey 10";
+	color: white;
+	font-size: 40px;
+	text-align: center;
+	border: none;
+	cursor: pointer;
+	display: inline-block;
+	padding-left: 10px;
+
+}
+
+.backg {
+	position: absolute;
+	top: 50px; 
+	left: 0; 
+	z-index: 0; 
+}
+
+.container-fluid {
+	text-align: center; /* Centre les boutons horizontalement */
+	z-index: 20;
+	position: relative;
+
+}
+
+/* Popup Info */
+.mask {
+	position: fixed; 
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	z-index: 1; 
+	backdrop-filter: blur(10px);
+	pointer-events: none; 
+}
+
+
+.popup {
+    position: fixed;
+    top: 50px; /* Ajustez en fonction de la hauteur de votre navbar */
+    left: 0;
+    transform: translateX(-50%);
+    width: 100%; /* Largeur de la popup */
+    padding: 10px 20px;
+	font-size: 1.2em;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    transform: translateY(-20px);
+    z-index: 29; /* Juste en dessous de la navbar */
+}
+
+.popup.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.popup.hide {
+    opacity: 0;
+    transform: translateY(-20px);
+}
+
+.success {
+    background-color: #c2f4c2; /* Vert pour 'en ligne' */
+	color: #196419;
+}
+
+.error {
+    background-color: #ef8691; /* Rouge pour 'hors ligne' */
+	color: #710c16;
+}
+
+.d-none {
+    display: none !important;
+}
+
+/* Pongame et login */
+
+.home-btn {
+	font-family: "Jersey 10";
+	background-color: #2DB4F3;
+	color: white;
+	font-size: 2.2em;
+	padding : 5px 5px;
+	height: 1.4em;
+	min-width: 150px;
+	border-radius: 40px;
+	transition: color 1000ms ease;
+	border: none;
+	text-shadow: 
+		1px 1px 0px black,
+		-1px -1px 0px black,
+		1px -1px 0px black, 
+		-1px 1px 0px black, 
+		1px 4px 4px rgba(0, 0, 0, 0.5);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.home-btn:hover {
+	background-color: #75d3ff;
+}
+
+
+.title{
+	font-family: "Jersey 10";
+	color: white;
+}
+
+/* Conteneur Flex pour centrer les formulaires */
+.flex-form-container {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	top: -50px;
+	height: 100vh; /* Prend toute la hauteur de l'écran */
+	position: relative;
+	z-index: 15;
+}
+
+/* Formulaire sans cadre visible et centré */
+.register-form, .login-form {
+	width: 100%; /* Prend toute la largeur disponible */
+	max-width: 600px; /* Limite la largeur du formulaire (augmentée) */
+	padding: 40px; /* Augmentation de l'espace intérieur du formulaire */
+	background: none; /* Enlève tout arrière-plan visible */
+	border: none; /* Supprime les bordures */
+	display: flex;
+	flex-direction: column; /* Centre tous les éléments verticalement */
+	align-items: center; /* Centre les éléments horizontalement */
+}
+
+/* Titre centré */
+.register-form h1, .login-form h1 {
+	color: white;
+	font-family: "Jersey 10";
+	font-size: 36px; /* Taille de police augmentée */
+	text-align: center; /* Centre le titre */
+}
+
+/* Groupes de champs */
+.form-group {
+	margin-bottom: 20px;
+	width: 100%; /* Assure que le groupe prend toute la largeur du formulaire */
+	text-align: center; /* Centre le texte à l'intérieur des groupes */
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	/* min-width: 150px; */
+}
+
+/* Libellés des champs */
+.form-group label {
+	color: white;
+	font-family: "Jersey 10";
+	font-size: 24px; /* Taille de police augmentée */
+	display: block;
+	margin-bottom: 10px;
+	text-align: center; /* Centre le texte des labels */
+	/* min-width: 180px; */
+}
+
+/* Champs de texte */
+.form-group input {
+	width: 150%; /* Champs prennent toute la largeur */
+	padding: 15px; /* Augmente l'espace intérieur des champs */
+	border-radius: 20px;
+	border: none; /* Supprime les bordures des champs */
+	font-size: 15px; /* Taille de police augmentée pour le texte à l'intérieur */
+	text-align: center; /* Centre le texte à l'intérieur des champs */
+	box-shadow: none; /* Supprime toute ombre éventuelle */
+	margin-bottom: 5px;
+	min-width: 100px;
+}
+
+/* Lien "Mot de passe oublié" discret */
+.forgot-password {
+	margin-bottom: 30px; /* Augmente l'espacement en bas */
+	text-align: center; /* Centre le lien */
+	min-width: 150px;
+}
+
+.forgot-password a {
+	color: #75d3ff;
+	font-family: "Jersey 10";
+	font-size: 18px; /* Augmente la taille du texte pour le lien */
+	text-decoration: none;
+	opacity: 0.7;
+}
+
+.forgot-password a:hover {
+	opacity: 1;
+	text-decoration: underline;
+}
+
+/* log_guest et register */
+
+.btn-70 {
+	width: 70%;
+	max-width: 100%;
+	display: block;
+	margin: 0 auto; /* Centre le bouton dans le conteneur */
+	border-radius: 20px;
+}
+
+.btn-danger {
+	background-color: #ff4d4d;
+	border: none;
+	/* padding: 10px 20px; */
+	border-radius: 5px;
+	font-size: 1rem;
+	font-family: "Jersey 10";
+	transition: background-color 0.3s;
+}
+
+.btn-primary {
+	font-family: "Jersey 10";
+	background-color: #2DB4F3;
+	border: none;
+	font-size: 1.2em;
+	border-radius: 20px;
+	min-width: 100px;
+}
+
+.btn-primary:hover, .btn-primary:focus {
+	background-color: #75d3ff;
+	border-color: #75d3ff;
+}
+
+/* profil gestion_profil */
+
+.card-title {
+
+	font-family: "Jersey 10";
+}
+
+/* Terrain de base */
+.terrain {
+	background-color: #101A32;
+	border: 1px solid white;
+	position: relative;
+	width: 80vw;
+	height: 40vw;
+	min-width: 320px;
+	min-height: 160px;
+}
+
+/* Ligne centrale */
+.ligne-centrale {
+	width: 1px;
+	height: 100%;
+	background-color: white;
+	top: 0;
+	left: 50%;
+	transform: translateX(-50%);
+	min-height: 160px;
+	/* filter: blur(2px); */
+}
+
+/* Cercle central */
+.cercle-central {
+	width: 20vw;
+	height: 20vw;
+	border: 1px solid white;
+	border-radius: 50%;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	min-width: 80px;
+	min-height: 80px;
+}
+
+/* Point central */
+.point-central {
+	width: 0.5vw;
+	height: 0.5vw;
+	background-color: white;
+	border-radius: 50%;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+}
+
+/* Balle */
+.balle {
+	width: 2.5%;
+	height: 5%;
+	background-color: white;
+	border-radius: 50%;
+	top: 50%;
+	left: 1vw;
+}
+
+/* Traits (Gauche et Droite) */
+.trait-gauche, .trait-droit {
+	width: 1.25%;
+	height: 26%;
+	background-color: white;
+}
+
+.trait-gauche {
+	left: 0;
+	top: 38%;
+}
+
+.trait-droit {
+	right: 0;
+	top: 38%;
+}
+
+.card .form-control {
+	width: 90%; /* Définit la largeur à 80 % de la carte */
+	margin: 0 auto; /* Centre les champs dans la carte */
+	/* min-width: 200px; */
+}
+
+/* Styles pour le menu burger */
+#burger-menu {
+	position: fixed;
+	top: 58px;
+	right: 8px;
+	width: 400px; /* Largeur en pixels ajustable */
+	height: var(--burger-height); /* Prend toute la hauteur sous la navbar */
+	border-radius: 8px 8px 8px 8px;
+	display: none; /* Caché par défaut */
+	z-index: 98; /* Plus haut que l'overlay pour rester visible */
+	background-color: #141b2e;
+	overflow-y: auto;
+}
+
+#burger-menu .dropdown-item {
+	padding: 10px 15px;
+	color: white;
+	text-decoration: none;
+}
+
+#burger-menu .dropdown-item:hover {
+	background-color: rgba(75, 75, 75, 0.3); /* Couleur de survol */
+}
+
+#overlay {
+    position: fixed;
+    top: 50px; /* Hauteur de la navbar */
+    left: 0;
+    width: 100vw;
+    height: var(--sin-nav-height); /* Hauteur de la page moins la navbar */
+    background-color: rgba(0, 0, 0, 0.5); /* Couleur sombre avec transparence */
+    z-index: 97; /* Doit être derrière le menu burger */
+	display: none;
+}
+
+/* Styles pour le bouton profil */
+#menu-btn {
+	width: 40px;
+	height: 40px;
+	border-radius: 50%;
+	border: 2px solid white;
+	overflow: hidden;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+#menu-btn i {
+	font-size: 35px;
+	color: white;
+}
+
+.profile-section h5 {
+    margin-bottom: 0;
+    color: white;
+}
+
+.profile-section p {
+    margin-top: 0;
+    font-size: 0.9em;
+    color: #aaa;
+}
+
+/* .friend-btn {
+	border: 2px solid rgb(153, 148, 148);
+	background: none;
+	width: 100%;
+	color: white;
+	padding: 5px 10px;
+	border-radius: 50px;
+	cursor: pointer;
+}
+.friend-btn:hover {
+	background-color: rgba(255, 255, 255, 0.1);
+}
+
+.status-indicator {
+	position: absolute;
+	bottom: 10px;
+	right: 5px;
+	width: 15px;
+	height: 15px;
+	border-radius: 50%;
+	border: 2px solid white; 
+}
+.status-indicator-friend {
+	position: absolute;
+	bottom: 0px;
+	right: 20px;
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	border: 2px solid white;
+} */
+
+
+
+.center-content {
+	height: 100vh; /* Prend toute la hauteur de l'écran */
+	justify-content: center;
+}
+.normal-content {
+	height: auto;
+	justify-content: flex-start;
+	padding-top: 20px;
+}
+
+.friend-btn {
+	border: 2px solid rgb(153, 148, 148);
+	background: none;
+	width: 100%;
+	color: white;
+	padding: 5px 10px;
+	border-radius: 50px;
+	cursor: pointer;
+}
+.friend-btn:hover {
+	background-color: rgba(255, 255, 255, 0.1);
+}

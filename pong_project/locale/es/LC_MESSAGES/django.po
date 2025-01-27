@@ -1,0 +1,379 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-01-20 08:00+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=n == 1 ? 0 : n != 0 && n % 1000000 == 0 ? "
+"1 : 2;\n"
+
+#: accounts/forms.py:58
+msgid "Choisir un fichier"
+msgstr "Elegir archivo"
+
+#: accounts/forms.py:73
+msgid "L'image ne doit pas dépasser 4 Mo."
+msgstr "La imagen no debe exceder los 4 MB."
+
+#: accounts/forms.py:75
+msgid "Seules les images JPEG, PNG et GIF sont autorisées."
+msgstr "Solo se permiten imágenes JPEG, PNG y GIF."
+
+#: templates/accounts/burger_menu.html:14
+msgid "En ligne"
+msgstr "Conectado"
+
+#: templates/accounts/burger_menu.html:15
+msgid "Hors ligne"
+msgstr "Desconectado"
+
+#: templates/accounts/burger_menu.html:16
+msgid "Voir le profil"
+msgstr "Ver perfil"
+
+#: templates/accounts/burger_menu.html:20
+msgid "Jouer"
+msgstr "Jugar"
+
+#: templates/accounts/burger_menu.html:21
+msgid "Tournoi"
+msgstr "Torneo"
+
+#: templates/accounts/burger_menu.html:22
+msgid "Gestion du compte"
+msgstr "Gestión de cuentas"
+
+#: templates/accounts/burger_menu.html:27
+msgid "Ajouter un ami"
+msgstr "Añadir un amigo"
+
+#: templates/accounts/burger_menu.html:31
+msgid "Ajouter"
+msgstr "Añadir"
+
+#: templates/accounts/burger_menu.html:39
+#: templates/accounts/friend_profile.html:39 templates/accounts/profile.html:40
+msgid "Amis"
+msgstr "Amigos"
+
+#: templates/accounts/burger_menu.html:50
+#: templates/accounts/burger_menu.html:73 templates/game/invite_game.html:21
+#: templates/game/invite_tournament.html:36
+msgid "Aucun ami pour le moment."
+msgstr "Aún no hay amigos."
+
+#: templates/accounts/burger_menu.html:57
+msgid "Invitations d'amis"
+msgstr "Invitaciones de amigos"
+
+#: templates/accounts/burger_menu.html:67
+#: templates/accounts/burger_menu.html:90
+msgid "Accepter"
+msgstr "Aceptar"
+
+#: templates/accounts/burger_menu.html:68
+#: templates/accounts/burger_menu.html:91
+msgid "Refuser"
+msgstr "Rechazar"
+
+#: templates/accounts/burger_menu.html:80
+msgid "Invitations à jouer"
+msgstr "Invitaciones a jugar"
+
+#: templates/accounts/burger_menu.html:96
+msgid "Aucune invitation pour le moment."
+msgstr "Aún no hay invitaciones."
+
+#: templates/accounts/burger_menu.html:105
+msgid "Déconnexion"
+msgstr "Desconexión"
+
+#: templates/accounts/burger_menu.html:112
+msgid "Voir profil"
+msgstr "Ver perfil"
+
+#: templates/accounts/burger_menu.html:113
+msgid "Inviter à jouer"
+msgstr "Invitar a jugar"
+
+#: templates/accounts/burger_menu.html:114
+msgid "Supprimer"
+msgstr "Borrar"
+
+#: templates/accounts/disable_2fa.html:5
+msgid "Désactiver l'authentification à deux facteurs"
+msgstr "Deshabilitar la autenticación de dos factores"
+
+#: templates/accounts/disable_2fa.html:8
+msgid "Entrez le code généré par votre application d'authentification."
+msgstr "Ingrese el código generado por su aplicación de autenticación."
+
+#: templates/accounts/disable_2fa.html:12 templates/accounts/enable_2fa.html:26
+#: templates/accounts/login2fa.html:13
+msgid "Code 2FA :"
+msgstr "Código 2FA :"
+
+#: templates/accounts/disable_2fa.html:15
+#: templates/accounts/gestion_profil.html:92
+msgid "Désactiver 2FA"
+msgstr "Deshabilitar 2FA"
+
+#: templates/accounts/enable_2fa.html:4
+msgid "Activer l'authentification à deux facteurs"
+msgstr "Habilitar la autenticación de dos factores"
+
+#: templates/accounts/enable_2fa.html:15
+msgid "QR Code non disponible"
+msgstr "Código QR no disponible"
+
+#: templates/accounts/enable_2fa.html:20
+msgid "Code secret"
+msgstr "Código secreto"
+
+#: templates/accounts/enable_2fa.html:35
+msgid "Vérifier"
+msgstr "Controlar"
+
+#: templates/accounts/friend_profile.html:4
+msgid "Profil de"
+msgstr "Perfil de"
+
+#: templates/accounts/friend_profile.html:13 templates/accounts/profile.html:14
+msgid "Pseudo : "
+msgstr "Apodo : "
+
+#: templates/accounts/friend_profile.html:14 templates/accounts/profile.html:15
+msgid "Nombre de matchs joués : "
+msgstr "Número de partidos jugados : "
+
+#: templates/accounts/friend_profile.html:25 templates/accounts/profile.html:26
+msgid "Statistiques Générales"
+msgstr "Estadísticas Generales"
+
+#: templates/accounts/friend_profile.html:27 templates/accounts/profile.html:28
+msgid "Victoires : "
+msgstr "Victorias : "
+
+#: templates/accounts/friend_profile.html:28 templates/accounts/profile.html:29
+msgid "Défaites : "
+msgstr "Derrotas : "
+
+#: templates/accounts/friend_profile.html:29 templates/accounts/profile.html:30
+msgid "Meilleur score : "
+msgstr "Mejor puntuación : "
+
+#: templates/accounts/friend_profile.html:40 templates/accounts/profile.html:41
+msgid "Nombre d'amis : "
+msgstr "Número de amigos : "
+
+#: templates/accounts/gestion_profil.html:4 templates/accounts/profile.html:50
+msgid "Gestion de Profil"
+msgstr "Gestión de perfiles"
+
+#: templates/accounts/gestion_profil.html:11
+msgid "Changer de langue"
+msgstr "Cambiar el idioma"
+
+#: templates/accounts/gestion_profil.html:30
+msgid "Changer d'avatar"
+msgstr "Cambiar avatar"
+
+#: templates/accounts/gestion_profil.html:37
+#: templates/accounts/gestion_profil.html:55
+#: templates/accounts/gestion_profil.html:75 templates/accounts/login.html:20
+#: templates/accounts/login2fa.html:16
+msgid "Valider"
+msgstr "Validar"
+
+#: templates/accounts/gestion_profil.html:51
+msgid "Changer de pseudo"
+msgstr "Cambiar apodo"
+
+#: templates/accounts/gestion_profil.html:69
+msgid "Changer de mot de passe"
+msgstr "Cambiar la contraseña"
+
+#: templates/accounts/gestion_profil.html:90
+msgid "Authentification à deux facteurs"
+msgstr "Autenticación de dos factores"
+
+#: templates/accounts/gestion_profil.html:94
+msgid "Activer 2FA"
+msgstr "Habilitar 2FA"
+
+#: templates/accounts/gestion_profil.html:106
+#: templates/accounts/gestion_profil.html:119
+msgid "Supprimer le compte"
+msgstr "Borrar el cuenta"
+
+#: templates/accounts/gestion_profil.html:107
+msgid "Cette action est irréversible. Votre compte sera définitivement supprimé."
+msgstr "Esta acción es irreversible. Su cuenta será borrada permanentemente."
+
+#: templates/accounts/gestion_profil.html:108
+msgid "Supprimer mon compte"
+msgstr "Borrar mi cuenta"
+
+#: templates/accounts/gestion_profil.html:120
+msgid "Pour des raisons de sécurité, veuillez entrer votre mot de passe pour confirmer la suppression de votre compte."
+msgstr "Por razones de seguridad, introduzca su contraseña para confirmar la eliminación de su cuenta."
+
+#: templates/accounts/gestion_profil.html:124
+msgid "Mot de passe"
+msgstr "Contraseña olvidada ?"
+
+#: templates/accounts/gestion_profil.html:127
+msgid "Confirmer la suppression"
+msgstr "Perfil de usuario"
+
+#: templates/accounts/login.html:5 templates/core/home.html:6
+msgid "Connexion"
+msgstr "Conexión"
+
+#: templates/accounts/login.html:10 templates/accounts/register.html:10
+msgid "Nom d'utilisateur :"
+msgstr "Nombre de usuario :"
+
+#: templates/accounts/login.html:14 templates/accounts/register.html:14
+msgid "Mot de passe :"
+msgstr "Contraseña :"
+
+#: templates/accounts/login.html:18
+msgid "Mot de passe oublié ?"
+msgstr "Contraseña olvidada ?"
+
+#: templates/accounts/login2fa.html:7
+msgid "Entrez Code 2FA"
+msgstr "Introduzca el código 2FA"
+
+#: templates/accounts/login2fa.html:9
+msgid "Pour vous connecter, veuillez saisir le code 2FA depuis votre application d'authentification"
+msgstr "Para iniciar sesión, introduzca el código 2FA desde su aplicación de autenticación"
+
+#: templates/accounts/profile.html:5
+msgid "Profil Utilisateur"
+msgstr "Perfil de usuario"
+
+#: templates/accounts/register.html:6 templates/core/home.html:7
+msgid "Inscription"
+msgstr "Registro"
+
+#: templates/accounts/register.html:18
+msgid "Confirmer le mot de passe :"
+msgstr "Confirmar la contraseña :"
+
+#: templates/accounts/register.html:22
+msgid "S'inscrire"
+msgstr "Registro"
+
+#: templates/game/gameMenu.html:5
+msgid "Menu de Jeu"
+msgstr "Menú de juego"
+
+#: templates/game/gameMenu.html:10
+msgid "Type de Partie"
+msgstr "Tipo de Partido"
+
+#: templates/game/gameMenu.html:12
+msgid "Partie Locale"
+msgstr "Partido local"
+
+#: templates/game/gameMenu.html:13
+msgid "Inviter un Ami"
+msgstr "Invitar a un amigo"
+
+#: templates/game/gameMenu.html:21
+msgid "Modes de Jeu"
+msgstr "Modos de juego"
+
+#: templates/game/gameMenu.html:23
+msgid "Lancer Partie Standard"
+msgstr "Iniciar Partido Estándar"
+
+#: templates/game/gameMenu.html:24
+msgid "Personnaliser Partie"
+msgstr "Personalizar Partido"
+
+#: templates/game/gameMenu.html:33
+msgid "Personnalisation du Gameplay"
+msgstr "Personalización del Juego"
+
+#: templates/game/gameMenu.html:37
+msgid "Vitesse de la Balle"
+msgstr "Velocidad de la bola"
+
+#: templates/game/gameMenu.html:43
+msgid "Taille de la Raquette"
+msgstr "Tamaño de la Raqueta"
+
+#: templates/game/gameMenu.html:45
+msgid "Petite"
+msgstr "Pequeño"
+
+#: templates/game/gameMenu.html:46
+msgid "Moyenne"
+msgstr "Mediano"
+
+#: templates/game/gameMenu.html:47
+msgid "Grande"
+msgstr "Grande"
+
+#: templates/game/gameMenu.html:51
+msgid "Selection des Bonus"
+msgstr "Selección de bonos"
+
+#: templates/game/gameMenu.html:53
+msgid "**Power-Ups Légendaires !**"
+msgstr "**Potenciadores legendarios !**"
+
+#: templates/game/gameMenu.html:93
+msgid "Lancer Partie Personnalisée"
+msgstr "Iniciar Partido Personalizado"
+
+#: templates/game/gameSelectTournament.html:4
+msgid "Choisissez le nombre de participants"
+msgstr "Eligir el número de participantes"
+
+#: templates/game/gameSelectTournament.html:6
+msgid "Tournoi à 4 joueurs"
+msgstr "Torneo de 4 jugadores"
+
+#: templates/game/gameSelectTournament.html:7
+msgid "Tournoi à 8 joueurs"
+msgstr "Torneo de 8 jugadores"
+
+#: templates/game/invite_game.html:3
+msgid "Invitez un ami"
+msgstr "Invitar a un amigo"
+
+#: templates/game/invite_game.html:16 templates/game/invite_tournament.html:31
+msgid "Inviter"
+msgstr "Invitar"
+
+#: templates/game/invite_game.html:28
+msgid "Commencer"
+msgstr "Continuar"
+
+#: templates/game/invite_tournament.html:3
+msgid "Invitez vos amis"
+msgstr "Invitar a sus amigos"
+
+#: templates/game/invite_tournament.html:43
+msgid "Continuer"
+msgstr "Continuar"
+
+#: templates/game/loading.html:43
+msgid "Chargement"
+msgstr "Cargando"

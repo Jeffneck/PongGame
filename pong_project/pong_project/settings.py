@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 import os
+from datetime import timedelta
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -29,6 +30,10 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']  # Pour permettre à Django de répondre aux requêtes de tous les hôtes
 
+# differentes langues/ traductions
+LOCALE_PATHS = [
+    BASE_DIR / 'locale',  # Assure que le dossier existe à la racine
+]
 
 # Application definition
 
@@ -40,6 +45,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'channels',
+    'accounts',
+    'core',
     'game',
 ]
 
@@ -173,7 +180,7 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 # [added] IMPORTANT : STATIC_ROOT doit pointer vers un dossier existant ou qui peut être créé
-# STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 # Default primary key field type

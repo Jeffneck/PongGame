@@ -1,0 +1,74 @@
+<!-- your_app/templates/base.html -->
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pongame</title>
+
+    <!-- Styles Bootstrap et icônes -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+
+    <!-- Votre feuille de style principale -->
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+
+    <script>
+        // Initialiser isAuthenticated en fonction de l'état d'authentification du backend (Django)
+        window.isAuthenticated = {{ request.user.is_authenticated|yesno:"true,false"|lower }};
+        console.log('isAuthenticated:', window.isAuthenticated);
+    </script>
+
+    <!-- Inclure le token CSRF dans une meta -->
+    <meta name="csrf-token" content="{{ csrf_token }}">
+</head>
+<body>
+    <!-- Conteneur pour l'animation de fond (terrain de jeu) -->
+    <div id="ground-game" class=" backg d-flex justify-content-center align-items-center position-fixed" style="height: var(--sin-nav-height); width: 100%; ">
+		<div class="terrain position-relative">
+			<div class="balle position-absolute"></div>
+			<div class="ligne-centrale position-absolute"></div>
+			<div class="cercle-central position-absolute"></div>
+			<div class="point-central position-absolute"></div>
+			<div class="trait-gauche position-absolute"></div> 
+			<div class="trait-droit position-absolute"></div> 
+		</div>
+	</div>
+
+
+    <div class="mask"></div>
+    
+    <div id="navbar">
+        <!-- Navbar sera chargée dynamiquement -->
+    </div>
+    
+        <div id="popup" class="popup d-none">
+        <p id="info" class="mb-0 text-center"></p>
+    </div>
+
+    
+    <div id="content" class=" d-flex justify-content-center align-items-center" style="min-height: 100vh; z-index: 2; padding-top: 50px; padding-bottom: 50px;">
+        <!-- Le contenu dynamique sera chargé ici -->
+    </div>
+
+
+
+    <!-- jQuery (si vous en avez vraiment besoin, sinon vous pouvez le retirer) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- Navigo depuis un CDN -->
+    <script src="//unpkg.com/navigo"></script>
+    
+    <!-- Script principal en mode module -->
+    <!-- Ce fichier importera les autres modules comme api.js, views.js, events.js, etc. -->
+    <script type="module" src="{% static 'js/main.js' %}"></script>
+
+    <!-- Script Bootstrap -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+</body>
+</html>
+
+

@@ -21,8 +21,8 @@ RUN python manage.py collectstatic --noinput || true
 
 # Rendre les scripts exécutables
 RUN chmod +x /app/entrypoint.sh
-RUN chmod +x /app/wait-for-postgres.sh
+RUN chmod +x /app/wait-for-postgres.py
 
 EXPOSE 8000
 
-CMD ["/app/entrypoint.sh"]
+CMD ["bash", "/app/entrypoint.sh"]

@@ -6,16 +6,16 @@ from .dimensions_utils import get_terrain_rect
 from .broadcast import notify_bumper_spawned, notify_bumper_expired
 import random
 
-from .powerups_utils import get_active_objects
+from .powerups_utils import get_active_objects # added
 
 MAX_ACTIVE_BUMPERS = 3
 SPAWN_INTERVAL_BUMPERS = 7
 # -------------- BUMPERS --------------------
-async def handle_bumpers_spawn(game_id, bumpers, current_time, powerup_orbs):
+async def handle_bumpers_spawn(game_id, bumpers, current_time, powerup_orbs): # / modified
     # Initialisation de last_bumper_spawn_time si elle n'est pas déjà définie
-    if not hasattr(handle_bumpers_spawn, "last_bumper_spawn_time"):
+    if not hasattr(handle_bumpers_spawn, "last_bumper_spawn_time") or handle_bumpers_spawn.last_bumper_spawn_time is None:
         handle_bumpers_spawn.last_bumper_spawn_time = current_time  # Initialisation lors du premier appel
-
+        return
     # Utilisation de la variable statique pour vérifier l'intervalle de temps
     if current_time - handle_bumpers_spawn.last_bumper_spawn_time >= SPAWN_INTERVAL_BUMPERS:
         # Get current active objects for debugging
@@ -35,7 +35,7 @@ async def handle_bumpers_spawn(game_id, bumpers, current_time, powerup_orbs):
                     print(f"[game_loop.py] game_id={game_id} - Bumper spawned at ({bumper.x}, {bumper.y}).")
 
 
-async def spawn_bumper(game_id, bumper, terrain_rect, powerup_orbs, bumpers):
+async def spawn_bumper(game_id, bumper, terrain_rect, powerup_orbs, bumpers): # / modified
     if bumper.spawn(terrain_rect, powerup_orbs, bumpers):
         set_bumper_redis(game_id, bumper)
         print(f"[game_loop.py] Bumper spawned at ({bumper.x}, {bumper.y})")

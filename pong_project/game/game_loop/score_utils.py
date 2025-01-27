@@ -2,12 +2,47 @@
 
 from channels.layers import get_channel_layer
 from asgiref.sync import sync_to_async
-from .broadcast import notify_game_finished
-from .redis_utils import set_key, get_key, scan_and_delete_keys
+from .broadcast import notify_game_finished, notify_powerup_expired, notify_bumper_expired
+from .redis_utils import set_key, get_key, scan_and_delete_keys, delete_key
 from .models_utils import set_gameSession_status, create_gameResults, get_LocalTournament
+from .powerups_utils import handle_powerups_spawn, delete_powerup_redis
+from .bumpers_utils import handle_bumpers_spawn, delete_bumper_redis
+
 
 # transformer en parametre ajustable GameParameters?
 WIN_SCORE = 4  
+
+async def reset_all_objects(game_id, powerup_orbs, bumpers): # / added
+    """Reset all active powerups and bumpers when a point is scored."""
+    # Reset all powerups
+    for powerup in powerup_orbs:
+        if powerup.active:
+            delete_powerup_redis(game_id, powerup)
+            powerup.deactivate()
+            await notify_powerup_expired(game_id, powerup)
+
+    # Reset all bumpers
+    for bumper in bumpers:
+        if bumper.active:
+            delete_bumper_redis(game_id, bumper)
+            bumper.deactivate()
+            await notify_bumper_expired(game_id, bumper)
+
+    # Reset any active effects
+    keys_to_delete = [
+        "paddle_left_sticky", "paddle_right_sticky",
+        "paddle_left_inverted", "paddle_right_inverted",
+        "paddle_left_ice_effect", "paddle_right_ice_effect",
+        "paddle_left_speed_boost", "paddle_right_speed_boost",
+        "flash_effect"
+    ]
+    for key in keys_to_delete:
+        delete_key(game_id, key)
+
+    # Reset paddle heights to initial values
+    initial_height = float(get_key(game_id, "initial_paddle_height"))
+    set_key(game_id, "paddle_left_height", initial_height)
+    set_key(game_id, "paddle_right_height", initial_height)
 
 def handle_score(game_id, scorer):
     if scorer == 'score_left':
@@ -19,6 +54,9 @@ def handle_score(game_id, scorer):
         score_right = int(get_key(game_id, "score_right") or 0) + 1
         set_key(game_id, "score_right", score_right)
         print(f"[loop.py] Player Right scored. Score: {get_key(game_id, 'score_left')} - {score_right}")
+
+    handle_powerups_spawn.last_powerup_spawn_time = None
+    handle_bumpers_spawn.last_bumper_spawn_time = None
 
 # async def check_end_conditions(game_id, quitter):
 #     if(quitter): 

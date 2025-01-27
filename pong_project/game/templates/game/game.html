@@ -367,17 +367,26 @@
       // console.log("[Frontend] Received data:", data);
       
       if (data.type === 'game_state') {
-        // Save the current active effects before updating game state
-        const previousActiveEffects = {
-            left: new Set(activeEffects.left),
-            right: new Set(activeEffects.right)
-        };
+        const oldScoreLeft = gameState.score_left;
+        const oldScoreRight = gameState.score_right;
         
+        // Update game state
         gameState = data;
         
-        // Restore active effects
-        activeEffects.left = previousActiveEffects.left;
-        activeEffects.right = previousActiveEffects.right;
+        // Check if a point was scored by comparing old and new scores
+        if (gameState.score_left !== oldScoreLeft || gameState.score_right !== oldScoreRight) {
+            // Clear all active effects
+            activeEffects.left.clear();
+            activeEffects.right.clear();
+            
+            // Cancel all pending effect timers
+            Object.keys(effectTimers).forEach(key => {
+                clearTimeout(effectTimers[key]);
+                delete effectTimers[key];
+            });
+            
+            console.log("[Frontend] Reset all effects after point scored");
+        }
       } else if (data.type === 'game_over') {
         alert("Game Over! Winner = " + data.winner);
         socket.close();

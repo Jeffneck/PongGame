@@ -1,10 +1,20 @@
-Django==4.2
 django-redis==5.2.0
 
 channels==4.0.0
 channels-redis==4.0.0
-gunicorn==20.1.0      # Optionnel si tu veux Gunicorn pour la partie HTTP "classique"
+# gunicorn==20.1.0      # Optionnel si tu veux Gunicorn pour la partie HTTP "classique"
 redis==4.5.5  
 uvicorn[standard]>=0.23.0
 psycopg2==2.9.6
 
+# FT transcendence
+Django>=4.0,<5.0
+# psycopg2-binary
+python-dotenv
+bcrypt
+Pillow
+pyotp
+PyJWT==2.8.0
+qrcode
+djangorestframework-simplejwt
+django-widget-tweaks

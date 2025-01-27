@@ -1,0 +1,86 @@
+{% load i18n %}
+{% load static %}
+<div id="customization-{{ customization_id }}" class="card mb-3 bg-secondary d-none">
+    <div class="card-body">
+        <h5 class="card-title">{% trans customization_title %}</h5>
+        
+        <!-- Vitesse de la balle -->
+        <div class="mb-3">
+            <label for="ballSpeed{{ customization_id }}" class="form-label">{% trans "Vitesse de la Balle" %}</label>
+            <select id="ballSpeed{{ customization_id }}" class="form-select">
+                <option value="1">{% trans "Lente" %}</option>
+                <option value="2" selected>{% trans "Normale" %}</option>
+                <option value="3">{% trans "Rapide" %}</option>
+            </select>
+        </div>
+
+        <!-- Taille de la raquette -->
+        <div class="mb-3">
+            <label for="paddleSizeSelect{{ customization_id }}" class="form-label">{% trans "Taille de la Raquette" %}</label>
+            <select id="paddleSizeSelect{{ customization_id }}" class="form-select">
+                <option value="1">{% trans "Petite" %}</option>
+                <option value="2" selected>{% trans "Moyenne" %}</option>
+                <option value="3">{% trans "Grande" %}</option>
+            </select>
+        </div>
+
+        <!-- Checkbox Obstacles -->
+        <div class="d-flex align-items-center mb-3">
+            <input class="form-check-input me-2" type="checkbox" id="bonusObstacle{{ customization_id }}">
+            <label for="bonusObstacle{{ customization_id }}" class="form-label m-0">
+                {% trans "Activer les obstacles !" %}
+            </label>
+        </div>
+
+        <!-- Checkbox Bonus et Malus -->
+        <div class="d-flex align-items-center mb-3">
+            <input class="form-check-input me-2" type="checkbox" id="bonus{{ customization_id }}">
+            <label for="bonus{{ customization_id }}" class="form-label m-0">
+                {% trans "Activer les bonus et malus !" %}
+            </label>
+        </div>
+
+        <!-- Bouton Voir Tuto -->
+        <button id="tutorial-btn-{{ customization_id }}" class="btn btn-secondary w-100">
+            {% trans "Voir Tuto Bonus" %}
+        </button>
+        <div id="tutorial-content-{{ customization_id }}" class="collapse mt-3">
+            <p>💥 {% trans "**Power-Ups Légendaires !**" %} 💥</p>
+            <ul class="list-unstyled">
+                <li class="d-flex align-items-center mb-2">
+                    <img src="{% static 'png_game/obstacle.png' %}" alt="Obstacle" class="img-bonus me-2">
+                    <span>{% trans "Attention aux obstacles !" %}</span>
+                </li>
+                <li class="d-flex align-items-center mb-2">
+                    <img src="{% static 'png_game/speed.png' %}" alt="Acceleration" class="img-bonus me-2">
+                    <span>Accelere la vitesse de ta raquette</span>
+                </li>
+                <li class="d-flex align-items-center mb-2">
+                    <img src="{% static 'png_game/minus.png' %}" alt="Minus" class="img-bonus me-2">
+                    <span>Reduis la taille de la raquette de ton adversaire</span>
+                </li>
+                <li class="d-flex align-items-center mb-2">
+                    <img src="{% static 'png_game/icy.png' %}" alt="ice-age" class="img-bonus me-2">
+                    <span>Fais deraper ton adversaire</span>
+                </li>
+                <li class="d-flex align-items-center mb-2">
+                    <img src="{% static 'png_game/flash.png' %}" alt="flash" class="img-bonus me-2">
+                    <span>Morsure du Soleil</span>
+                </li>
+                <li class="d-flex align-items-center mb-2">
+                    <img src="{% static 'png_game/change.png' %}" alt="reverse-control" class="img-bonus me-2">
+                    <span>Inverse les commandes de l'adversaire</span>
+                </li>
+                <li class="d-flex align-items-center mb-2">
+                    <img src="{% static 'png_game/canon.png' %}" alt="canon" class="img-bonus me-2">
+                    <span>Propulse la balle a toute vitesse</span>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Bouton Lancer Partie -->
+        <button id="start-game-btn-{{ customization_id }}" class="btn btn-primary w-100 mt-3">
+            {% trans button_text %}
+        </button>
+    </div>
+</div>

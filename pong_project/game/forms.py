@@ -1,7 +1,7 @@
 # game/forms.py
 
 from django import forms
-from .models import GameParameters, LocalTournament, TournamentParameters
+from .models import GameParameters, LocalTournament, TournamentParameters, GameInvitationParameters
 
 class GameParametersForm(forms.ModelForm):
     class Meta:
@@ -20,24 +20,24 @@ class GameParametersForm(forms.ModelForm):
             'bumpers_activation': 'Activer les bumpers/obstacles',
         }
 
-# class LocalTournamentForm(forms.ModelForm):
-#     class Meta:
-#         model = LocalTournament
-#         fields = ['name', 'player1', 'player2', 'player3', 'player4']
-#         labels = {
-#             'name': 'Nom du Tournoi',
-#             'player1': 'Pseudo joueur 1',
-#             'player2': 'Pseudo joueur 2',
-#             'player3': 'Pseudo joueur 3',
-#             'player4': 'Pseudo joueur 4',
-#         }
-#         widgets = {
-#             'name': forms.TextInput(attrs={'class': 'form-control'}),
-#             'player1': forms.TextInput(attrs={'class': 'form-control'}),
-#             'player2': forms.TextInput(attrs={'class': 'form-control'}),
-#             'player3': forms.TextInput(attrs={'class': 'form-control'}),
-#             'player4': forms.TextInput(attrs={'class': 'form-control'}),
-#         }
+class SendInvitationForm(forms.ModelForm):
+    """
+    Formulaire pour envoyer une invitation et stocker
+    les paramètres dans GameInvitationParameters.
+    """
+    friend_username = forms.CharField(
+        required=True,
+        label="Nom d'utilisateur de l'ami à inviter"
+    )
+
+    class Meta:
+        model = GameInvitationParameters
+        fields = [
+            'ball_speed', 
+            'racket_size',
+            'bonus_malus_activation',
+            'bumpers_activation'
+        ]
 
 class LocalTournamentForm(forms.ModelForm):
     # Champs "injectés" depuis GameParameters

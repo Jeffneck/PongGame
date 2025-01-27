@@ -1,0 +1,50 @@
+<!-- Bouton PLAY -->
+<div class="d-flex justify-content-center align-items-center" style="height: 100%; width: 100%; ">
+    <div class="col-12 col-sm-8 col-md-7 col-lg-6 col-xl-6 col-xxl-6 text-center">
+        <button id="play-btn-home" class="play-button w-100">PLAY</button>
+    </div>
+</div>
+
+<style>
+	.body, html {
+		overflow: hidden;
+	}
+	.terrain {
+		border: none;
+		filter: blur(0px);
+		width: 75vw;
+		height: 37.5vw;
+		min-width: none;
+	}
+
+	.play-button {
+        font-family: "Jersey 10";
+        font-size: 15vw; 
+        color: #2DB4F3;
+        background: none;
+        border: none;
+		z-index: 100000;
+        animation: blink 2s infinite;
+    }
+
+	@keyframes blink {
+	0%, 100% 
+	{
+		opacity: 1;
+	}
+	50% 
+	{
+		opacity: 0;
+	}
+}
+
+	.ligne-centrale,
+	.cercle-central,
+	.point-central,
+	.mask{
+		display: none;
+	}
+
+
+	
+</style>

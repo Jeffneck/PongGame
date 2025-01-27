@@ -1,0 +1,28 @@
+<!-- templates/User/match_history.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Historique des Parties</title>
+</head>
+<body>
+    <h1>Historique des Parties</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Partie</th>
+                <th>Résultat</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for history in match_histories %}
+            <tr>
+                <td>{{ history.game }}</td>
+                <td>{{ history.get_result_display }}</td>
+                <td>{{ history.played_at }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

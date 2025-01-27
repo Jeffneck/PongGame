@@ -1,0 +1,76 @@
+{% load i18n %}
+{% load static %}
+<div class="game-menu col-12 col-sm-10 col-md-10 col-lg-6 col-xl-6 col-xxl-5">
+    <div class="container-fluid py-4" style="height: var(--sin-nav-height); font-size: 1.2em;">
+        <h1 class="text-center mb-4" style="font-size: 2em;">{% trans "Menu de Jeu" %}</h1>
+
+        <!-- Section de choix de type de partie -->
+        <div class="card mb-3 bg-secondary">
+            <div class="card-body">
+                <h5 class="card-title">{% trans "Type de Partie" %}</h5>
+                <div class="d-flex flex-column gap-2">
+                    <button id="local-game-btn" class="btn btn-primary w-100">{% trans "Partie Locale" %}</button>
+                    <button id="online-game-btn" class="btn btn-primary w-100">{% trans "Partie en ligne" %}</button>
+                    <button id="tournament-game-btn" class="btn btn-primary w-100">{% trans "Créer un tournoi en ligne" %}</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sections dynamiques de personnalisation -->
+        <!-- Personnalisation pour Partie Locale -->
+        {% include 'partials/customization-section.html' with customization_id="local" customization_title="Gameplay Local" button_text="Lancer Partie" %}
+
+        <!-- Personnalisation pour Partie en Ligne -->
+        {% include 'partials/customization-section.html' with customization_id="online" customization_title="Gameplay en Ligne" button_text="Inviter un ami" %}
+
+        <!-- Personnalisation pour Tournoi -->
+        {% include 'partials/customization-section.html' with customization_id="tournament" customization_title="Gameplay du Tournoi" button_text="Lancer Tournoi" %}
+
+    </div>
+</div>
+
+
+<style>
+	.html, body {
+		overflow : auto;
+	}
+    .game-menu * {
+        color: rgb(223, 216, 216) !important;
+    }
+	.mask{
+		display: none;
+	}
+	.card {
+		background-color: #101A32 !important;
+		border: 2px solid rgb(153, 148, 148);
+		min-width: 200px;
+	}
+
+	#tutorial-content-local, #tutorial-content-online, #tutorial-content-tournament {
+		transition: all 0.4s ease-in-out;
+		overflow: hidden;
+	}
+
+	.img-bonus {
+		width : 30px; 
+		height : 30px;
+		border-radius: 50px;
+		border: 1.5px solid white;
+	}
+
+	.card-title {
+		font-size: 1.3em;
+	}
+
+	.btn-secondary {
+		font-family: "Jersey 10";
+		border: none;
+		font-size: 1.2em;
+		border-radius: 20px;
+		min-width: 100px;
+	}
+
+	#ground-game, .terrain{
+        display: none;
+    }
+</style>

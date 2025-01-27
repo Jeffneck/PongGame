@@ -1,0 +1,266 @@
+{% load i18n %}
+{% load widget_tweaks %}
+<div class="container-fluid mt-4" style="height: 100%;">
+	<h1 class="text-center title mb-3">{% trans "Gestion de Profil" %}</h1>
+
+    <!-- Change Language Section -->
+    <div class="row d-flex justify-content-center mb-3">
+        <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-4 col-xxl-4">
+            <div class="card">
+                <div class="card-body p-4">
+                    <h5 class="card-title mb-2">{% trans "Changer de langue" %}</h5>
+                    <div class="d-flex justify-content-center">
+                        <button id="language-fr" data-lang="fr" style="border: none; background: none;" class="me-2">🇫🇷</button>
+                        <button id="language-es" data-lang="es" style="border: none; background: none;" class="me-2">🇪🇸</button>
+                        <button id="language-en" data-lang="en" style="border: none; background: none;">🇬🇧</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+	
+    <!-- Change Avatar Section -->
+    <div class="row d-flex justify-content-center mb-3">
+        <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-4 col-xxl-4">
+            <div class="card">
+                <div class="card-body p-4">
+                    <h5 class="card-title mb-2">{% trans "Changer d'avatar" %}</h5>
+                    <form id="change-avatar-form" method="POST" enctype="multipart/form-data" style="color: white;">
+                        {% csrf_token %}
+                        <div class="form-group mb-3">
+                            <label for="id_avatar" class="form-label"></label>
+                            {{ avatar_form.avatar|add_class:"form-control mb-3"}}
+                        </div>
+                        <button type="submit" class="btn btn-primary w-90">{% trans "Valider" %}</button>
+                        <div id="change-avatar-error" class="text-danger mt-3"></div>
+                        <div id="change-avatar-success" class="text-success mt-3"></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Username Section -->
+	<div class="row d-flex justify-content-center mb-3">
+		<div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-4 col-xxl-4">
+			<div class="card">
+				<div class="card-body p-4">
+					<h5 class="card-title mb-2">{% trans "Changer de pseudo" %}</h5>
+					<form id="change-username-form" method="POST" style="color: white;">
+						{% csrf_token %}
+                        {{ profile_form.username |add_class:"form-control mb-3"}}
+						<button type="submit" class="btn btn-primary w-90">{% trans "Valider" %}</button>
+						<div id="change-username-error" class="text-danger mt-2"></div>
+						<div id="change-username-success" class="text-success mt-2"></div>
+					</form>
+				</div>
+			</div>
+		</div>
+	</div>
+
+    <!-- Change Password Section -->
+	<div class="row d-flex justify-content-center mb-3">
+		<div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-4 col-xxl-4">
+			<div class="card w-100">
+				<div class="card-body p-4">
+					<h5 class="card-title mb-2">{% trans "Changer de mot de passe" %}</h5>
+					<form id="change-password-form" method="POST" style="color: white">
+						{% csrf_token %}
+                        {{ password_form.old_password|add_class:"form-control mb-3"|attr:"placeholder:Ancien mot de passe" }}
+						{{ password_form.new_password1|add_class:"form-control mb-3"|attr:"placeholder:Nouveau mot de passe" }}
+						{{ password_form.new_password2|add_class:"form-control mb-3"|attr:"placeholder:Confirmez le nouveau mot de passe" }}
+						<button type="submit" class="btn btn-primary w-90">{% trans "Valider" %}</button>
+						<div id="change-password-error" class="text-danger mt-2"></div>
+						<div id="change-password-success" class="text-success mt-2"></div>
+					</form>
+				</div>
+			</div>
+		</div>
+	</div>
+
+    
+    	<!-- 2FA Section -->
+	<div class="row d-flex justify-content-center mb-3">
+		<div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-4 col-xxl-4">
+			<div class="card">
+				<div class="card-body p-4">
+					<h5 class="card-title mb-2">{% trans "Authentification à deux facteurs" %}</h5>
+					{% if profile_user.is_2fa_enabled %}
+						<button id="disable-2fa-btn" class="btn btn-primary w-90">{% trans "Désactiver 2FA" %}</button>
+					{% else %}
+						<button id="enable-2fa-btn" class="btn btn-primary w-90">{% trans "Activer 2FA" %}</button>
+					{% endif %}
+				</div>
+			</div>
+		</div>
+	</div>
+
+    <!-- Delete Account Section -->
+    <div class="row d-flex justify-content-center mb-4">
+        <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-4 col-xxl-4 mb-3">
+            <div class="card">
+                <div class="card-body p-4">
+                    <h5 class="card-title mb-2 text-danger">{% trans "Supprimer le compte" %}</h5>
+                        <p class="text-white info mb-3">{% trans "Cette action est irréversible. Votre compte sera définitivement supprimé." %}</p>
+                        <button type="button" id="delete-account-btn" class="btn btn-danger delete w-90 mt-2 mb-1">{% trans "Supprimer mon compte" %}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+	<!-- Modale pour la suppression de compte -->
+	<div id="delete-account-modal" class="modal" style="display: none;">
+		<div class="modal-content">
+			<span class="close-btn">&times;</span>
+			<div class="container_delete_account">
+				<h3>{% trans "Supprimer le compte" %}</h3>
+				<p>{% trans "Pour des raisons de sécurité, veuillez entrer votre mot de passe pour confirmer la suppression de votre compte." %}</p>
+				<form id="delete-account-form" method="POST">
+					{% csrf_token %}
+					<div class="mb-3">
+						<label for="password" class="form-label">{% trans "Mot de passe" %}</label>
+						<input type="password" name="password" id="password" class="form-control" required>
+					</div>
+					<button type="submit" class="btn btn-danger">{% trans "Confirmer la suppression" %}</button>
+				</form>
+				<!-- Messages dynamiques -->
+				<div class="delete-success text-success mt-3" style="display: none;"></div>
+				<div class="delete-error text-danger mt-3" style="display: none;"></div>
+			</div>
+		</div>
+	</div>
+
+</div>
+
+
+
+    <style>
+        .html, body {
+            overflow: auto;
+        }
+        .card {
+            background-color: #101A32;
+            border: 2px solid rgb(153, 148, 148);
+            min-width: 250px;
+        }
+        h1, .card-title {
+            color: #2DB4F3;
+        }
+        .card-title {
+            font-size: 1.7rem;
+        }
+    
+        .form-label {
+            font-size: 1.4em; /* Adjust font size */
+        }
+       
+        .form-group {
+            margin-bottom: 0.8rem; /* Reduced spacing between form fields */
+        }
+       
+        .w-90, .form-control.input-compact {
+            width: 90%;
+            max-width: 100%;
+            display: block;
+            margin: 0 auto; /* Center the button */
+        }
+        .delete {
+            border-radius: 50px;
+            padding: 5px 10px;
+            font-family: "Jersey 10";
+            font-size: 1.1em;
+        }
+    
+        .form-control.input-compact, .btn-primary {
+            padding: 5px 10px !important; /* Ajustez pour réduire la hauteur */
+            font-size: 1.2em; /* Taille de police plus petite */
+            line-height: 1.5 !important; /* Ligne plus compacte */
+            height: auto !important; /* S'assurer que la hauteur est ajustée */;
+            border-radius: 10px;
+            margin-bottom: 0.8em;
+        }
+    
+        .info {
+            font-size: 1.1em;
+        }
+
+        /* Styles pour la modale */
+    .modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.6); /* Couleur d'arrière-plan semi-transparente */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000; /* Assure que la modale est au-dessus de tout */
+    }
+
+    .modal-content {
+        background: #101A32; /* Couleur de fond similaire aux cartes */
+        color: white; /* Texte en blanc */
+        padding: 20px;
+        border-radius: 8px;
+        width: 90%;
+        max-width: 500px;
+        text-align: center;
+        position: relative;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2); /* Ombre légère */
+    }
+
+    .close-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        font-size: 18px;
+        font-weight: bold;
+        color: #fff;
+        cursor: pointer;
+        background: none;
+        border: none;
+    }
+
+    .close-btn:hover {
+        color: #ff4d4d; /* Rouge clair au survol */
+    }
+
+    .container_delete_account h3 {
+        margin-bottom: 15px;
+        font-size: 1.5rem;
+        color: #2DB4F3; /* Couleur cohérente avec les titres de section */
+    }
+
+    .container_delete_account p {
+        margin-bottom: 20px;
+        font-size: 1rem;
+    }
+
+    .btn-danger:hover {
+        background-color: #ff6666; /* Rouge plus clair au survol */
+    }
+
+    /* Masque la modale lorsqu'elle est fermée */
+    .modal[style*="display: none;"] {
+        display: none !important;
+    }
+
+    .text-success {
+        color: #28a745; /* Couleur verte pour succès */
+    }
+
+    .text-danger {
+        color: #dc3545; /* Couleur rouge pour erreur */
+    }
+
+    input.form-control {
+        width: 100%; /* Le champ prend toute la largeur du conteneur */
+        border-radius: 10px; /* Bordures arrondies */
+        padding: 10px; /* Espacement interne */
+        font-size: 16px; /* Taille du texte */
+        border: 1px solid #ced4da; /* Bordure grisée */
+        background-color: #f8f9fa; /* Couleur de fond */
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1); /* Légère ombre interne */
+    }
+    </style>

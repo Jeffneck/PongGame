@@ -50,6 +50,8 @@ INSTALLED_APPS = [
     'game',
 ]
 
+AUTH_USER_MODEL = 'accounts.CustomUser'
+
 # [Added] tout le contenu de cette Macro a ete cree pour que django gere le cache avec Redis (necessite import os)
 # (django-redis ou channels_redis) => cela change quoi
 # Djang-redis cache (optionnel)

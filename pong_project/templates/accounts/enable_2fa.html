@@ -1,0 +1,61 @@
+{% load i18n %}
+<div class="container-fluid d-flex justify-content-center mt-3" style="height: 100%; padding-top: 20px; z-index: 10;">
+	<div class="col-12 col-sm-10 col-md-8 col-lg-5 col-xl-4 col-xxl-4">
+		<h2 class="text-white texte-center mb-3" style="font-size: 2em;">{% trans "Activer l'authentification à deux facteurs" %}</h2>
+
+
+			<div class=" dfa-item d-flex flex-column align-items-center justify-content-between text-white p-4">
+							<div class="form-group mb-0">
+								<div class="qr-container p-2 mt-2" style="background: white; padding: 20px; display: inline-block; border-radius: 10px;">
+									{% if qr_code %}
+										<img src="data:image/png;base64,{{ qr_code }}" 
+												alt="QR Code" 
+												style="display: block; max-width: 200px; height: auto;">
+									{% else %}
+										<div style="color: red;">{% trans "QR Code non disponible" %}</div>
+									{% endif %}
+								</div>
+								
+								<!-- <p style="color: white; font-family: 'Jersey 10'; margin: 20px 0;">
+									{% trans "Code secret" %}: <strong>{{ secret|default:"N/A" }}</strong>
+								</p> -->
+								
+								<form id="verify-2fa-form" method="POST">
+									{% csrf_token %}
+									<div class="d-flex flex-column form-group w-100;">
+										<label for="id_code">{% trans "Code 2FA :" %}</label>
+										{{ 2FA_form.code }}
+									</div> 
+									<button type="submit" 
+											class="btn btn-primary btn-70"
+											style="background-color: #2DB4F3;
+													border: none;
+													font-family: 'Jersey 10';
+													font-size: 18px;">
+										{% trans "Vérifier" %}
+									</button>
+									<div class="verification-error text-danger mt-2" style="display: none;"></div>
+									<div class="verification-success text-success mt-2" style="display: none;"></div>
+								</form>
+							</div>
+			</div>
+	</div>
+
+
+
+
+</div>
+
+<style>
+
+	.html, body{
+		overflow: auto;
+	}
+
+	.dfa-item {
+		background-color:  #101A32;
+		border: 2px solid rgb(153, 148, 148);
+		border-radius: 20px;
+		min-width: 300px;
+	}
+</style>

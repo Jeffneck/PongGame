@@ -1,0 +1,204 @@
+{% load i18n %}
+<div id="burger-menu" class="position-fixed">
+    <!-- Section de profil avec avatar et pastille de statut -->
+    <div class="profile-section text-center mt-4 position-relative">
+        <div class="position-relative d-inline-block">
+            <img id="profile-avatar" src="{{ user.avatar.url|default:'/media/avatars/default_avatar.png' }}" alt="Avatar" class="rounded-circle mb-2" style="width: 80px; height: 80px;">
+            <span id="status-indicator" class="status-indicator {% if user.is_online %}online{% else %}offline{% endif %}"></span>
+        </div>
+        <h5 id="profile-username" class="mb-0">{{ user.username }}</h5>
+    </div>
+
+    <!-- Sélecteur pour changer le statut -->
+    <div class="status-selector text-center p-3 border-bottom">
+        <button class="btn btn-success btn-sm mt-1 me-1" style="width: 100px;" data-status="online">{% trans "En ligne" %}</button>
+        <button class="btn btn-danger btn-sm mt-1 me-1" style="width: 100px;" data-status="offline">{% trans "Hors ligne" %}</button>
+        <button id="profile-btn" class="btn btn-primary mt-3 mb-2" style="width: 80%;">{% trans "Voir le profil" %}</button>
+    </div>
+
+    <div class="nav flex-column border-bottom p-2">
+        <button class="nav-link d-flex justify-content-start" style="color: rgb(153, 148, 148)" id="play-btn">{% trans "Jouer" %}</button>
+        <button class="nav-link d-flex justify-content-start" style="color: rgb(153, 148, 148)" id="tournament-link" >{% trans "Tournoi" %}</button>
+        <button class="nav-link d-flex justify-content-start" style="color: rgb(153, 148, 148)" id="settings-link">{% trans "Gestion du compte" %}</button>
+    </div>
+
+    <!-- Formulaire pour ajouter un ami -->
+    <div class="add-friend-section p-3 border-bottom">
+        <h5 class="text-center" style="color: white">{% trans "Ajouter un ami" %}</h5>
+        <form id="add-friend-form" method="POST">
+            {% csrf_token %}
+            <input type="text" id="friend-username" name="friend_username" class="form-control mb-2" placeholder="Nom d'utilisateur">
+            <button type="submit" class="btn btn-primary w-100">{% trans "Ajouter" %}</button>
+        </form>
+        <div id="add-friend-error" class="text-danger mt-2"></div>
+        <div id="add-friend-success" class="text-success mt-2"></div>
+    </div>
+
+    <!-- Liste d'amis avec avatars -->
+    <div class="friends-list border-bottom p-3" style="color: white">
+        <h5 class="d-flex justify-content-center">{% trans "Amis" %}</h5>
+        <ul class="list-unstyled" id="friends-list-container">
+            {% for friend in friends %}
+            <li class="d-flex align-items-center mb-2 friend-item">
+                <div class="position-relative">
+                    <img src="{{ friend.avatar.url|default:'/media/avatars/default_avatar.png' }}" alt="Avatar of {{ friend.username }}" class="rounded-circle me-3" style="width: 50px; height: 50px;">
+                    <span class="status-indicator-friend {% if friend.status == 'online' %}online{% else %}offline{% endif %}"></span>
+                </div>
+                <button class="friend-btn">{{ friend.username }}</button>
+            </li>
+            {% empty %}
+            <p class="text-center">{% trans "Aucun ami pour le moment." %}</p>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- Invitations d'amis -->
+    <div class="friend-requests-list border-bottom p-3" style="color: white">
+        <h5 class="d-flex justify-content-center">{% trans "Invitations d'amis" %}</h5>
+        <ul class="list-unstyled" id="friend-requests-list-container">
+            {% for request in friend_requests %}
+            <li class="d-flex align-items-center mb-2 request-item">
+                <div class="position-relative">
+                    <img src="{{ request.avatar_url|default:'/media/avatars/default_avatar.png' }}" alt="Avatar of {{ request.from_user }}" class="rounded-circle me-3" style="width: 50px; height: 50px;">
+                </div>
+                <div class="d-flex flex-column">
+                    <p>{{ request.from_user }}</p>
+                    <div class="d-flex">
+                        <button class="btn btn-success btn-sm me-2" data-request-id="{{ request.id }}" data-action="accept">{% trans "Accepter" %}</button>
+                        <button class="btn btn-danger btn-sm" data-request-id="{{ request.id }}" data-action="decline">{% trans "Refuser" %}</button>
+                    </div>
+                </div>
+            </li>
+            {% empty %}
+            <p class="text-center">{% trans "Aucun ami pour le moment." %}</p>
+            {% endfor %}
+        </ul>
+    </div>
+
+     <!-- Invitations de jeu -->
+     <div class="game-invitations-list border-bottom p-3" style="color: white">
+        <h5 class="d-flex justify-content-center">{% trans "Invitations à jouer" %}</h5>
+        <ul class="list-unstyled" id="game-invitations-list-container">
+            {% for invitation in game_invitations %}
+            <li class="d-flex align-items-center mb-2 invitation-item">
+                <div class="position-relative">
+                    <img src="{{ invitation.from_user.avatar.url|default:'/media/avatars/default_avatar.png' }}" alt="Avatar of {{ invitation.from_user.username }}" class="rounded-circle me-3" style="width: 50px; height: 50px;">
+                </div>
+                <div class="d-flex flex-column">
+                    <p>{{ invitation.from_user.username }}</p>
+                    <div class="d-flex">
+                        <button class="btn btn-success btn-sm me-2" data-invitation-id="{{ invitation.id }}" data-action="accept">{% trans "Accepter" %}</button>
+                        <button class="btn btn-danger btn-sm" data-invitation-id="{{ invitation.id }}" data-action="decline">{% trans "Refuser" %}</button>
+                    </div>
+                </div>
+            </li>
+            {% empty %}
+            <p class="text-center">{% trans "Aucune invitation pour le moment." %}</p>
+            {% endfor %}
+        </ul>
+    </div>
+
+
+    <div class="nav flex-column p-3">
+        <form id="logout-form" method="POST">
+            {% csrf_token %}
+            <button id="logout-btn" type="button" class="nav-link" style="color: rgb(153, 148, 148)">{% trans "Déconnexion" %}</button>
+        </form>
+    </div>
+
+    <!-- Popup pour les options d'ami -->
+    <div id="friendPopup" class="friend-popup d-none position-absolute">
+        <p id="popupFriendName" class="fw-bold mb-1 d-flex align-items-center justify-content-center">Options</p>
+        <button class="btn btn-profil mb-2" id="view-profile-btn">{% trans "Voir profil" %}</button>
+        <button class="btn btn-invit mb-2" id="invite-to-play-btn">{% trans "Inviter à jouer" %}</button>
+        <button class="btn btn-delete" id="remove-friend-btn">{% trans "Supprimer" %}</button>
+    </div>
+
+</div>
+
+<div id="overlay" style="display: none;"></div>
+
+<!-- Styles pour l'indicateur de statut et le positionnement de la pastille -->
+<style>
+    .position-relative {
+        position: relative;
+    }
+    .status-indicator {
+        position: absolute;
+        bottom: 10px;
+        right: 5px;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        border: 2px solid white; 
+    }
+	.status-indicator-friend {
+		position: absolute;
+		bottom: 0px;
+		right: 20px;
+		width: 10px;
+		height: 10px;
+		border-radius: 50%;
+		border: 2px solid white;
+	}
+    .online {
+        background-color: #28a745; /* Vert pour 'en ligne' */
+    }
+    .offline {
+        background-color: #dc3545; /* Rouge pour 'hors ligne' */
+    }
+
+	.btn-profil, .btn-invit, .btn-delete {
+		background-color: #4da9d4;
+		color: white;
+		border: 1px solid rgb(153, 148, 148);
+		width: 100%;
+		border-radius: 50px;
+		padding: 5px 10px;
+		cursor: pointer;
+	}
+
+	.btn-profil:hover, .btn-invit:hover, .btn-delete:hover{
+		outline: 1px solid rgb(153, 148, 148);
+		background-color: rgba(255, 255, 255, 0.1);
+	}
+
+	/* .friend-btn {
+        border: 2px solid rgb(153, 148, 148);
+        background: none;
+		width: 100%;
+        color: white;
+        padding: 5px 10px;
+        border-radius: 50px;
+        cursor: pointer;
+    }
+    .friend-btn:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    } */
+
+	.friend-popup {
+        width: 150px;
+        padding: 10px;
+        background-color: #141b2e;
+        color: white;
+        border-radius: 8px;
+        box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+        z-index: 100;
+		outline: 1px solid rgb(255, 255, 255);
+		transform: translate(-50%, -100%)
+    }
+    .friend-item:hover {
+        cursor: pointer;
+    }
+
+	@media (max-width: 576px) {
+    #burger-menu {
+        width: 100%; /* Prend toute la largeur de l'écran */
+        height: var(--sin-nav-height); /* Prend toute la hauteur de l'écran */
+        top: 50px; /* Aligne en haut de l'écran */
+        left: 0; /* Aligne à gauche pour couvrir tout l'écran */
+        border-radius: 0; /* Supprime les coins arrondis */
+    }
+}
+
+</style>

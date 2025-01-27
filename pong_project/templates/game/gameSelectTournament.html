@@ -1,0 +1,17 @@
+{% load i18n %}
+<div id="tournament-selection" class="d-flex flex-column justify-content-center align-items-center position-fixed" style="height: 100%; width: 100%; z-index: 2;">
+    <div class="container d-flex flex-column justify-content-center align-items-center text-center">
+        <h2 class="text col-12 col-sm-10 text-white mb-4">{% trans "Choisissez le nombre de participants" %}</h2>
+        <div class="col-8 col-sm-5 col-md-5 col-lg-4 col-xl-4 col-xxl-4 text-center">
+            <button id="tournament-4" class="btn btn-primary w-100 mb-4" onclick="window.location.hash='#game-invite_tournament'">{% trans "Tournoi à 4 joueurs" %}</button>
+            <button id="tournament-8" class="btn btn-primary w-100 mb-3" onclick="window.location.hash='#game-invite_tournament'">{% trans "Tournoi à 8 joueurs" %}</button>
+        </div>
+    </div>
+</div>
+<style>
+	.btn-primary, .text {
+		/* width: 100%; */
+		font-size: 2em;
+		padding: 5px 10px;
+	}
+</style>

@@ -13,7 +13,7 @@ from django.contrib.auth import authenticate, login
 # ---- Imports locaux ----
 from accounts.utils import generate_jwt_token
 from accounts.forms import LoginForm
-from transcendence.decorators import user_not_authenticated
+from pong_project.decorators import user_not_authenticated
 
 
 # ---- Configuration ----

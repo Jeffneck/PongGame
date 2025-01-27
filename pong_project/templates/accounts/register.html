@@ -1,0 +1,31 @@
+{% load i18n %}
+<!-- templates/User/register.html -->
+<!-- Conteneur pour les boutons -->
+<div id="register" class="container-fluid d-flex flex-column align-items-center " style="height: 100%; padding-top: 70px;">
+	<div class=" col-8 col-sm-6 col-md-6 col-lg-4 col-xl-3 col-xxl-3">
+		<h1 class="text-center text-white title mb-3">{% trans "Inscription" %}</h1>
+        <form id="register-form" method="POST">
+            {% csrf_token %}
+            <div class="form-group mb-2">
+                <label for="username" class="w-100">{% trans "Nom d'utilisateur :" %}</label>
+                <input type="text" class="w-100" id="username" name="username" required>
+            </div>
+			<div class="form-group mb-2">
+				<label for="password" class="w-100">{% trans "Mot de passe :" %}</label>
+				<input type="password" class="w-100" id="password" name="password1" required>
+			</div>
+			<div class="form-group mb-2">
+				<label for="confirm-password">{% trans "Confirmer le mot de passe :" %}</label>
+				<input type="password" class="w-100" id="confirm-password" name="password2" required>
+			</div>
+
+			<button id="submit-btn" type="submit" class="btn btn-primary btn-70 mt-4 mb-3">{% trans "S'inscrire" %}</button>
+            <div id="register-error" class="text-danger mt-2"></div> <!-- Élément pour afficher les erreurs -->
+		</form>
+	</div>
+	<style>
+		html, body {
+			overflow-y: auto;
+		}
+	</style>
+</div>

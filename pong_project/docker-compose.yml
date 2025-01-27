@@ -1,7 +1,21 @@
+version: '3.8'
+
 services:
-  web:
+  nginx:
+    image: nginx:latest
+    container_name: pong_nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./static:/static
+    depends_on:
+      - uvicorn
+
+  uvicorn:
     build: .
-    container_name: pong_web
+    container_name: pong_uvicorn
+    # command: uvicorn pong_project.asgi:application --host 0.0.0.0 --port 8000
     volumes:
       - .:/app
     environment:
@@ -13,8 +27,11 @@ services:
       - POSTGRES_DB=pong_db
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-    ports:
-      - "8080:8080"
+    expose:
+      - "8000"
+    depends_on:
+      - db
+      - redis
 
   db:
     image: postgres:15
@@ -29,4 +46,3 @@ services:
   redis:
     image: redis:alpine
     container_name: pong_redis
-    # ports: ["6379:6379"]  # inutile si on n'a pas besoin d'accès hors docker

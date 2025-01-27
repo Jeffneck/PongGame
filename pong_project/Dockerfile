@@ -1,7 +1,8 @@
 # Dockerfile
+
 FROM python:3.10
 
-# On évite les *.pyc
+# Évite les *.pyc
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
@@ -15,13 +16,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . /app/
 
-# Collect static, au cas où
+# Collecte des fichiers statiques
 RUN python manage.py collectstatic --noinput || true
 
-# Rendre entrypoint.sh exécutable
+# Rendre les scripts exécutables
 RUN chmod +x /app/entrypoint.sh
 RUN chmod +x /app/wait-for-postgres.sh
 
-EXPOSE 8080
+EXPOSE 8000
 
 CMD ["/app/entrypoint.sh"]

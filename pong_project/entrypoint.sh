@@ -1,14 +1,15 @@
 #!/bin/bash
 # entrypoint.sh
 
-# Pour le debug : si tu veux voir les erreurs
 set -e
 
 echo "==> Applying migrations"
-python manage.py makemigrations --noinput && echo "makemigration"
-./wait-for-postgres.sh db python manage.py migrate && echo "migrate"
+python manage.py makemigrations game --noinput
+./wait-for-postgres.sh db python manage.py migrate
 
-# echo "==> Starting Daphne ASGI server on port 8080"
-# daphne -b 0.0.0.0 -p 8080 pong_project.asgi:application
-echo "==> Starting Uvicorn ASGI server on port 8080"
-uvicorn pong_project.asgi:application --host 0.0.0.0 --port 8080
+echo "==> Collecting static files"
+python manage.py collectstatic --noinput
+
+echo "==> Starting Uvicorn ASGI server"
+# Utilisez exec pour que le processus Uvicorn remplace le processus shell, ce qui facilite la gestion des signaux et des arrêts propres.
+exec uvicorn pong_project.asgi:application --host 0.0.0.0 --port 8000

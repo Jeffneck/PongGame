@@ -64,7 +64,7 @@ class PongConsumer(AsyncWebsocketConsumer):
         looser = event['looser']
         tournament_id = event['tournament_id']
 
-        if tournament_id:
+        if tournament_id and tournament_id.lower() != 'none':
             # Convertir l'UUID en chaîne de caractères
             # tournament_id_str = str(tournament_id)
             # Construire l'URL de la vue detail_tournament avec tournament_id

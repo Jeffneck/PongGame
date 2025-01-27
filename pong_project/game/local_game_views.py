@@ -4,8 +4,9 @@ from django.shortcuts import render,  redirect
 from .models import GameSession
 from .manager import schedule_game
 from .forms import GameParametersForm
+from django.views.decorators.csrf import csrf_exempt
 
-
+@csrf_exempt
 def parameter_local_game(request):
     """
     Crée un GameSession (UUID), init Redis avec les paramètres personnalisés, lance la loop en non-bloquant

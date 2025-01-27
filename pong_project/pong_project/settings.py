@@ -73,6 +73,19 @@ CHANNEL_LAYERS = {
 REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.environ.get("REDIS_PORT", 6379))
 
+#[added]
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:8080',
+    # 'https://votre_domaine.com',  # Ajoutez votre domaine en production
+    # Ajoutez d'autres origines si nécessaire
+]
+# Autoriser uniquement les cookies CSRF via HTTPS en production
+CSRF_COOKIE_SECURE = False  # À définir sur True en production avec HTTPS
+# Utiliser SameSite pour renforcer la sécurité
+CSRF_COOKIE_SAMESITE = 'Lax'  # 'Strict' ou 'None' si nécessaire
+# Si vous utilisez HTTPS, ajustez également SESSION_COOKIE_SECURE
+SESSION_COOKIE_SECURE = False  # À définir sur True en production avec HTTPS
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -160,7 +173,8 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 # [added] IMPORTANT : STATIC_ROOT doit pointer vers un dossier existant ou qui peut être créé
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+# STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field

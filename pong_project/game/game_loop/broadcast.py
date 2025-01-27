@@ -184,14 +184,14 @@ async def notify_bumper_collision(game_id, bumper, ball):
 
 # --------- END GAME : NOTIFICATIONS  -----------
 
-async def notify_game_finished(game_id, winner, looser):
+async def notify_game_finished(game_id, tournament_id, winner, looser):
     channel_layer = get_channel_layer()
     await channel_layer.group_send(
         f"pong_{game_id}",
         {
             'type': 'game_over',
+            'tournament_id': str(tournament_id),
             'winner': winner,
             'looser': looser
         }
     )
-

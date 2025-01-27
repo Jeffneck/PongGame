@@ -381,8 +381,11 @@
         activeEffects.right = previousActiveEffects.right;
       } else if (data.type === 'game_over') {
         alert("Game Over! Winner = " + data.winner);
+        console.log(data);//debug
         // Rediriger vers la page des résultats
-        window.location.href = "{% url 'detail_local_tournament' %}";
+        if (data.redirection) {
+          window.location.href = data.redirection;
+        }
         socket.close();
       } else if (data.type === 'powerup_applied') {
           console.log(`[Frontend] Power-up applied to ${data.player}: ${data.effect}`);

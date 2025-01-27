@@ -7,6 +7,8 @@ class GameSession(models.Model):
     Un enregistrement pour représenter une partie (en cours ou terminée).
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # Champ pour stocker l'ID du tournoi associé (peut être NULL)
+    tournament_id = models.UUIDField(null=True, blank=True)
     player_left = models.CharField(max_length=50, null=True, blank=True)
     player_right = models.CharField(max_length=50, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

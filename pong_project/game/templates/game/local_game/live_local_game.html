@@ -380,6 +380,7 @@
         activeEffects.left = previousActiveEffects.left;
         activeEffects.right = previousActiveEffects.right;
       } else if (data.type === 'game_over') {
+        console.log(`[Frontend] Game over detected`);
         alert("Game Over! Winner = " + data.winner);
         socket.close();
         // Rediriger vers la page des résultats

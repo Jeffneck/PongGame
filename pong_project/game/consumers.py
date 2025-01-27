@@ -4,8 +4,10 @@ import json
 import redis
 from django.conf import settings
 from channels.generic.websocket import AsyncWebsocketConsumer
+from django.shortcuts import reverse
+from uuid import UUID
 
-from .game_loop.redis_utils import get_key
+# from .game_loop.redis_utils import get_key
 
 r = redis.Redis(
     host=settings.REDIS_HOST,
@@ -58,12 +60,30 @@ class PongConsumer(AsyncWebsocketConsumer):
         # print(f"[PongConsumer] Broadcast game_state for game_id={self.game_id}")
 
     async def game_over(self, event):
-        await self.send(json.dumps({
+        winner = event['winner']
+        looser = event['looser']
+        tournament_id = event['tournament_id']
+
+        if tournament_id:
+            # Convertir l'UUID en chaîne de caractères
+            # tournament_id_str = str(tournament_id)
+            # Construire l'URL de la vue detail_tournament avec tournament_id
+            detail_tournament_url = reverse('detail_local_tournament', kwargs={'tournament_id': tournament_id})
+            redirection_url = detail_tournament_url
+        else:
+            # Rediriger vers la vue list_results si aucun tournament_id n'est fourni
+            redirection_url = reverse('list_results')
+
+        # Préparer le JSON de réponse
+        response_data = {
             'type': 'game_over',
-            'winner': event['winner'],
-            'looser': event.get('looser', None),
-        }))
-        print(f"[PongConsumer] Broadcast game_over for game_id={self.game_id}")
+            'redirection': redirection_url,
+            'winner': winner,
+            'looser': looser
+        }
+
+        # Envoyer le JSON au client WebSocket
+        await self.send(text_data=json.dumps(response_data))
 
     async def powerup_applied(self, event):
         await self.send(json.dumps({

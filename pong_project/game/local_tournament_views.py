@@ -96,6 +96,7 @@ def start_next_tournament_game(request, tournament_id, match_type):
     if match_type == 'semifinal1':
         # Créer systématiquement la GameSession pour la demi-finale 1
         gs = GameSession.objects.create(
+            tournament_id=tournament_id,
             player_left=tournament.player1,
             player_right=tournament.player2,
             status='waiting'
@@ -119,6 +120,7 @@ def start_next_tournament_game(request, tournament_id, match_type):
     elif match_type == 'semifinal2':
         # Créer la GameSession pour la demi-finale 2
         gs = GameSession.objects.create(
+            tournament_id=tournament_id,
             player_left=tournament.player3,
             player_right=tournament.player4,
             status='waiting'
@@ -147,6 +149,7 @@ def start_next_tournament_game(request, tournament_id, match_type):
 
         # Créer la GameSession pour la finale
         gs = GameSession.objects.create(
+            tournament_id=tournament_id,
             player_left=winner_semifinal1,
             player_right=winner_semifinal2,
             status='waiting'

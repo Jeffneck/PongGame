@@ -7,7 +7,7 @@ from .redis_utils import set_key, get_key, scan_and_delete_keys
 from .models_utils import set_gameSession_status, create_gameResults, get_LocalTournament
 
 # transformer en parametre ajustable GameParameters?
-WIN_SCORE = 4  
+WIN_SCORE = 5 
 
 def handle_score(game_id, scorer):
     if scorer == 'score_left':
@@ -72,32 +72,38 @@ async def finish_game(game_id):
         'score_left': score_left,
         'score_right': score_right,
     }
+    # Récupérer tournament_id depuis gameSession
+    tournament_id = gameSession.tournament_id
+    print(f"[finish_game] tournament_id={tournament_id}")
 
+    # IMPROVE : donner tournament_id au GameResult ? (es ce necessaire ?)
     # Créer un enregistrement des résultats
     await create_gameResults(game_id, endgame_infos)
 
     # Une fois qu'on a créé le GameResult (disons new_result), on peut faire :
     # Chercher s’il y a un LocalTournament qui pointe sur ce game_id en semifinal1, semifinal2 ou final
+    # Chercher s’il y a un LocalTournament qui pointe sur ce game_id en semifinal1, semifinal2 ou final
     tournament = await get_LocalTournament(game_id, "semifinal1")
     if tournament:
-        # C'était la semifinal1
+        print(f"[finish_game] this game was semifinal1 from tournament game_id={game_id}")
         tournament.status = 'semifinal1_done'
-        tournament.save()
+        await sync_to_async(tournament.save)()
     else:
         tournament = await get_LocalTournament(game_id, "semifinal2")
         if tournament:
-            # C'était la semifinal2
             tournament.status = 'semifinal2_done'
-            tournament.save()
+            await sync_to_async(tournament.save)()
         else:
-            # Peut-être la finale
             tournament = await get_LocalTournament(game_id, "final")
             if tournament:
                 tournament.status = 'finished'
-                tournament.save()
+                await sync_to_async(tournament.save)()
+            else:
+                # Aucun tournoi correspondant à game_id
+                print(f"[finish_game] No tournament found for game_id={game_id}")
 
     # Notifier les utilisateurs via WebSocket
-    await notify_game_finished(game_id, winner, looser)
+    await notify_game_finished(game_id, tournament_id, winner, looser)
 
     # Nettoyer les clés Redis
     scan_and_delete_keys(game_id)

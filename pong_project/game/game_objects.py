@@ -76,7 +76,15 @@ class PowerUpOrb:
         self.y = 0
         self.rect = None
         self.spawn_time = 0
-        self.duration = 0
+        self.duration = 10
+
+        # Define spawn area boundaries (35% to 65% of field width) / added
+        self.spawn_area = {
+            'left': terrain_rect['left'] + (terrain_rect['width'] * 0.25),
+            'right': terrain_rect['left'] + (terrain_rect['width'] * 0.75),
+            'top': terrain_rect['top'] + (terrain_rect['height'] * 0.1),
+            'bottom': terrain_rect['top'] + (terrain_rect['height'] * 0.9)
+        }
 
     def get_default_color(self):
         colors = {
@@ -90,15 +98,28 @@ class PowerUpOrb:
         return colors.get(self.effect_type, (255, 255, 255))
 
     def spawn(self, terrain_rect):
-        left = terrain_rect['left']
-        right = terrain_rect['left'] + terrain_rect['width']
-        top = terrain_rect['top']
-        bottom = terrain_rect['top'] + terrain_rect['height']
 
+        if self.active:
+            return False
+        
         max_attempts = 100
+        min_distance = 30
+
         for _ in range(max_attempts):
-            new_x = random.randint(left + 50, right - 50)
-            new_y = random.randint(top + 50, bottom - 50)
+            # Spawn within the defined middle area / modified
+            new_x = random.uniform(self.spawn_area['left'], self.spawn_area['right'])
+            new_y = random.uniform(self.spawn_area['top'], self.spawn_area['bottom'])
+
+            # Additional check to ensure better distribution in the middle
+            center_x = terrain_rect['left'] + (terrain_rect['width'] / 2)
+            if abs(new_x - center_x) < 50:  # If too close to center, try again
+                continue
+
+            
+        # left = terrain_rect['left']
+        # right = terrain_rect['left'] + terrain_rect['width']
+        # top = terrain_rect['top']
+        # bottom = terrain_rect['top'] + terrain_rect['height'] / removed
 
             # Ici on suppose qu'il n'y a pas d'autres collisions à vérifier.
             self.x = new_x
@@ -106,7 +127,6 @@ class PowerUpOrb:
             self.rect = (self.x, self.y, self.size, self.size)
             self.active = True
             self.spawn_time = time.time()
-            self.duration = 10
             return True
 
         return False
@@ -130,19 +150,42 @@ class Bumper:
         self.y = 0
         self.rect = None
         self.spawn_time = 0
-        self.duration = 0
+        self.duration = 10
         self.last_collision_time = 0 
 
+        # Define spawn area boundaries (40% to 60% of field width for more central placement) / added
+        self.spawn_area = {
+            'left': terrain_rect['left'] + (terrain_rect['width'] * 0.25),
+            'right': terrain_rect['left'] + (terrain_rect['width'] * 0.75),
+            'top': terrain_rect['top'] + (terrain_rect['height'] * 0.1),
+            'bottom': terrain_rect['top'] + (terrain_rect['height'] * 0.9)
+        }
+
+
     def spawn(self, terrain_rect):
-        left = terrain_rect['left']
-        right = terrain_rect['left'] + terrain_rect['width']
-        top = terrain_rect['top']
-        bottom = terrain_rect['top'] + terrain_rect['height']
+        if self.active:
+            return False
 
         max_attempts = 100
+        min_distance = 40
+
+        # left = terrain_rect['left']
+        # right = terrain_rect['left'] + terrain_rect['width']
+        # top = terrain_rect['top']
+        # bottom = terrain_rect['top'] + terrain_rect['height'] / removed
+
         for _ in range(max_attempts):
-            new_x = random.randint(left + 50, right - 50)
-            new_y = random.randint(top + 50, bottom - 50)
+            # Spawn within the defined middle area / modified
+            new_x = random.uniform(self.spawn_area['left'], self.spawn_area['right'])
+            new_y = random.uniform(self.spawn_area['top'], self.spawn_area['bottom'])
+
+            # Check distance from center to avoid too much clustering
+            center_x = terrain_rect['left'] + (terrain_rect['width'] / 2)
+            center_y = terrain_rect['top'] + (terrain_rect['height'] / 2)
+            dist_to_center = math.hypot(new_x - center_x, new_y - center_y)
+            
+            if dist_to_center < 30:  # If too close to center, try again
+                continue
 
             # Ici on suppose qu'il n'y a pas d'autres collisions à vérifier.
             self.x = new_x
@@ -150,7 +193,6 @@ class Bumper:
             self.rect = (self.x, self.y, self.size, self.size)
             self.active = True
             self.spawn_time = time.time()
-            self.duration = 10
             return True
 
         return False

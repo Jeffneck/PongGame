@@ -78,7 +78,7 @@ class PowerUpOrb:
         self.spawn_time = 0
         self.duration = 10
 
-        # Define spawn area boundaries (35% to 65% of field width) / added
+        # Define spawn area boundaries (25% to 75% of field width) / added
         self.spawn_area = {
             'left': terrain_rect['left'] + (terrain_rect['width'] * 0.25),
             'right': terrain_rect['left'] + (terrain_rect['width'] * 0.75),
@@ -96,16 +96,49 @@ class PowerUpOrb:
             # 'sticky': (50, 205, 50)     # Lime green
         }
         return colors.get(self.effect_type, (255, 255, 255))
+    
+    def check_position_valid(self, x, y, powerup_orbs, bumpers):
+        # Check distance from other powerups / added
+        MIN_POWERUP_DISTANCE = 40
+        MIN_BUMPER_DISTANCE = 40
 
-    def spawn(self, terrain_rect):
+        #Debug count
+        active_powerups = 0
+        active_bumpers = 0
 
+        for orb in powerup_orbs:
+            if orb.active and orb != self:
+                active_powerups += 1
+                distance = math.hypot(x - orb.x, y - orb.y)
+                print(f"[DEBUG] PowerUp checking distance to other powerup: {distance}")
+                if distance < MIN_POWERUP_DISTANCE:
+                    print(f"[DEBUG] PowerUp spawn rejected: too close to other powerup ({distance} < {MIN_POWERUP_DISTANCE})")
+                    return False
+
+        # Check distance from bumpers
+        MIN_BUMPER_DISTANCE = 40
+        for bumper in bumpers:
+            if bumper.active:
+                active_bumpers += 1
+                distance = math.hypot(x - bumper.x, y - bumper.y)
+                print(f"[DEBUG] PowerUp checking distance to bumper: {distance}")
+                if distance < MIN_BUMPER_DISTANCE:
+                    print(f"[DEBUG] PowerUp spawn rejected: too close to bumper ({distance} < {MIN_BUMPER_DISTANCE})")
+                    return False
+        print(f"[DEBUG] PowerUp spawn position check complete. Checked against {active_powerups} active powerups and {active_bumpers} active bumpers")
+        return True
+
+    def spawn(self, terrain_rect, powerup_orbs=None, bumpers=None):
         if self.active:
             return False
-        
-        max_attempts = 100
-        min_distance = 30
+        if powerup_orbs is None:
+            powerup_orbs = []
+        if bumpers is None:
+            bumpers = []
 
-        for _ in range(max_attempts):
+        max_attempts = 100
+
+        for attempt in range(max_attempts):
             # Spawn within the defined middle area / modified
             new_x = random.uniform(self.spawn_area['left'], self.spawn_area['right'])
             new_y = random.uniform(self.spawn_area['top'], self.spawn_area['bottom'])
@@ -115,20 +148,22 @@ class PowerUpOrb:
             if abs(new_x - center_x) < 50:  # If too close to center, try again
                 continue
 
-            
+            # Check if position is valid (not too close to other objects) / added
+            if self.check_position_valid(new_x, new_y, powerup_orbs, bumpers):
+                self.x = new_x
+                self.y = new_y
+                self.rect = (self.x, self.y, self.size, self.size)
+                self.active = True
+                self.spawn_time = time.time()
+                print(f"[DEBUG] Successfully spawned powerup after {attempt + 1} attempts")
+                return True
+            else:
+                print(f"[DEBUG] Attempt {attempt + 1} failed validation")
+
         # left = terrain_rect['left']
         # right = terrain_rect['left'] + terrain_rect['width']
         # top = terrain_rect['top']
         # bottom = terrain_rect['top'] + terrain_rect['height'] / removed
-
-            # Ici on suppose qu'il n'y a pas d'autres collisions à vérifier.
-            self.x = new_x
-            self.y = new_y
-            self.rect = (self.x, self.y, self.size, self.size)
-            self.active = True
-            self.spawn_time = time.time()
-            return True
-
         return False
 
     def activate(self):
@@ -161,13 +196,47 @@ class Bumper:
             'bottom': terrain_rect['top'] + (terrain_rect['height'] * 0.9)
         }
 
+    def check_position_valid(self, x, y, powerup_orbs, bumpers): # / added
+        # Check distance from powerups
+        MIN_POWERUP_DISTANCE = 40
+        MIN_BUMPER_DISTANCE = 40
 
-    def spawn(self, terrain_rect):
+        # Debug counters
+        active_powerups = 0
+        active_bumpers = 0
+
+        for orb in powerup_orbs:
+            if orb.active:
+                active_powerups += 1
+                distance = math.hypot(x - orb.x, y - orb.y)
+                print(f"[DEBUG] Bumper checking distance to powerup: {distance}")
+                if distance < MIN_POWERUP_DISTANCE:
+                    print(f"[DEBUG] Bumper spawn rejected: too close to powerup ({distance} < {MIN_POWERUP_DISTANCE})")
+                    return False
+
+        # Check distance from other bumpers
+        MIN_BUMPER_DISTANCE = 40
+        for bumper in bumpers:
+            if bumper.active and bumper != self:
+                active_bumpers += 1
+                distance = math.hypot(x - bumper.x, y - bumper.y)
+                print(f"[DEBUG] Bumper checking distance to other bumper: {distance}")
+                if distance < MIN_BUMPER_DISTANCE:
+                    print(f"[DEBUG] Bumper spawn rejected: too close to other bumper ({distance} < {MIN_BUMPER_DISTANCE})")
+                    return False
+        print(f"[DEBUG] Bumper spawn position check complete. Checked against {active_powerups} active powerups and {active_bumpers} active bumpers")
+        return True
+
+    def spawn(self, terrain_rect, powerup_orbs=None, bumpers=None):
         if self.active:
             return False
 
+        if powerup_orbs is None:
+            powerup_orbs = []
+        if bumpers is None:
+            bumpers = []
+
         max_attempts = 100
-        min_distance = 40
 
         # left = terrain_rect['left']
         # right = terrain_rect['left'] + terrain_rect['width']
@@ -187,18 +256,20 @@ class Bumper:
             if dist_to_center < 30:  # If too close to center, try again
                 continue
 
-            # Ici on suppose qu'il n'y a pas d'autres collisions à vérifier.
-            self.x = new_x
-            self.y = new_y
-            self.rect = (self.x, self.y, self.size, self.size)
-            self.active = True
-            self.spawn_time = time.time()
-            return True
+            # Check if position is valid (not too close to other objects)
+            if self.check_position_valid(new_x, new_y, powerup_orbs, bumpers):
+                self.x = new_x
+                self.y = new_y
+                self.rect = (self.x, self.y, self.size, self.size)
+                self.active = True
+                self.spawn_time = time.time()
+                return True
 
         return False
-    
+
     def activate(self):
         self.active = True
 
     def deactivate(self):
         self.active = False
+

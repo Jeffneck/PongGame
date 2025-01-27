@@ -10,21 +10,39 @@ MAX_ACTIVE_POWERUPS = 2
 SPAWN_INTERVAL_POWERUPS = 5
 DURATION_EFFECT_POWERUPS = 5
 
+
+def get_active_objects(powerup_orbs, bumpers):
+    active_powerups = [orb for orb in powerup_orbs if orb.active]
+    active_bumpers = [bumper for bumper in bumpers if bumper.active]
+    print(f"[DEBUG] Currently active objects: {len(active_powerups)} powerups, {len(active_bumpers)} bumpers")
+    
+    # Print positions of all active objects
+    for powerup in active_powerups:
+        print(f"[DEBUG] Active powerup at ({powerup.x}, {powerup.y})")
+    for bumper in active_bumpers:
+        print(f"[DEBUG] Active bumper at ({bumper.x}, {bumper.y})")
+    
+    return active_powerups, active_bumpers
+
 # -------------- POWER UP --------------------
-async def handle_powerups_spawn(game_id, powerup_orbs, current_time):
+async def handle_powerups_spawn(game_id, powerup_orbs, current_time, bumpers):
     # Initialisation de last_powerup_spawn_time si elle n'est pas déjà définie
     if not hasattr(handle_powerups_spawn, "last_powerup_spawn_time"):
         handle_powerups_spawn.last_powerup_spawn_time = current_time  # Initialisation lors du premier appel
 
     # Utilisation de la variable statique pour vérifier l'intervalle de temps
     if current_time - handle_powerups_spawn.last_powerup_spawn_time >= SPAWN_INTERVAL_POWERUPS:
+        # Get current active objects for debugging
+        active_powerups, active_bumpers = get_active_objects(powerup_orbs, bumpers)
+        print(f"[DEBUG] Attempting powerup spawn with {len(active_powerups)} active powerups and {len(active_bumpers)} active bumpers")
+
         active_powerups = count_active_powerups(game_id, powerup_orbs)
         if active_powerups < MAX_ACTIVE_POWERUPS:
             # S'assurer qu'on ne génère qu'un seul powerup à la fois
             powerup_orb = random.choice(powerup_orbs)
             if not powerup_orb.active:
                 terrain = get_terrain_rect(game_id)
-                spawned = await spawn_powerup(game_id, powerup_orb, terrain)
+                spawned = await spawn_powerup(game_id, powerup_orb, terrain, powerup_orbs, bumpers)
                 if spawned:
                     # Mettre à jour le temps de spawn du powerup pour éviter les doubles spawns
                     handle_powerups_spawn.last_powerup_spawn_time = current_time
@@ -32,13 +50,13 @@ async def handle_powerups_spawn(game_id, powerup_orbs, current_time):
 
 
 
-async def spawn_powerup(game_id, powerup_orb, terrain_rect):
+async def spawn_powerup(game_id, powerup_orb, terrain_rect, powerup_orbs, bumpers):
     # Ne pas faire spawn 2 fois le même powerup sur le terrain
     if powerup_orb.active:
         print(f"[powerups.py] PowerUp {powerup_orb.effect_type} is already active, skipping spawn.")
         return False
 
-    if (powerup_orb.spawn)(terrain_rect):
+    if powerup_orb.spawn(terrain_rect, powerup_orbs, bumpers):
         set_powerup_redis(game_id, powerup_orb)
         print(f"[powerups.py] PowerUp {powerup_orb.effect_type} spawned at ({powerup_orb.x}, {powerup_orb.y})")
         await notify_powerup_spawned(game_id, powerup_orb)

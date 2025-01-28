@@ -13,7 +13,7 @@ class GameResultAdmin(admin.ModelAdmin):
 
 @admin.register(GameParameters)
 class GameParametersAdmin(admin.ModelAdmin):
-    list_display = ('game_session', 'ball_speed', 'racket_size', 'bonus_malus_activation', 'bumpers_activation')
+    list_display = ('game_session', 'ball_speed', 'paddle_size', 'bonus_enabled', 'obstacles_enabled')
 
 @admin.register(GameInvitation)
 class GameInvitationAdmin(admin.ModelAdmin):

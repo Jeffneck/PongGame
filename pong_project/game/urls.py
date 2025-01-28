@@ -30,12 +30,12 @@
 from django.urls import path
 
 from .views.gameHome import GameHomeView
-from .views.gameMenu import GameMenuView, CreateGameLocalView
+from .views.gameMenu import GameMenuView
 from .views.gameLoading import LoadingView
 from .views.gameSelectTournament import SelectTournamentView
 from .views.gameInvitation import InviteGameView
 from .views.gameInvitation import SendInvitationView, CancelInvitationView, RespondToInvitationView, ListInvitationsView, AcceptGameInvitationView
-
+from .views.gameLocal import StartLocalGameView, CreateGameLocalView
 import logging
 
 
@@ -56,9 +56,11 @@ urlpatterns = [
     path('send_invitation/', SendInvitationView.as_view(), name='send_invitation'),
     path('cancel_invitation/', CancelInvitationView.as_view(), name='cancel_invitation'),  # Vue fonctionnelle
     path('respond_to_invitation/', RespondToInvitationView.as_view(), name='respond_to_invitation'),
-    path('create_local_game/', CreateGameLocalView.as_view(), name='create_local_game'),
     path('accept_invitation/<int:invitation_id>/', AcceptGameInvitationView.as_view(), name='accept_invitation'),
     path('respond_to_invitation/', RespondToInvitationView.as_view(), name='respond_to_invitation'),
     path('list_invitations/', ListInvitationsView.as_view(), name='list_invitations'),
+    
+    path('create_local_game/', CreateGameLocalView.as_view(), name='create_local_game'),
+    path('start_local_game/<uuid:game_id>/', StartLocalGameView.as_view(), name='start_local_game'),
 
 ]

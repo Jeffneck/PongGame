@@ -13,7 +13,7 @@ class GameResultAdmin(admin.ModelAdmin):
 
 @admin.register(GameParameters)
 class GameParametersAdmin(admin.ModelAdmin):
-    list_display = ('game_session', 'ball_speed', 'racket_size', 'bonus_malus_activation', 'bumpers_activation')
+    list_display = ('game_session', 'ball_speed', 'paddle_size', 'bonus_enabled', 'obstacles_enabled')
 
 @admin.register(GameInvitation)
 class GameInvitationAdmin(admin.ModelAdmin):
@@ -133,18 +133,18 @@ from .models import GameParameters
 class GameParametersForm(forms.ModelForm):
     class Meta:
         model = GameParameters
-        fields = ['ball_speed', 'racket_size', 'bonus_malus_activation', 'bumpers_activation']
+        fields = ['ball_speed', 'paddle_size', 'bonus_enabled', 'obstacles_enabled']
         widgets = {
             'ball_speed': forms.Select(attrs={'class': 'form-control'}),
-            'racket_size': forms.Select(attrs={'class': 'form-control'}),
-            'bonus_malus_activation': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'bumpers_activation': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'paddle_size': forms.Select(attrs={'class': 'form-control'}),
+            'bonus_enabled': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'obstacles_enabled': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         labels = {
             'ball_speed': 'Vitesse de la balle',
-            'racket_size': 'Taille de la raquette',
-            'bonus_malus_activation': 'Activer les bonus/malus',
-            'bumpers_activation': 'Activer les bumpers/obstacles',
+            'paddle_size': 'Taille de la raquette',
+            'bonus_enabled': 'Activer les bonus/malus',
+            'obstacles_enabled': 'Activer les bumpers/obstacles',
         }
 # game/game_loop.py
 
@@ -170,7 +170,7 @@ COOLDOWN_TIME = 0.5  # Temps en secondes
 
 # Initialize paddles and ball
 async def initialize_game_objects(game_id, parameters):
-    paddle_size = {1: 30, 2: 60, 3: 90}[parameters.racket_size]
+    paddle_size = {1: 30, 2: 60, 3: 90}[parameters.paddle_size]
     paddle_speed = 6  # Can be made adjustable if needed
     ball_speed_multiplier = parameters.ball_speed
 
@@ -202,7 +202,7 @@ async def initialize_game_objects(game_id, parameters):
     ]
 
     bumpers = []
-    if parameters.bumpers_activation:
+    if parameters.obstacles_enabled:
         bumpers = [Bumper(game_id, terrain_rect) for _ in range(3)]  # Adjust number as needed
 
     return paddle_left, paddle_right, ball, powerup_orbs, bumpers
@@ -293,7 +293,7 @@ async def game_loop(game_id):
                     print(f"[game_loop.py] Ball reset to ({ball.x}, {ball.y}) with speed ({ball.speed_x}, {ball.speed_y})")
 
             # 4. Gérer les power-ups
-            if parameters.bonus_malus_activation:
+            if parameters.bonus_enabled:
                 if current_time - last_powerup_spawn_time >= powerup_spawn_interval:
                     # Tenter de spawn un power-up
                     active_powerups = await count_active_powerups(game_id, powerup_orbs)
@@ -307,7 +307,7 @@ async def game_loop(game_id):
                                 print(f"[game_loop.py] game_id={game_id} - PowerUp {powerup_orb.effect_type} spawned.")
 
             # 5. Gérer les bumpers
-            if parameters.bumpers_activation:
+            if parameters.obstacles_enabled:
                 if current_time - last_bumper_spawn_time >= bumper_spawn_interval:
                     # Tenter de spawn un bumper
                     active_bumpers = await count_active_bumpers(game_id, bumpers)
@@ -978,15 +978,15 @@ class GameParameters(models.Model):
     ]
     ball_speed = models.PositiveSmallIntegerField(choices=BALL_SPEED_CHOICES, default=2)
 
-    RACKET_SIZE_CHOICES = [
+    paddle_size_CHOICES = [
         (1, 'Small'),
         (2, 'Medium'),
         (3, 'Large'),
     ]
-    racket_size = models.PositiveSmallIntegerField(choices=RACKET_SIZE_CHOICES, default=2)
+    paddle_size = models.PositiveSmallIntegerField(choices=paddle_size_CHOICES, default=2)
 
-    bonus_malus_activation = models.BooleanField(default=True)
-    bumpers_activation = models.BooleanField(default=False)
+    bonus_enabled = models.BooleanField(default=True)
+    obstacles_enabled = models.BooleanField(default=False)
 
     game_session = models.OneToOneField(
         GameSession,
@@ -996,9 +996,9 @@ class GameParameters(models.Model):
 
     def __str__(self):
         return (f"Ball speed: {self.get_ball_speed_display()}, "
-                f"Racket size: {self.get_racket_size_display()}, "
-                f"Bonus/Malus: {'On' if self.bonus_malus_activation else 'Off'}, "
-                f"Bumpers: {'On' if self.bumpers_activation else 'Off'}")
+                f"Racket size: {self.get_paddle_size_display()}, "
+                f"Bonus/Malus: {'On' if self.bonus_enabled else 'Off'}, "
+                f"Bumpers: {'On' if self.obstacles_enabled else 'Off'}")
 
 
 class GameResult(models.Model):
@@ -1135,7 +1135,7 @@ def create_game(request):
             r.set(f"{game_id}:ball_vy", ball_vy)
 
             # Si les bumpers sont activés, initialiser leurs positions ou autres configurations
-            if parameters.bumpers_activation:
+            if parameters.obstacles_enabled:
                 # Exemple: ajouter des bumpers dans Redis
                 # À implémenter selon la logique du jeu
                 pass

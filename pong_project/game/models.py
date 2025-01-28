@@ -7,23 +7,30 @@ import uuid
 
 
 
-
 class GameSession(models.Model):
     """
     Un enregistrement pour représenter une partie (en cours ou terminée).
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    # Champ pour stocker l'ID du tournoi associé (peut être NULL)
     tournament_id = models.UUIDField(null=True, blank=True)
-    player_left = models.CharField(max_length=50, null=True, blank=True)
-    player_right = models.CharField(max_length=50, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-
-    # ex: "waiting", "running", "finished"
     status = models.CharField(max_length=10, default='waiting')
+    
+    # Le champ is_online pour déterminer si c'est une partie en ligne ou locale
+    is_online = models.BooleanField(default=False)
+
+    # Si la partie est en ligne, on relie à un CustomUser
+    player_left = models.ForeignKey(CustomUser, related_name='game_sessions_as_player_left', on_delete=models.CASCADE, null=True, blank=True)
+    player_right = models.ForeignKey(CustomUser, related_name='game_sessions_as_player_right', on_delete=models.CASCADE, null=True, blank=True)
+
+    # Si la partie est locale, on utilise des champs de texte (par exemple, les noms des joueurs)
+    player_left_name = models.CharField(max_length=50, null=True, blank=True)
+    player_right_name = models.CharField(max_length=50, null=True, blank=True)
 
     def __str__(self):
         return f"GameSession {self.id} (status={self.status})"
+
+
 
 
 class GameParameters(models.Model):
@@ -31,18 +38,18 @@ class GameParameters(models.Model):
     BALL_SPEED_CHOICES = [(1, 'Slow'), (2, 'Medium'), (3, 'Fast'),]
     ball_speed = models.PositiveSmallIntegerField(choices=BALL_SPEED_CHOICES, default=2)
 
-    RACKET_SIZE_CHOICES = [(1, 'Small'), (2, 'Medium'), (3, 'Large'),]
-    racket_size = models.PositiveSmallIntegerField(choices=RACKET_SIZE_CHOICES, default=2)
+    paddle_size_CHOICES = [(1, 'Small'), (2, 'Medium'), (3, 'Large'),]
+    paddle_size = models.PositiveSmallIntegerField(choices=paddle_size_CHOICES, default=2)
 
-    bonus_malus_activation = models.BooleanField(default=True)
-    bumpers_activation = models.BooleanField(default=False)
+    bonus_enabled = models.BooleanField(default=True)
+    obstacles_enabled = models.BooleanField(default=False)
 
 
     def __str__(self):
         return (f"Ball speed: {self.get_ball_speed_display()}, "
-                f"Racket size: {self.get_racket_size_display()}, "
-                f"Bonus/Malus: {'On' if self.bonus_malus_activation else 'Off'}, "
-                f"Bumpers: {'On' if self.bumpers_activation else 'Off'}")
+                f"paddle size: {self.get_paddle_size_display()}, "
+                f"Bonus/Malus: {'On' if self.bonus_enabled else 'Off'}, "
+                f"Bumpers: {'On' if self.obstacles_enabled else 'Off'}")
 
 #remplacer game par game_session
 class GameResult(models.Model):
@@ -67,11 +74,11 @@ class TournamentParameters(models.Model):
     BALL_SPEED_CHOICES = [(1, 'Slow'), (2, 'Medium'), (3, 'Fast')]
     ball_speed = models.PositiveSmallIntegerField(choices=BALL_SPEED_CHOICES, default=2)
 
-    RACKET_SIZE_CHOICES = [(1, 'Small'), (2, 'Medium'), (3, 'Large')]
-    racket_size = models.PositiveSmallIntegerField(choices=RACKET_SIZE_CHOICES, default=2)
+    paddle_size_CHOICES = [(1, 'Small'), (2, 'Medium'), (3, 'Large')]
+    paddle_size = models.PositiveSmallIntegerField(choices=paddle_size_CHOICES, default=2)
 
-    bonus_malus_activation = models.BooleanField(default=True)
-    bumpers_activation = models.BooleanField(default=False)
+    bonus_enabled = models.BooleanField(default=True)
+    obstacles_enabled = models.BooleanField(default=False)
 
 class LocalTournament(models.Model):
     """
@@ -176,14 +183,14 @@ class GameInvitationParameters(models.Model):
     BALL_SPEED_CHOICES = [(1, 'Slow'), (2, 'Medium'), (3, 'Fast')]
     ball_speed = models.PositiveSmallIntegerField(choices=BALL_SPEED_CHOICES, default=2)
 
-    RACKET_SIZE_CHOICES = [(1, 'Small'), (2, 'Medium'), (3, 'Large')]
-    racket_size = models.PositiveSmallIntegerField(choices=RACKET_SIZE_CHOICES, default=2)
+    paddle_size_CHOICES = [(1, 'Small'), (2, 'Medium'), (3, 'Large')]
+    paddle_size = models.PositiveSmallIntegerField(choices=paddle_size_CHOICES, default=2)
 
-    bonus_malus_activation = models.BooleanField(default=True)
-    bumpers_activation = models.BooleanField(default=False)
+    bonus_enabled = models.BooleanField(default=True)
+    obstacles_enabled = models.BooleanField(default=False)
 
     def __str__(self):
         return (f"(Invitation={self.invitation.id}) "
                 f"BallSpeed={self.get_ball_speed_display()}, "
-                f"RacketSize={self.get_racket_size_display()}, "
-                f"Bonus={self.bonus_malus_activation}, Bumpers={self.bumpers_activation}")
+                f"RacketSize={self.get_paddle_size_display()}, "
+                f"Bonus={self.bonus_enabled}, Bumpers={self.obstacles_enabled}")

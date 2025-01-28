@@ -9,7 +9,7 @@ FIELD_HEIGHT = 300
 
 #------------- INITIALIZE : CREATE ALL GAME OBJECTS WITH THEIR INITIAL VALUES --------------
 def initialize_game_objects(game_id, parameters):
-    paddle_size = {1: 30, 2: 60, 3: 90}[parameters.racket_size]
+    paddle_size = {1: 30, 2: 60, 3: 90}[parameters.paddle_size]
     paddle_speed = 6  # Peut être ajusté si nécessaire
     ball_speed_multiplier = parameters.ball_speed
 
@@ -41,7 +41,7 @@ def initialize_game_objects(game_id, parameters):
     ]
 
     bumpers = []
-    if parameters.bumpers_activation:
+    if parameters.obstacles_enabled:
         bumpers = [Bumper(game_id, terrain_rect) for _ in range(3)]  # Ajuster le nombre si nécessaire
 
     return paddle_left, paddle_right, ball, powerup_orbs, bumpers

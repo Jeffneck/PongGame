@@ -107,9 +107,9 @@ def start_next_tournament_game(request, tournament_id, match_type):
             GameParameters.objects.create(
                 game_session=gs,
                 ball_speed=tournament.parameters.ball_speed,
-                racket_size=tournament.parameters.racket_size,
-                bonus_malus_activation=tournament.parameters.bonus_malus_activation,
-                bumpers_activation=tournament.parameters.bumpers_activation
+                paddle_size=tournament.parameters.paddle_size,
+                bonus_enabled=tournament.parameters.bonus_enabled,
+                obstacles_enabled=tournament.parameters.obstacles_enabled
             )
 
         # Enregistrer cette demi-finale dans le tournoi
@@ -130,9 +130,9 @@ def start_next_tournament_game(request, tournament_id, match_type):
             GameParameters.objects.create(
                 game_session=gs,
                 ball_speed=tournament.parameters.ball_speed,
-                racket_size=tournament.parameters.racket_size,
-                bonus_malus_activation=tournament.parameters.bonus_malus_activation,
-                bumpers_activation=tournament.parameters.bumpers_activation
+                paddle_size=tournament.parameters.paddle_size,
+                bonus_enabled=tournament.parameters.bonus_enabled,
+                obstacles_enabled=tournament.parameters.obstacles_enabled
             )
         tournament.semifinal2 = gs
         tournament.status = 'semifinal2_in_progress'
@@ -159,9 +159,9 @@ def start_next_tournament_game(request, tournament_id, match_type):
             GameParameters.objects.create(
                 game_session=gs,
                 ball_speed=tournament.parameters.ball_speed,
-                racket_size=tournament.parameters.racket_size,
-                bonus_malus_activation=tournament.parameters.bonus_malus_activation,
-                bumpers_activation=tournament.parameters.bumpers_activation
+                paddle_size=tournament.parameters.paddle_size,
+                bonus_enabled=tournament.parameters.bonus_enabled,
+                obstacles_enabled=tournament.parameters.obstacles_enabled
             )
         tournament.final = gs
         tournament.status = 'final_in_progress'

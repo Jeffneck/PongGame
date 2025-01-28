@@ -58,7 +58,7 @@ let cachedOnlineParams = null;
 
 /**
  * Fonction appelée quand on clique sur "Inviter un ami" dans la section "online".
- * On reçoit les paramètres (ball_speed, racket_size, etc.), on affiche la liste d'amis.
+ * On reçoit les paramètres (ball_speed, paddle_size, etc.), on affiche la liste d'amis.
  */
 export async function handleInviteGame(onlineParams) {
     console.log('[handleInviteGame] Paramètres online = ', onlineParams);
@@ -118,9 +118,9 @@ async function sendInvitation(button) {
     // On inclut les params récupérés en "cachedOnlineParams"
     if (cachedOnlineParams) {
         formData.append('ball_speed',               cachedOnlineParams.ball_speed);
-        formData.append('racket_size',             cachedOnlineParams.racket_size);
-        formData.append('bonus_malus_activation',  cachedOnlineParams.bonus_malus_activation);
-        formData.append('bumpers_activation',      cachedOnlineParams.bumpers_activation);
+        formData.append('paddle_size',             cachedOnlineParams.paddle_size);
+        formData.append('bonus_enabled',  cachedOnlineParams.bonus_enabled);
+        formData.append('obstacles_enabled',      cachedOnlineParams.obstacles_enabled);
     } else {
         console.warn('Aucun paramètre en cache.');
     }

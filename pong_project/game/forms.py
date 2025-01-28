@@ -6,18 +6,18 @@ from .models import GameParameters, LocalTournament, TournamentParameters, GameI
 class GameParametersForm(forms.ModelForm):
     class Meta:
         model = GameParameters
-        fields = ['ball_speed', 'racket_size', 'bonus_malus_activation', 'bumpers_activation']
+        fields = ['ball_speed', 'paddle_size', 'bonus_enabled', 'obstacles_enabled']
         widgets = {
             'ball_speed': forms.Select(attrs={'class': 'form-control'}),
-            'racket_size': forms.Select(attrs={'class': 'form-control'}),
-            'bonus_malus_activation': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'bumpers_activation': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'paddle_size': forms.Select(attrs={'class': 'form-control'}),
+            'bonus_enabled': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'obstacles_enabled': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         labels = {
             'ball_speed': 'Vitesse de la balle',
-            'racket_size': 'Taille de la raquette',
-            'bonus_malus_activation': 'Activer les bonus/malus',
-            'bumpers_activation': 'Activer les bumpers/obstacles',
+            'paddle_size': 'Taille de la raquette',
+            'bonus_enabled': 'Activer les bonus/malus',
+            'obstacles_enabled': 'Activer les bumpers/obstacles',
         }
 
 class SendInvitationForm(forms.ModelForm):
@@ -34,10 +34,11 @@ class SendInvitationForm(forms.ModelForm):
         model = GameInvitationParameters
         fields = [
             'ball_speed', 
-            'racket_size',
-            'bonus_malus_activation',
-            'bumpers_activation'
+            'paddle_size',
+            'bonus_enabled',
+            'obstacles_enabled'
         ]
+
 
 class LocalTournamentForm(forms.ModelForm):
     # Champs "injectés" depuis GameParameters
@@ -46,17 +47,17 @@ class LocalTournamentForm(forms.ModelForm):
         label='Vitesse de la balle',
         initial=2
     )
-    racket_size = forms.ChoiceField(
-        choices=GameParameters.RACKET_SIZE_CHOICES,
+    paddle_size = forms.ChoiceField(
+        choices=GameParameters.paddle_size_CHOICES,
         label='Taille de la raquette',
         initial=2
     )
-    bonus_malus_activation = forms.BooleanField(
+    bonus_enabled = forms.BooleanField(
         label='Activer bonus/malus',
         required=False,
         initial=True
     )
-    bumpers_activation = forms.BooleanField(
+    obstacles_enabled = forms.BooleanField(
         label='Activer bumpers',
         required=False,
         initial=False
@@ -96,11 +97,77 @@ class LocalTournamentForm(forms.ModelForm):
             # Créer un GameParameters "isolé" (pas lié à une GameSession)
             tp = TournamentParameters.objects.create(
                 ball_speed=self.cleaned_data['ball_speed'],
-                racket_size=self.cleaned_data['racket_size'],
-                bonus_malus_activation=self.cleaned_data['bonus_malus_activation'],
-                bumpers_activation=self.cleaned_data['bumpers_activation'],
+                paddle_size=self.cleaned_data['paddle_size'],
+                bonus_enabled=self.cleaned_data['bonus_enabled'],
+                obstacles_enabled=self.cleaned_data['obstacles_enabled'],
             )
             tournament.parameters = tp
             tournament.save()
 
         return tournament
+
+
+# added (utilisable plus tard pour recuperer le nom des joueurs d'une partie locale plutot que de les nommer player_left par defaut .. etc)
+# class LocalGameForm(forms.Form):
+#     """
+#     Formulaire pour récupérer les noms des joueurs pour une partie locale.
+#     """
+#     player_left_name = forms.CharField(max_length=50, required=True, label="Nom du joueur gauche")
+#     player_right_name = forms.CharField(max_length=50, required=True, label="Nom du joueur droit")
+
+#     def clean_player_left_name(self):
+#         player_left_name = self.cleaned_data.get('player_left_name')
+#         if len(player_left_name.strip()) == 0:
+#             raise forms.ValidationError("Le nom du joueur gauche ne peut pas être vide.")
+#         return player_left_name
+
+#     def clean_player_right_name(self):
+#         player_right_name = self.cleaned_data.get('player_right_name')
+#         if len(player_right_name.strip()) == 0:
+#             raise forms.ValidationError("Le nom du joueur droit ne peut pas être vide.")
+#         return player_right_name
+# VUE ADAPTEE A CE FORMULAIRE
+# class CreateGameLocalView(View):
+#     """
+#     Gère la création d'une nouvelle GameSession et des paramètres associés pour une partie locale.
+#     """
+#     def post(self, request):
+#         # Formulaire des paramètres du jeu
+#         game_parameters_form = GameParametersForm(request.POST)
+        
+#         # Formulaire des noms des joueurs
+#         game_session_form = GameSessionForm(request.POST)
+
+#         if not game_parameters_form.is_valid() or not game_session_form.is_valid():
+#             # Si l'un des formulaires n'est pas valide, retourner une réponse d'erreur
+#             return JsonResponse({
+#                 'status': 'error',
+#                 'message': "Les paramètres du jeu ou les noms des joueurs sont invalides."
+#             })
+
+#         # Créer une nouvelle GameSession pour une partie locale
+#         session = GameSession.objects.create(status='waiting', is_online=False)
+
+#         # Récupérer les noms des joueurs depuis le formulaire
+#         player_left_name = game_session_form.cleaned_data['player_left_name']
+#         player_right_name = game_session_form.cleaned_data['player_right_name']
+
+#         # Assigner les noms des joueurs à la session
+#         session.player_left_name = player_left_name
+#         session.player_right_name = player_right_name
+#         session.save()
+
+#         # Créer les paramètres de jeu associés à cette session
+#         parameters = game_parameters_form.save(commit=False)
+#         parameters.game_session = session
+#         parameters.save()
+
+#         # Log de la création de la session de jeu
+#         print(f"[create_game] GameSession {session.id} créée pour les joueurs {player_left_name} et {player_right_name} avec paramètres personnalisés.")
+
+#         # Réponse JSON indiquant que la partie a été créée avec succès
+#         return JsonResponse({
+#             'status': 'success',
+#             'message': "Partie locale créée avec succès.",
+#             'game_id': str(session.id)
+#         }, status=201)

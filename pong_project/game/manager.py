@@ -1,7 +1,7 @@
 # game/manager.py
 
 import asyncio
-from .tasks import start_game_loop
+from game.tasks import start_game_loop
 import sys
 
 _GLOBAL_LOOP = None

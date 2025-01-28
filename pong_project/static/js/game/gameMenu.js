@@ -1,6 +1,7 @@
 import { requestGet, requestPost } from '../api/index.js'; 
 import { updateHtmlContent } from '../tools/index.js'; 
 import { handleInviteGame } from './handleInvitationGame.js'; // Suppose qu'on gère l'invitation en ligne ici
+import { liveLocalGame } from './live_local_game.js';
 
 function attachGameMenuEvents() {
     const sections = ['local', 'online', 'tournament'];
@@ -65,7 +66,19 @@ function attachGameMenuEvents() {
                 // Poster vers ton endpoint
                 try {
                     const response = await requestPost('game', 'create_local_game', formData);
-                    alert(`Partie créée avec succès : ID = ${response.game_id}`);
+                    if (response.status === 'success')
+                    {
+                        alert(`Partie créée avec succès : ID = ${response.game_id}`);
+                        updateHtmlContent('#content', response.html);
+                        // await startLocalGame(response.game_id);
+                        liveLocalGame({
+                            gameId: response.game_id,
+                            resultsUrl: '/les_resultats'
+                        });
+                    }
+                    else{
+                        alert(response.message);
+                    }
                 } catch (err) {
                     console.error('Erreur lors de la création de la partie :', err);
                     alert('Impossible de créer la partie.');
@@ -90,9 +103,9 @@ function attachGameMenuEvents() {
                     // Stockage en mémoire JS
                     const onlineParams = {
                         ball_speed: ballSpeedElement.value,
-                        racket_size: paddleSizeElement.value,
-                        bonus_malus_activation: bonusCheckbox?.checked ?? false,
-                        bumpers_activation: obstacleCheckbox?.checked ?? false,
+                        paddle_size: paddleSizeElement.value,
+                        bonus_enabled: bonusCheckbox?.checked ?? false,
+                        obstacles_enabled: obstacleCheckbox?.checked ?? false,
                     };
                     console.log('Paramètres de la partie online:', onlineParams);
 
@@ -124,6 +137,32 @@ function attachGameMenuEvents() {
         }
     });
 }
+
+// added
+// async function startLocalGame(gameId) {
+//     try {
+//         // Appel à une API pour démarrer la partie
+//         const response = await requestPost('game', 'start_local_game', { game_id: gameId });
+
+//         if (response.status === 'success') {
+//             console.log(`Partie ${gameId} lancée avec succès.`);
+//               // Après l'injection, initialiser la logique du jeu
+//         initLiveLocalGame({
+//             gameId: gameId,
+//             csrfToken: 'TON_CSRF_TOKEN_SI_BESOIN',
+//             resultsUrl: '/les_resultats'
+//         });
+//             // Tu peux éventuellement mettre à jour l'UI pour refléter l'état du jeu
+//         } else {
+//             console.error('Erreur lors du démarrage de la partie :', response.message);
+//             alert('Impossible de démarrer la partie.');
+//         }
+//     } catch (err) {
+//         console.error('Erreur lors du démarrage de la partie :', err);
+//         alert('Impossible de démarrer la partie.');
+//     }
+// }
+
 
 export async function handleGameMenu() {
     console.log('Chargement du menu du jeu...');

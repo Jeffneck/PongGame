@@ -34,39 +34,37 @@ class GameMenuView(View):
             'message': 'Méthode non autorisée'
         }, status=405)
 
-
-
-
 #----------- Ici créer une vue pour récupérer les paramètres de jeu -----------#
 
-class CreateGameLocalView(View):
-    """
-    Handles the creation of a new GameSession and associated parameters.
-    """
-    def post(self, request):
-        form = GameParametersForm(request.POST)
+# class CreateGameLocalView(View):
+#     """
+#     Handles the creation of a new GameSession and associated parameters.
+#     """
+#     def post(self, request):
+#         form = GameParametersForm(request.POST)
         
-        if not form.is_valid():
-            # Render le formulaire avec les erreurs pour l'inclure dans la réponse JSON
-            return JsonResponse({
-                'status': 'error',
-                'message': "Les paramètres du jeu sont invalides."
-            })
+#         if not form.is_valid():
+#             # Render le formulaire avec les erreurs pour l'inclure dans la réponse JSON
+#             return JsonResponse({
+#                 'status': 'error',
+#                 'message': "Les paramètres du jeu sont invalides."
+#             })
 
-        # Créer une nouvelle GameSession
-        session = GameSession.objects.create(status='waiting')
-        game_id = str(session.id)
+#         # Créer une nouvelle GameSession
+#         session = GameSession.objects.create(status='waiting')
+#         game_id = str(session.id)
 
-        # Créer les GameParameters liés à cette session
-        parameters = form.save(commit=False)
-        parameters.game_session = session
-        parameters.save()
+#         # Créer les GameParameters liés à cette session
+#         parameters = form.save(commit=False)
+#         parameters.game_session = session
+#         parameters.save()
 
-        # Log de la création de session
-        print(f"[create_game] GameSession {game_id} created avec paramètres personnalisés.")
+#         # Log de la création de session
+#         print(f"[create_game] GameSession {game_id} created avec paramètres personnalisés.")
 
-        return JsonResponse({
-            'status': 'success',
-            'message': "Partie créée avec succès.",
-            'game_id': game_id
-        }, status=201)
+#         return JsonResponse({
+#             'status': 'success',
+#             'message': "Partie créée avec succès.",
+#             'game_id': game_id
+#         }, status=201)
+

@@ -51,7 +51,7 @@ function attachGameMenuEvents() {
     }
 
     // // Select pour la taille de la raquette = affiche seulement un message de log (aucun comportement dynamique n'est declenché)
-    // const racketSize = document.getElementById('racket_size');
+    // const racketSize = document.getElementById('paddle_size');
     // if (racketSize) {
     //     racketSize.addEventListener('change', () => {
     //         console.log("Taille de la raquette choisie :", racketSize.value);

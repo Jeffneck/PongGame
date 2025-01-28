@@ -218,9 +218,9 @@ class AcceptGameInvitationView(View):
                     GameParameters.objects.create(
                         game_session=session,
                         ball_speed=invitation_params.ball_speed,
-                        racket_size=invitation_params.racket_size,
-                        bonus_malus_activation=invitation_params.bonus_malus_activation,
-                        bumpers_activation=invitation_params.bumpers_activation
+                        paddle_size=invitation_params.paddle_size,
+                        bonus_enabled=invitation_params.bonus_enabled,
+                        obstacles_enabled=invitation_params.obstacles_enabled
                     )
                 else:
                     logger.warning(
@@ -291,8 +291,8 @@ class GetGameSessionView(View):
             },
             'parameters': {
                 'ball_speed': params.ball_speed,
-                'racket_size': params.racket_size,
-                'bonus_malus_activation': params.bonus_malus_activation,
-                'bumpers_activation': params.bumpers_activation,
+                'paddle_size': params.paddle_size,
+                'bonus_enabled': params.bonus_enabled,
+                'obstacles_enabled': params.obstacles_enabled,
             }
         })

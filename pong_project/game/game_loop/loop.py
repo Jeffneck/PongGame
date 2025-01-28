@@ -106,11 +106,11 @@ async def game_loop(game_id):
 
             # print(f"3")#debug
             # 2.4 - Powerups & Bumpers
-            if parameters.bonus_malus_activation:
+            if parameters.bonus_enabled:
                 await handle_powerups_spawn(game_id, powerup_orbs, current_time)
                 await handle_powerup_expiration(game_id, powerup_orbs)
 
-            if parameters.bumpers_activation:
+            if parameters.obstacles_enabled:
                 await handle_bumpers_spawn(game_id, bumpers, current_time)
                 await handle_bumper_expiration(game_id, bumpers)
             # print(f"4")#debug

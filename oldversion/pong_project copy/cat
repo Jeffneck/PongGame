@@ -1,3 +1,151 @@
+# game/admin.py
+
+from django.contrib import admin
+from .models import GameSession, GameResult, GameParameters, GameInvitation
+
+@admin.register(GameSession)
+class GameSessionAdmin(admin.ModelAdmin):
+    list_display = ('id', 'player_left', 'player_right', 'status', 'created_at')
+
+@admin.register(GameResult)
+class GameResultAdmin(admin.ModelAdmin):
+    list_display = ('game', 'winner', 'score_left', 'score_right', 'ended_at')
+
+@admin.register(GameParameters)
+class GameParametersAdmin(admin.ModelAdmin):
+    list_display = ('game_session', 'ball_speed', 'paddle_size', 'bonus_enabled', 'obstacles_enabled')
+
+@admin.register(GameInvitation)
+class GameInvitationAdmin(admin.ModelAdmin):
+    list_display = ('from_user', 'to_user', 'status', 'created_at')
+from django.apps import AppConfig
+
+
+class GameConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'game'
+# game/consumers.py
+
+import json
+import redis
+from django.conf import settings
+from channels.generic.websocket import AsyncWebsocketConsumer
+
+r = redis.Redis(
+    host=settings.REDIS_HOST,
+    port=settings.REDIS_PORT,
+    db=0
+)
+
+class PongConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        self.game_id = self.scope['url_route']['kwargs']['game_id']
+        self.group_name = f"pong_{self.game_id}"
+
+        await self.accept()
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        print(f"[PongConsumer] WebSocket connected for game_id={self.game_id}")
+
+    async def disconnect(self, close_code):
+        await self.channel_layer.group_discard(self.group_name, self.channel_name)
+        print(f"[PongConsumer] WebSocket disconnected for game_id={self.game_id}")
+
+    async def receive(self, text_data=None, bytes_data=None):
+        """
+        Nouveau protocole:
+        {
+          "action": "start_move",
+          "player": "left",
+          "direction": "up"
+        }
+        ou
+        {
+          "action": "stop_move",
+          "player": "left"
+        }
+        """
+        data = json.loads(text_data)
+        action = data.get('action')
+        player = data.get('player')
+
+        if action == 'start_move':
+            # Le joueur commence à bouger le paddle
+            direction = data.get('direction')  # 'up' ou 'down'
+            await self.start_move_paddle(player, direction)
+
+        elif action == 'stop_move':
+            # Le joueur arrête de bouger le paddle
+            await self.stop_move_paddle(player)
+
+    async def start_move_paddle(self, player, direction):
+        """
+        Met une vélocité non nulle dans Redis tant que la touche est enfoncée.
+        """
+        velocity = 0
+        if direction == 'up':
+            velocity = -8  # Ajustez la vitesse selon vos préférences
+        elif direction == 'down':
+            velocity = 8
+
+        r.set(f"{self.game_id}:paddle_{player}_velocity", velocity)
+        print(f"[PongConsumer] start_move_paddle: player={player}, velocity={velocity}")
+
+    async def stop_move_paddle(self, player):
+        """
+        Remet la vélocité à 0 quand la touche est relâchée.
+        """
+        r.set(f"{self.game_id}:paddle_{player}_velocity", 0)
+        print(f"[PongConsumer] stop_move_paddle: player={player}")
+
+    async def broadcast_game_state(self, event):
+        """
+        Reçoit { 'type': 'broadcast_game_state', 'data': { ... } }
+        et envoie data au client.
+        """
+        await self.send(json.dumps(event['data']))
+        # print(f"[PongConsumer] Broadcast game_state to game_id={self.game_id}")
+
+    async def game_over(self, event):
+        """
+        Reçoit { 'type': 'game_over', 'winner': 'left' } par ex.
+        """
+        await self.send(json.dumps({
+            'type': 'game_over',
+            'winner': event['winner']
+        }))
+        print(f"[PongConsumer] Broadcast game_over to game_id={self.game_id}, winner={event['winner']}")
+
+    async def powerup_applied(self, event):
+        """
+        Reçoit { 'type': 'powerup_applied', 'player': 'left', 'effect': 'flash' }
+        """
+        await self.send(json.dumps({
+            'type': 'powerup_applied',
+            'player': event['player'],
+            'effect': event['effect']
+        }))
+        print(f"[PongConsumer] Broadcast powerup_applied to game_id={self.game_id}, player={event['player']}, effect={event['effect']}")
+# game/forms.py
+
+from django import forms
+from .models import GameParameters
+
+class GameParametersForm(forms.ModelForm):
+    class Meta:
+        model = GameParameters
+        fields = ['ball_speed', 'paddle_size', 'bonus_enabled', 'obstacles_enabled']
+        widgets = {
+            'ball_speed': forms.Select(attrs={'class': 'form-control'}),
+            'paddle_size': forms.Select(attrs={'class': 'form-control'}),
+            'bonus_enabled': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'obstacles_enabled': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        labels = {
+            'ball_speed': 'Vitesse de la balle',
+            'paddle_size': 'Taille de la raquette',
+            'bonus_enabled': 'Activer les bonus/malus',
+            'obstacles_enabled': 'Activer les bumpers/obstacles',
+        }
 # game/game_loop.py
 
 import redis
@@ -22,7 +170,7 @@ COOLDOWN_TIME = 0.5  # Temps en secondes
 
 # Initialize paddles and ball
 async def initialize_game_objects(game_id, parameters):
-    paddle_size = {1: 30, 2: 60, 3: 90}[parameters.racket_size]
+    paddle_size = {1: 30, 2: 60, 3: 90}[parameters.paddle_size]
     paddle_speed = 6  # Can be made adjustable if needed
     ball_speed_multiplier = parameters.ball_speed
 
@@ -54,7 +202,7 @@ async def initialize_game_objects(game_id, parameters):
     ]
 
     bumpers = []
-    if parameters.bumpers_activation:
+    if parameters.obstacles_enabled:
         bumpers = [Bumper(game_id, terrain_rect) for _ in range(3)]  # Adjust number as needed
 
     return paddle_left, paddle_right, ball, powerup_orbs, bumpers
@@ -145,7 +293,7 @@ async def game_loop(game_id):
                     print(f"[game_loop.py] Ball reset to ({ball.x}, {ball.y}) with speed ({ball.speed_x}, {ball.speed_y})")
 
             # 4. Gérer les power-ups
-            if parameters.bonus_malus_activation:
+            if parameters.bonus_enabled:
                 if current_time - last_powerup_spawn_time >= powerup_spawn_interval:
                     # Tenter de spawn un power-up
                     active_powerups = await count_active_powerups(game_id, powerup_orbs)
@@ -159,7 +307,7 @@ async def game_loop(game_id):
                                 print(f"[game_loop.py] game_id={game_id} - PowerUp {powerup_orb.effect_type} spawned.")
 
             # 5. Gérer les bumpers
-            if parameters.bumpers_activation:
+            if parameters.obstacles_enabled:
                 if current_time - last_bumper_spawn_time >= bumper_spawn_interval:
                     # Tenter de spawn un bumper
                     active_bumpers = await count_active_bumpers(game_id, bumpers)
@@ -603,3 +751,413 @@ async def broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right
     })
     # print(f"[game_loop.py] Broadcast game_state for game_id={game_id}")
 
+# game/game_objects.py
+
+import random
+import math
+import time
+
+class Paddle:
+    def __init__(self, position, size, speed):
+        """
+        position: 'left' ou 'right'
+        size: taille initiale de la raquette
+        speed: vitesse de déplacement
+        """
+        self.position = position
+        self.width = 10
+        self.height = size
+        self.x = 50 if position == 'left' else 750
+        self.y = 200 - self.height // 2
+        self.speed = speed
+        self.velocity = 0
+        self.on_ice = False
+        self.shown_size = size  # Current displayed size
+
+    def move(self, direction, is_on_ice, terrain_top, terrain_bottom, speed_boost=False):
+        if is_on_ice:
+            acceleration = 0.5
+            friction = 0.02
+            self.velocity += direction * acceleration
+            self.velocity *= (1 - friction)
+        else:
+            self.velocity = direction * (self.speed * 1.5 if speed_boost else self.speed)
+
+        # Apply movement with boundary checking
+        new_y = self.y + self.velocity
+        if new_y < terrain_top:
+            new_y = terrain_top
+            self.velocity = 0
+        elif new_y + self.height > terrain_bottom:
+            new_y = terrain_bottom - self.height
+            self.velocity = 0
+
+        self.y = new_y
+
+    def resize(self, new_height):
+        self.height = new_height
+
+class Ball:
+    def __init__(self, x, y, speed_x, speed_y, size=7):
+        self.x = x
+        self.y = y
+        self.speed_x = speed_x
+        self.speed_y = speed_y
+        self.size = size
+        self.last_player = None  # Nouvel attribut pour suivre le dernier joueur
+
+    def move(self):
+        self.x += self.speed_x
+        self.y += self.speed_y
+
+    def reset(self, x, y, speed_x, speed_y):
+        self.x = x
+        self.y = y
+        self.speed_x = speed_x
+        self.speed_y = speed_y
+        self.last_player = None  # Réinitialiser le dernier joueur
+
+class PowerUpOrb:
+    def __init__(self, game_id, effect_type, terrain_rect, color=None):
+        self.game_id = game_id
+        self.effect_type = effect_type  # 'invert', 'shrink', 'ice', 'speed', 'sticky', 'flash'
+        self.size = 15
+        self.color = color or self.get_default_color()
+        self.active = False
+        self.x = 0
+        self.y = 0
+        self.rect = None
+        self.spawn_time = 0
+        self.duration = 0
+
+    def get_default_color(self):
+        colors = {
+            'invert': (255, 105, 180),  # Pink
+            'shrink': (255, 0, 0),      # Red
+            'ice': (0, 255, 255),       # Cyan
+            'speed': (255, 215, 0),     # Gold
+            'flash': (255, 255, 0),     # Yellow
+            'sticky': (50, 205, 50)     # Lime green
+        }
+        return colors.get(self.effect_type, (255, 255, 255))
+
+    def spawn(self, terrain_rect):
+        left = terrain_rect['left']
+        right = terrain_rect['left'] + terrain_rect['width']
+        top = terrain_rect['top']
+        bottom = terrain_rect['top'] + terrain_rect['height']
+
+        max_attempts = 100
+        for _ in range(max_attempts):
+            new_x = random.randint(left + 50, right - 50)
+            new_y = random.randint(top + 50, bottom - 50)
+
+            # Ici on suppose qu'il n'y a pas d'autres collisions à vérifier.
+            self.x = new_x
+            self.y = new_y
+            self.rect = (self.x, self.y, self.size, self.size)
+            self.active = True
+            self.spawn_time = time.time()
+            self.duration = 10
+            return True
+
+        return False
+
+    def deactivate(self):
+        self.active = False
+        self.x = None
+        self.y = None
+        self.spawn_time = None
+
+class Bumper:
+    def __init__(self, game_id, terrain_rect):
+        self.game_id = game_id
+        self.size = 20
+        self.color = (255, 255, 255)  # White
+        self.active = False
+        self.x = 0
+        self.y = 0
+        self.rect = None
+        self.spawn_time = 0
+        self.duration = 0
+        self.last_collision_time = 0 
+
+    def spawn(self, terrain_rect):
+        left = terrain_rect['left']
+        right = terrain_rect['left'] + terrain_rect['width']
+        top = terrain_rect['top']
+        bottom = terrain_rect['top'] + terrain_rect['height']
+
+        max_attempts = 100
+        for _ in range(max_attempts):
+            new_x = random.randint(left + 50, right - 50)
+            new_y = random.randint(top + 50, bottom - 50)
+
+            # Ici on suppose qu'il n'y a pas d'autres collisions à vérifier.
+            self.x = new_x
+            self.y = new_y
+            self.rect = (self.x, self.y, self.size, self.size)
+            self.active = True
+            self.spawn_time = time.time()
+            self.duration = 10
+            return True
+
+        return False
+
+    def deactivate(self):
+        self.active = False
+# game/manager.py
+
+import asyncio
+from .tasks import start_game_loop
+import sys
+
+_GLOBAL_LOOP = None
+
+def set_global_loop(loop):
+    """
+    Stocke une référence à l'event loop principale.
+    Appelée lors du démarrage dans asgi.py via LifespanHandler.
+    """
+    global _GLOBAL_LOOP
+    _GLOBAL_LOOP = loop
+    print(f"[manager.py] Global loop set: {loop}")
+
+def get_global_loop():
+    """
+    Renvoie la référence à l'event loop principale.
+    """
+    return _GLOBAL_LOOP
+
+def schedule_game(game_id):
+    """
+    Programme l'exécution de start_game_loop(game_id) sans bloquer la requête.
+    Tente d'utiliser create_task, sinon fallback sur run_coroutine_threadsafe avec la loop globale.
+    """
+    try:
+        # Essayer de récupérer l'event loop courant
+        current_loop = asyncio.get_event_loop()
+        if not current_loop.is_running():
+            raise RuntimeError("Event loop is not running")
+        current_loop.create_task(start_game_loop(game_id))
+        print(f"[schedule_game] create_task OK dans loop={current_loop} pour game_id={game_id}")
+    except (RuntimeError, AttributeError) as e:
+        # Si aucun event loop n'est disponible dans ce thread, utiliser la loop globale
+        print("No current event loop in this thread, fallback run_coroutine_threadsafe", file=sys.stderr)
+        global_loop = get_global_loop()
+        if global_loop and global_loop.is_running():
+            future = asyncio.run_coroutine_threadsafe(start_game_loop(game_id), global_loop)
+            print(f"[schedule_game] run_coroutine_threadsafe OK dans global_loop={global_loop} pour game_id={game_id}")
+        else:
+            print("No global loop available or loop is not running, game cannot be scheduled.", file=sys.stderr)
+import uuid
+from django.db import models
+from django.conf import settings
+
+class GameSession(models.Model):
+    """
+    Un enregistrement pour représenter une partie (en cours ou terminée).
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    player_left = models.CharField(max_length=50, null=True, blank=True)
+    player_right = models.CharField(max_length=50, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    # ex: "running", "finished"
+    status = models.CharField(max_length=10, default='running')
+
+    def __str__(self):
+        return f"GameSession {self.id} (status={self.status})"
+
+
+class GameParameters(models.Model):
+    BALL_SPEED_CHOICES = [
+        (1, 'Slow'),
+        (2, 'Medium'),
+        (3, 'Fast'),
+    ]
+    ball_speed = models.PositiveSmallIntegerField(choices=BALL_SPEED_CHOICES, default=2)
+
+    paddle_size_CHOICES = [
+        (1, 'Small'),
+        (2, 'Medium'),
+        (3, 'Large'),
+    ]
+    paddle_size = models.PositiveSmallIntegerField(choices=paddle_size_CHOICES, default=2)
+
+    bonus_enabled = models.BooleanField(default=True)
+    obstacles_enabled = models.BooleanField(default=False)
+
+    game_session = models.OneToOneField(
+        GameSession,
+        related_name='parameters',
+        on_delete=models.CASCADE
+    )
+
+    def __str__(self):
+        return (f"Ball speed: {self.get_ball_speed_display()}, "
+                f"Racket size: {self.get_paddle_size_display()}, "
+                f"Bonus/Malus: {'On' if self.bonus_enabled else 'Off'}, "
+                f"Bumpers: {'On' if self.obstacles_enabled else 'Off'}")
+
+
+class GameResult(models.Model):
+    """
+    Enregistre le score final d'une partie terminée.
+    """
+    game = models.ForeignKey(GameSession, on_delete=models.CASCADE)
+    winner = models.CharField(max_length=10)  # "left" ou "right"
+    score_left = models.IntegerField()
+    score_right = models.IntegerField()
+    ended_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"[{self.game.id}] winner={self.winner} => {self.score_left}-{self.score_right}"
+
+
+class GameInvitation(models.Model):
+    from_user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='invitations_sent', on_delete=models.CASCADE)
+    to_user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='invitations_received', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(
+        max_length=10,
+        choices=[('pending', 'Pending'), ('accepted', 'Accepted'), ('rejected', 'Rejected')],
+        default='pending'
+    )
+    
+    def __str__(self):
+        return f"Invitation de {self.from_user.username} à {self.to_user.username} - {self.status}"
+from django.urls import re_path
+from .consumers import PongConsumer
+
+websocket_urlpatterns = [
+    # ws://host/ws/pong/<uuid>/
+    re_path(r'^ws/pong/(?P<game_id>[0-9a-f-]+)/$', PongConsumer.as_asgi()),
+]
+# game/tasks.py
+
+import asyncio
+
+ACTIVE_GAMES = {}  # Dict: { game_id -> asyncio.Task }
+
+async def start_game_loop(game_id):
+    """
+    Lance la game_loop(game_id) et stocke la Task dans ACTIVE_GAMES.
+    """
+    from .game_loop import game_loop
+
+    # Créer une nouvelle Task
+    task = asyncio.create_task(game_loop(game_id))
+    ACTIVE_GAMES[game_id] = task
+
+    print(f"[tasks.py] Game loop started for game_id={game_id}")
+
+    try:
+        # Attendre que la boucle se termine (score atteint ou session finished)
+        await task
+    except asyncio.CancelledError:
+        print(f"[tasks.py] Game loop for game_id={game_id} was cancelled.")
+    finally:
+        # Une fois terminé ou annulé, enlever de ACTIVE_GAMES
+        del ACTIVE_GAMES[game_id]
+        print(f"[tasks.py] Game loop ended for game_id={game_id}")
+
+def is_game_running(game_id):
+    """
+    Vérifie si une partie est en cours.
+    """
+    return game_id in ACTIVE_GAMES
+
+def stop_game(game_id):
+    """
+    Permet de stopper manuellement une partie en cours (annuler la Task).
+    """
+    task = ACTIVE_GAMES.get(game_id)
+    if task:
+        task.cancel()
+        print(f"[tasks.py] Game loop for game_id={game_id} has been cancelled.")
+from django.test import TestCase
+
+# Create your tests here.
+# game/urls.py
+
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('', views.index, name='index'),
+    path('create/', views.create_game, name='create_game'),
+    path('<uuid:game_id>/', views.game_page, name='game'),
+    path('results/', views.list_results, name='list_results'),
+]
+from django.shortcuts import render, redirect
+from .models import GameSession, GameResult, GameParameters
+from .manager import schedule_game
+from .forms import GameParametersForm
+from django.conf import settings
+import redis
+
+r = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=0)
+
+def index(request):
+    """
+    Page d'accueil -> bouton pour créer une partie
+    """
+    return render(request, 'game/index.html')
+
+def create_game(request):
+    """
+    Crée un GameSession (UUID), init Redis avec les paramètres personnalisés, lance la loop en non-bloquant
+    """
+    if request.method == 'POST':
+        form = GameParametersForm(request.POST)
+        if form.is_valid():
+            # Créer une nouvelle GameSession
+            session = GameSession.objects.create(status='running') 
+            game_id = str(session.id)
+
+            # Créer les GameParameters liés à cette session
+            parameters = form.save(commit=False)
+            parameters.game_session = session
+            parameters.save()
+
+            # Initialiser Redis avec les paramètres personnalisés
+            r.set(f"{game_id}:score_left", 0)
+            r.set(f"{game_id}:score_right", 0)
+            r.set(f"{game_id}:paddle_left_y", 150)
+            r.set(f"{game_id}:paddle_right_y", 150)
+            r.set(f"{game_id}:ball_x", 300)
+            r.set(f"{game_id}:ball_y", 200)
+            # Ajuster la vitesse de la balle selon le paramètre
+            ball_vx = 3 * parameters.ball_speed
+            ball_vy = 2 * parameters.ball_speed
+            r.set(f"{game_id}:ball_vx", ball_vx)
+            r.set(f"{game_id}:ball_vy", ball_vy)
+
+            # Si les bumpers sont activés, initialiser leurs positions ou autres configurations
+            if parameters.obstacles_enabled:
+                # Exemple: ajouter des bumpers dans Redis
+                # À implémenter selon la logique du jeu
+                pass
+
+            print(f"[create_game] GameSession {game_id} created avec paramètres personnalisés. Scheduling game_loop.")
+            schedule_game(game_id)
+
+            return redirect('game', game_id=game_id)
+    else:
+        form = GameParametersForm()
+
+    return render(request, 'game/create_game.html', {'form': form})
+
+def game_page(request, game_id):
+    """
+    Affiche la page HTML (canvas + websocket) pour la partie <game_id>
+    """
+    return render(request, 'game/game.html', {'game_id': game_id})
+
+def list_results(request):
+    """
+    Affiche la liste des parties terminées.
+    """
+    results = GameResult.objects.select_related('game').order_by('-ended_at')[:20]
+    return render(request, 'game/results.html', {'results': results})

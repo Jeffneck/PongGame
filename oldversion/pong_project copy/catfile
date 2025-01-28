@@ -1,0 +1,328 @@
+total 28
+drwxr-xr-x 1 User 197121    0 Jan 24 19:27 tournament/
+-rw-r--r-- 1 User 197121 1305 Jan 24 19:25 setup_game_parameters.html
+-rw-r--r-- 1 User 197121 1114 Jan 24 19:26 results_list.html
+drwxr-xr-x 1 User 197121    0 Jan 24 19:48 online_game/
+drwxr-xr-x 1 User 197121    0 Jan 24 19:47 local_game/
+-rw-r--r-- 1 User 197121  669 Jan 24 20:20 index.html
+drwxr-xr-x 1 User 197121    0 Jan 24 20:03 ../
+drwxr-xr-x 1 User 197121    0 Jan 24 20:24 ./
+# local_game_views.py
+
+from django.shortcuts import render,  redirect
+from .models import GameSession
+from .manager import schedule_game
+from .forms import GameParametersForm
+
+
+def parameter_local_game(request):
+    """
+    Crée un GameSession (UUID), init Redis avec les paramètres personnalisés, lance la loop en non-bloquant
+    """
+    if request.method == 'POST':
+        form = GameParametersForm(request.POST)
+        if form.is_valid():
+            # Créer une nouvelle GameSession
+            session = GameSession.objects.create(status='waiting') 
+            game_id = str(session.id)
+
+            # Créer les GameParameters liés à cette session
+            parameters = form.save(commit=False)
+            parameters.game_session = session
+            parameters.save()
+            print(f"[parameter_local_game] GameSession {game_id} created avec paramètres personnalisés. Scheduling game_loop.")
+            schedule_game(game_id)
+
+            return redirect('live_local_game', game_id=game_id)
+    else:
+        form = GameParametersForm()
+    return render(request, 'game/local_game/parameter_local_game.html', {'form': form})
+
+
+def live_local_game(request, game_id):
+    """
+    Affiche la page HTML (canvas + websocket) pour la partie <game_id>
+    """
+    return render(request, 'game/local_game/live_local_game.html', {'game_id': game_id})
+# game/local_tournament_views.py
+
+from .models import GameSession
+from django.shortcuts import render, get_object_or_404, redirect
+from .models import GameSession, GameResult, GameParameters, LocalTournament
+from .manager import schedule_game
+from .forms import LocalTournamentForm
+
+
+def parameter_local_tournament(request):
+    if request.method == 'POST':
+        form = LocalTournamentForm(request.POST)
+        if form.is_valid():
+            tournament = form.save()
+            tournament.save()
+            
+            # Ensuite, rediriger ou afficher la page du tournoi
+            return redirect('detail_local_tournament', tournament_id=tournament.id)
+    else:
+        form = LocalTournamentForm()
+    return render(request, 'tournament/parameter_local_tournament.html', {'form': form})
+
+
+def detail_local_tournament(request, tournament_id):
+    """
+    Affiche le bracket du tournoi (2 demi-finales, 1 finale).
+    Au bout de X secondes, on rend visible un bouton vers la prochaine étape.
+    """
+    tournament = get_object_or_404(LocalTournament, pk=tournament_id)
+
+    # Récupérer les résultats éventuellement existants pour mettre à jour l'affichage
+    semifinal1_result = None
+    semifinal2_result = None
+    final_result = None
+
+    if tournament.semifinal1:
+        semifinal1_result = GameResult.objects.filter(game=tournament.semifinal1).first()
+    if tournament.semifinal2:
+        semifinal2_result = GameResult.objects.filter(game=tournament.semifinal2).first()
+    if tournament.final:
+        final_result = GameResult.objects.filter(game=tournament.final).first()
+
+    context = {
+        'tournament': tournament,
+        'semifinal1_result': semifinal1_result,
+        'semifinal2_result': semifinal2_result,
+        'final_result': final_result,
+    }
+    return render(request, 'tournament/detail_local_tournament.html', context)
+
+
+def next_game_presentation_tournament(request, tournament_id, match_type):
+    """
+    Affiche un écran de 'préparation' pour la partie à venir (ex: semifinal1, semifinal2, final).
+    Au bout de 3 sec, un bouton "Commencer la partie" apparaît.
+    """
+    tournament = get_object_or_404(LocalTournament, pk=tournament_id)
+
+    if match_type == 'semifinal1':
+        player_left = tournament.player1
+        player_right = tournament.player2
+    elif match_type == 'semifinal2':
+        player_left = tournament.player3
+        player_right = tournament.player4
+    elif match_type == 'final':
+        # Pour la finale, on suppose que les vainqueurs des 2 semi-finals sont déjà connus.
+        # On peut aller chercher les winners via les GameResults:
+        from .models import GameResult
+        semi1_result = GameResult.objects.filter(game=tournament.semifinal1).first()
+        semi2_result = GameResult.objects.filter(game=tournament.semifinal2).first()
+        if semi1_result and semi2_result:
+            # On récupère le pseudo vainqueur = "left" ou "right" correspond aux pseudos initiaux
+            # ou stocker autrement. Ici on suppose qu'on a stocké direct "player1" ou "player2" dans winner.
+            player_left = semi1_result.winner
+            player_right = semi2_result.winner
+        else:
+            # Erreur ou fallback
+            player_left = "????"
+            player_right = "????"
+    else:
+        # Cas non géré
+        return redirect('detail_local_tournament', tournament_id=tournament_id)
+
+    context = {
+        'tournament': tournament,
+        'match_type': match_type,
+        'player_left': player_left,
+        'player_right': player_right,
+    }
+    return render(request, 'tournament/next_game_presentation_tournament.html', context)
+
+# tournoi
+def start_next_tournament_game(request, tournament_id, match_type):
+    tournament = get_object_or_404(LocalTournament, pk=tournament_id)
+
+    if match_type == 'semifinal1':
+        # Créer systématiquement la GameSession pour la demi-finale 1
+        gs = GameSession.objects.create(
+            player_left=tournament.player1,
+            player_right=tournament.player2,
+            status='waiting'
+        )
+
+        # Associer des paramètres à cette GameSession
+        if tournament.parameters:
+            GameParameters.objects.create(
+                game_session=gs,
+                ball_speed=tournament.parameters.ball_speed,
+                paddle_size=tournament.parameters.paddle_size,
+                bonus_enabled=tournament.parameters.bonus_enabled,
+                obstacles_enabled=tournament.parameters.obstacles_enabled
+            )
+
+        # Enregistrer cette demi-finale dans le tournoi
+        tournament.semifinal1 = gs
+        tournament.status = 'semifinal1_in_progress'
+        tournament.save()
+
+    elif match_type == 'semifinal2':
+        # Créer la GameSession pour la demi-finale 2
+        gs = GameSession.objects.create(
+            player_left=tournament.player3,
+            player_right=tournament.player4,
+            status='waiting'
+        )
+        # Associer des paramètres à cette GameSession
+        if tournament.parameters:
+            GameParameters.objects.create(
+                game_session=gs,
+                ball_speed=tournament.parameters.ball_speed,
+                paddle_size=tournament.parameters.paddle_size,
+                bonus_enabled=tournament.parameters.bonus_enabled,
+                obstacles_enabled=tournament.parameters.obstacles_enabled
+            )
+        tournament.semifinal2 = gs
+        tournament.status = 'semifinal2_in_progress'
+        tournament.save()
+
+    elif match_type == 'final':
+        # Pour la finale, on récupère éventuellement les vainqueurs
+        semi1_result = GameResult.objects.filter(game=tournament.semifinal1).first()
+        semi2_result = GameResult.objects.filter(game=tournament.semifinal2).first()
+
+        # Récupérer les pseudos vainqueurs ou fallback
+        winner_semifinal1 = semi1_result.winner if semi1_result else tournament.player1
+        winner_semifinal2 = semi2_result.winner if semi2_result else tournament.player3
+
+        # Créer la GameSession pour la finale
+        gs = GameSession.objects.create(
+            player_left=winner_semifinal1,
+            player_right=winner_semifinal2,
+            status='waiting'
+        )
+        # Associer des paramètres à la finale
+        if tournament.parameters:
+            GameParameters.objects.create(
+                game_session=gs,
+                ball_speed=tournament.parameters.ball_speed,
+                paddle_size=tournament.parameters.paddle_size,
+                bonus_enabled=tournament.parameters.bonus_enabled,
+                obstacles_enabled=tournament.parameters.obstacles_enabled
+            )
+        tournament.final = gs
+        tournament.status = 'final_in_progress'
+        tournament.save()
+
+    else:
+        # Cas non géré (erreur ou retour)
+        return redirect('detail_local_tournament', tournament_id=tournament.id)
+
+    # Lance la loop asynchrone pour la partie
+    schedule_game(str(gs.id))
+
+    # Redirige vers la page de la partie
+    return redirect('live_tournament_game', game_id=gs.id)
+
+def live_tournament_game(request, game_id):
+    """
+    Affiche la page HTML (canvas + websocket) pour la partie <game_id>
+    """
+    return render(request, 'tournament/live_tournament_game.html', {'game_id': game_id})# game/views.py
+
+# from django.shortcuts import render,  redirect
+# from .models import GameSession
+# from .manager import schedule_game
+# from .forms import GameParametersForm
+
+
+# def parameter_online_game(request):
+#     """
+#     Crée un GameSession (UUID), init Redis avec les paramètres personnalisés, lance la loop en non-bloquant
+#     """
+#     if request.method == 'POST':
+#         form = GameParametersForm(request.POST)
+#         if form.is_valid():
+#             # Créer une nouvelle GameSession
+#             session = GameSession.objects.create(status='waiting') 
+#             game_id = str(session.id)
+
+#             # Créer les GameParameters liés à cette session
+#             parameters = form.save(commit=False)
+#             parameters.game_session = session
+#             parameters.save()
+#             print(f"[create_game] GameSession {game_id} created avec paramètres personnalisés. Scheduling game_loop.")
+#             schedule_game(game_id)
+
+#             return redirect('send_online_game_invitation', game_id=game_id)
+#     else:
+#         form = GameParametersForm()
+#     return render(request, 'online_game/parameter_online_game.html', {'form': form})
+
+
+# def live_local_game(request, game_id):
+#     """
+#     Affiche la page HTML (canvas + websocket) pour la partie <game_id>
+#     """
+#     return render(request, 'game/local_game/live_local_game.html', {'game_id': game_id})
+# game/views.py
+
+from django.http import JsonResponse
+from .models import GameSession
+from django.shortcuts import render
+from .models import GameSession, GameResult
+import redis
+from django.conf import settings
+
+r = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=0)
+
+def index(request):
+    """
+    Page d'accueil -> bouton pour créer une partie
+    """
+    return render(request, 'index.html')
+
+# @csrf_exempt
+def ready_game(request, game_id):
+    """
+    Marque la partie comme prête à être lancée.
+    """
+    if request.method == 'POST':
+        print(f"[DEBUG] game_id reçu dans la vue : {game_id}")  # Debug
+        try:
+            game_session = GameSession.objects.get(pk=game_id)
+            print(f"[DEBUG] gamesession trouvee : {game_session}")  # Debug
+            game_session.status = 'ready'  # On passe le statut à 'ready'
+            game_session.save()
+            return JsonResponse({'success': True, 'message': 'Game marked as ready'})
+        except GameSession.DoesNotExist:
+            return JsonResponse({'success': False, 'message': 'Game session not found'}, status=404)
+    return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=400)
+
+def list_results(request):
+    """
+    Affiche la liste des parties terminées.
+    """
+    results = GameResult.objects.select_related('game').order_by('-ended_at')[:20]
+    return render(request, 'game/results.html', {'results': results})
+# game/urls.py
+
+from django.urls import path
+from . import views
+from . import local_game_views
+from . import online_game_views
+from . import local_tournament_views
+
+urlpatterns = [
+    path('', views.index, name='index'),
+    path('list_results/', views.list_results, name='list_results'),
+
+    # views ne renvoyant pas de html
+    path('ready-game/<uuid:game_id>/', views.ready_game, name='ready_game'),
+    
+    path('local_game/<uuid:game_id>/', local_game_views.live_local_game, name='live_local_game'),
+    path('local_game/parameter_local_game/', local_game_views.parameter_local_game, name='parameter_local_game'),
+    
+    path('tournament/parameter_local_tournament/', local_tournament_views.parameter_local_tournament, name='parameter_local_tournament'),
+    path('tournament/<uuid:game_id>/', local_tournament_views.live_tournament_game, name='live_tournament_game'),
+    path('tournament/<uuid:tournament_id>/', local_tournament_views.detail_local_tournament, name='bracket_tournament'),
+    path('tournament/<uuid:tournament_id>/<str:match_type>/next_game_presentation_tournament/', local_tournament_views.next_game_presentation_tournament, name='next_game_presentation_tournament'),
+    path('tournament/<uuid:tournament_id>/<str:match_type>/start_next_tournament_game/', local_tournament_views.start_next_tournament_game, name='start_next_tournament_game'),
+    
+]

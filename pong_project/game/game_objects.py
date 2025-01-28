@@ -65,7 +65,7 @@ class Ball:
         self.speed_y = speed_y
         self.last_player = None  # Réinitialiser le dernier joueur
 
-class PowerUpOrb:
+class PowerUpOrb: # / modified
     def __init__(self, game_id, effect_type, terrain_rect, color=None):
         self.game_id = game_id
         self.effect_type = effect_type  # 'invert', 'shrink', 'ice', 'speed', 'sticky', 'flash'
@@ -77,6 +77,9 @@ class PowerUpOrb:
         self.rect = None
         self.spawn_time = 0
         self.duration = 10
+        self.effect_duration = 5
+        self.in_cooldown = False
+        self.cooldown_end_time = 0
 
         # Define spawn area boundaries (25% to 75% of field width) / added
         self.spawn_area = {
@@ -96,7 +99,23 @@ class PowerUpOrb:
             # 'sticky': (50, 205, 50)     # Lime green
         }
         return colors.get(self.effect_type, (255, 255, 255))
-    
+
+    def start_cooldown(self): # / added
+        """Start cooldown period that prevents this type of powerup from spawning"""
+        self.in_cooldown = True
+        self.cooldown_end_time = time.time() + self.duration + self.effect_duration
+        print(f"[PowerUpOrb] {self.effect_type} cooldown started until: {self.cooldown_end_time}")
+
+    def check_cooldown(self): # / added
+        """Check if powerup is in cooldown period"""
+        if self.in_cooldown:
+            if time.time() >= self.cooldown_end_time:
+                self.in_cooldown = False
+                print(f"[PowerUpOrb] {self.effect_type} cooldown ended")
+                return False
+            return True
+        return False
+
     def check_position_valid(self, x, y, powerup_orbs, bumpers):
         # Check distance from other powerups / added
         MIN_POWERUP_DISTANCE = 40
@@ -129,7 +148,7 @@ class PowerUpOrb:
         return True
 
     def spawn(self, terrain_rect, powerup_orbs=None, bumpers=None):
-        if self.active:
+        if self.active or self.check_cooldown():
             return False
         if powerup_orbs is None:
             powerup_orbs = []
@@ -168,12 +187,14 @@ class PowerUpOrb:
 
     def activate(self):
         self.active = True
+        self.spawn_time = time.time()
 
     def deactivate(self):
         self.active = False
         self.x = None
         self.y = None
         self.spawn_time = None
+        self.start_cooldown()
 
 class Bumper:
     def __init__(self, game_id, terrain_rect):

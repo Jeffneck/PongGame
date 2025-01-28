@@ -4,9 +4,11 @@
 # Pour le debug : si tu veux voir les erreurs
 set -e
 
+echo "==> Waiting for postgreSQL"
+python wait-for-postgres.py
 echo "==> Applying migrations"
-python manage.py makemigrations --noinput && echo "makemigration"
-./wait-for-postgres.sh db python manage.py migrate && echo "migrate"
+python manage.py makemigrations
+python manage.py migrate
 
 # echo "==> Starting Daphne ASGI server on port 8080"
 # daphne -b 0.0.0.0 -p 8080 pong_project.asgi:application

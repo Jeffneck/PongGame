@@ -20,7 +20,7 @@ RUN python manage.py collectstatic --noinput || true
 
 # Rendre entrypoint.sh exécutable
 RUN chmod +x /app/entrypoint.sh
-RUN chmod +x /app/wait-for-postgres.sh
+RUN chmod +x /app/wait-for-postgres.py
 
 EXPOSE 8080
 

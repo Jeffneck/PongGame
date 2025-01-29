@@ -18,7 +18,7 @@ from .collisions import (
     handle_bumper_collision,
     handle_powerup_collision
 )
-from .score_utils import handle_score, winner_detected, finish_game
+from .score_utils import handle_score, winner_detected, finish_game, reset_all_objects
 from .bumpers_utils import handle_bumpers_spawn, handle_bumper_expiration
 from .powerups_utils import handle_powerups_spawn, handle_powerup_expiration
 from .broadcast import broadcast_game_state
@@ -41,7 +41,7 @@ async def game_loop(game_id):
 
         # Construire les objets (raquettes, balle, powerups, bumpers)
         paddle_left, paddle_right, ball, powerup_orbs, bumpers = initialize_game_objects(game_id, parameters)
-        initialize_redis(game_id, paddle_left, paddle_right, ball)
+        initialize_redis(game_id, paddle_left, paddle_right, ball, parameters)
         print(f"[game_loop] Game objects initialisés pour game_id={game_id}")
 
         # 1) Attendre que le statut devienne 'ready' (durée max 60s)
@@ -95,6 +95,7 @@ async def game_loop(game_id):
             scorer = await handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right, ball)
             if scorer in ['score_left', 'score_right']:
                 handle_score(game_id, scorer)
+                await reset_all_objects(game_id, powerup_orbs, bumpers)
 
                 # Vérifier si on a un gagnant
                 if winner_detected(game_id):
@@ -107,11 +108,11 @@ async def game_loop(game_id):
             # print(f"3")#debug
             # 2.4 - Powerups & Bumpers
             if parameters.bonus_enabled:
-                await handle_powerups_spawn(game_id, powerup_orbs, current_time)
+                await handle_powerups_spawn(game_id, powerup_orbs, current_time, bumpers)
                 await handle_powerup_expiration(game_id, powerup_orbs)
 
             if parameters.obstacles_enabled:
-                await handle_bumpers_spawn(game_id, bumpers, current_time)
+                await handle_bumpers_spawn(game_id, bumpers, current_time, powerup_orbs)
                 await handle_bumper_expiration(game_id, bumpers)
             # print(f"4")#debug
 

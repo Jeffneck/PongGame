@@ -6,7 +6,7 @@
 
 // ========== Imports externes (si besoin) ==========
 // import { requestPost } from '../api'; // si besoin dans ce fichier
-import { createPowerupSVG, createBumperSVG } from '../api'; // si besoin dans ce fichier
+import { createPowerupSVG, createBumperSVG } from './live_game_svg';
 
 
   // ========== initPowerupImages ==========

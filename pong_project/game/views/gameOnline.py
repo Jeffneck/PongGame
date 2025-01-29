@@ -304,12 +304,59 @@ class CheckGameInvitationStatusView(View):
             'session_id': str(invitation.session.id) if invitation.session else None
         })
 
+# lancee par le front du player Left au moment de l'acceptation de l'invitation par le player right
+# IMPROVE pourrait etre une requete get ?
 @method_decorator(csrf_protect, name='dispatch')
-class StartOnlineGameView(LoginRequiredMixin, View):
+# class StartOnlineGameView(LoginRequiredMixin, View):
+class JoinOnlineGameAsLeftView(LoginRequiredMixin, View):
+    def get(self, request, game_id):
+        try:
+            session = GameSession.objects.get(id=game_id)
+        except GameSession.DoesNotExist:
+            return JsonResponse({
+                'status': 'error',
+                'message': "La session de jeu spécifiée n'existe pas."
+            }, status=404)
+
+        # Vérifier que c'est une partie en ligne
+        if not session.is_online:
+            return JsonResponse({
+                'status': 'error',
+                'message': "Cette session n'est pas une partie en ligne."
+            }, status=400)
+
+        # Vérifier que l'utilisateur est player_left OU player_right
+        if request.user not in [session.player_left, session.player_right]:
+            return JsonResponse({
+                'status': 'error',
+                'message': "Vous n'êtes pas autorisé à rejoindre cette partie."
+            }, status=403)
+
+        # Vérifier que la partie n'est pas déjà lancée/finie
+        if session.status in ['running', 'finished']:
+            return JsonResponse({
+                'status': 'error',
+                'message': "La partie est déjà lancée ou terminée."
+            }, status=400)
+
+        # Injecter le HTML de la page de jeu
+        rendered_html = render_to_string('game/online_game/live_online_game_left.html', {
+            'game_id': session.id,
+        }, request=request)
+
+        return JsonResponse({
+            'status': 'success',
+            'html': rendered_html,
+            'game_id': str(session.id),
+            'message': f"Partie {game_id} rejointe (online)."
+        })
+
+# lancee par le front du player RIGHT au moment de l'acceptation de l'invitation par le player right
+@method_decorator(csrf_protect, name='dispatch')
+class JoinOnlineGameAsRightView(LoginRequiredMixin, View):
     """
     Démarre la partie en ligne.
     """
-
     def get(self, request, game_id):
         try:
             session = GameSession.objects.get(id=game_id)
@@ -341,63 +388,13 @@ class StartOnlineGameView(LoginRequiredMixin, View):
             'message': f"Partie {game_id} lancée (online)."
         })
     
-    def post(self, request, game_id):
-        try:
-            session = GameSession.objects.get(id=game_id)
-        except GameSession.DoesNotExist:
-            return JsonResponse({
-                'status': 'error',
-                'message': "La session de jeu spécifiée n'existe pas."
-            }, status=404)
+   
 
-        # Vérifier que c'est une partie en ligne
-        if not session.is_online:
-            return JsonResponse({
-                'status': 'error',
-                'message': "Cette session n'est pas une partie en ligne."
-            }, status=400)
 
-        # Vérifier que l'utilisateur est player_left OU player_right
-        if request.user not in [session.player_left, session.player_right]:
-            return JsonResponse({
-                'status': 'error',
-                'message': "Vous n'êtes pas autorisé à lancer cette partie."
-            }, status=403)
-
-        # Vérifier la présence des deux joueurs
-        if not session.player_left or not session.player_right:
-            return JsonResponse({
-                'status': 'error',
-                'message': "Impossible de lancer la partie : il faut deux joueurs."
-            }, status=400)
-
-        # Vérifier que la partie n'est pas déjà lancée/finie
-        if session.status in ['running', 'finished']:
-            return JsonResponse({
-                'status': 'error',
-                'message': "La partie est déjà lancée ou terminée."
-            }, status=400)
-
-        # OK, on peut lancer la partie
-        # schedule_game(game_id)  # Appel à ta fonction d'initialisation/loop
-        # session.status = 'running'
-        # session.save()
-
-        # On peut injecter le HTML de la page de jeu
-        rendered_html = render_to_string('game/online_game/live_online_game.html', {
-            'game_id': session.id,
-        }, request=request)
-
-        return JsonResponse({
-            'status': 'success',
-            'html' : rendered_html,
-            'game_id' : str(session.id),
-            'message': f"Partie {game_id} lancée (online)."
-        })
-
-# lancee par l'appui sur le bouton Lancer la partie
+# lancee par l'appui sur le bouton Lancer la partie, uniquement cliquable par le joueur left
+# Cree la game-loop avec schedule_game et passe le statut de la partie a ready
 @method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toute la classe
-class RunOnlineGameView(View):
+class StartOnlineGameView(View):
     """
     Démarre la partie locale en exécutant la logique du jeu.
     """
@@ -405,7 +402,7 @@ class RunOnlineGameView(View):
         try:
             # Récupérer la session de jeu par son ID
             session = GameSession.objects.get(id=game_id)
-            print(f"[DEBUG] RunOnlineGameView gameSession {session}")  # Debug
+            print(f"[DEBUG] StartOnlineGameView gameSession {session}")  # Debug
 
             # Vérifier que la session est une partie locale
             if session.is_online == False:

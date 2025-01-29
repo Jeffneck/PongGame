@@ -36,7 +36,7 @@ from .views.gameSelectTournament import SelectTournamentView
 # from .views.gameInvitation import InviteGameView
 # from .views.gameInvitation import SendInvitationView, CancelInvitationView, RespondToInvitationView, ListInvitationsView, AcceptGameInvitationView
 from .views.gameLocal import StartLocalGameView, CreateGameLocalView
-from .views.gameOnline import CreateGameOnlineView, SendGameSessionInvitationView, AcceptGameInvitationView, RejectGameInvitationView, CleanExpiredInvitationsView, CheckGameInvitationStatusView, StartOnlineGameView, RunOnlineGameView
+from .views.gameOnline import CreateGameOnlineView, SendGameSessionInvitationView, AcceptGameInvitationView, RejectGameInvitationView, CleanExpiredInvitationsView, CheckGameInvitationStatusView, StartOnlineGameView, JoinOnlineGameAsLeftView, JoinOnlineGameAsRightView
 import logging
 
 
@@ -67,16 +67,19 @@ urlpatterns = [
 
     #ONLINE GAME
     # create game
+    # player left (the one that send the invitation)
     path('create_game_online/', CreateGameOnlineView.as_view(), name='create_game_online'),
-    path('run_online_game/<uuid:game_id>/', RunOnlineGameView.as_view(), name='run_online_game'),
-
-    # invitation
     path('send_gameSession_invitation/', SendGameSessionInvitationView.as_view(), name='send_gameSession_invitation'),
-    path('check_invitation_status/<uuid:invitation_id>/', CheckGameInvitationStatusView.as_view(), name='check_invitation_status'),
+    path('join_online_game_as_left/<uuid:game_id>/', JoinOnlineGameAsLeftView.as_view(), name='join_online_game_as_left'),
     path('start_online_game/<uuid:game_id>/', StartOnlineGameView.as_view(), name='start_online_game'),
 
-    # acceptance, rejection
+    # player right (the one that receive the invitation)
     path('accept_game_invitation/<uuid:invitation_id>/', AcceptGameInvitationView.as_view(), name='accept_game_invitation'),
+    path('join_online_game_as_right/<uuid:game_id>/', JoinOnlineGameAsRightView.as_view(), name='join_online_game_as_right'),
     path('reject_game_invitation/<uuid:invitation_id>/', RejectGameInvitationView.as_view(), name='reject_game_invitation'),
+
+    # Invitations managers
+    path('check_invitation_status/<uuid:invitation_id>/', CheckGameInvitationStatusView.as_view(), name='check_invitation_status'),
     path('clean_expired_invitations/<uuid:invitation_id>/', CleanExpiredInvitationsView.as_view(), name='clean_expired_invitations'),
+
 ]

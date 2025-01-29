@@ -6,9 +6,9 @@ export function liveOnlineGameLeft(options) {
   const { gameId, resultsUrl = '/results' } = options;
 
   // 1) La callback "Start la partie (online) pour LE JOUEUR GAUCHE"
-  async function runGameOnlineLeft(gameId) {
+  async function startOnlineGame(gameId) {
     // => Suppose qu'on appelle run_online_game/<gameId> ou start_online_game/<gameId>
-    const url = `run_online_game/${gameId}`;
+    const url = `start_online_game/${gameId}`;
     const formData = new FormData();
     formData.append('game_id', gameId);
 
@@ -31,6 +31,6 @@ export function liveOnlineGameLeft(options) {
     resultsUrl,
     wsUrl,
     startGameSelector: "#startGameBtn",
-    onStartGame: runGameOnlineLeft
+    onStartGame: startOnlineGame
   });
 }

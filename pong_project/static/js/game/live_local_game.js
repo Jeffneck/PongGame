@@ -7,7 +7,7 @@ export function liveLocalGame(options) {
   const { gameId, resultsUrl = '/results' } = options;
 
   // 1) Définir la callback pour "Start la partie" (start_local_game)
-  async function startGameLocal(gameId) {
+  async function startLocalGame(gameId) {
     const url = `start_local_game/${gameId}`;
     const formData = new FormData();
     formData.append('game_id', gameId);
@@ -31,7 +31,7 @@ export function liveLocalGame(options) {
     resultsUrl,
     wsUrl,
     startGameSelector: "#startGameBtn",  // le bouton
-    onStartGame: startGameLocal         // la callback
+    onStartGame: startLocalGame         // la callback
   });
 
   // Rien de plus à faire : tout le reste est géré par initLiveGame

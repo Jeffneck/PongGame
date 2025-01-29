@@ -1,7 +1,8 @@
 import { requestGet, requestPost } from '../api/index.js'; 
 import { updateHtmlContent } from '../tools/index.js'; 
-import { handleInviteGame } from './handleInvitationGame.js'; // Suppose qu'on gère l'invitation en ligne ici
+// import { handleInviteGame } from './handleInvitationGame.js'; // Suppose qu'on gère l'invitation en ligne ici
 import { liveLocalGame } from './live_local_game.js';
+import { createGameOnline } from './onlineGame.js'
 
 function attachGameMenuEvents() {
     const sections = ['local', 'online', 'tournament'];
@@ -111,7 +112,7 @@ function attachGameMenuEvents() {
 
                     // Maintenant on va charger la page "invite_game.html"
                     // et injecter le HTML dans #content (ou autre conteneur).
-                    await handleInviteGame(onlineParams);
+                    await createGameOnline(onlineParams);
 
                 } catch (err) {
                     console.error('Erreur lors de la phase d\'invitation :', err);

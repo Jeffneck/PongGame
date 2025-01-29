@@ -2,7 +2,7 @@ import { showFriendPopup, closePopupOnClickOutside, handleOptionPopup,  handleAd
 import { handleStatusChange } from './index.js';
 import { handleLogout } from '../auth/index.js';
 import { navigateTo } from '../router.js';
-import { handleGameInvitationBurgerMenu } from '../game/index.js';
+import { acceptGameInvitation} from '../game/index.js';
 // Gestionnaire principal des événements pour le menu burger
 export function eventsHandlerBurgerMenu() {
     console.log('Initialisation des gestionnaires d\'événements...');
@@ -121,7 +121,7 @@ function setupGameInvitationsEvent() {
                 const invitationId = button.getAttribute('data-invitation-id');
                 const action = button.getAttribute('data-action');
                 if (invitationId && action) {
-                    await handleGameInvitationBurgerMenu(invitationId, action);
+                    await acceptGameInvitation(invitationId, action);
                 }
             }
         });

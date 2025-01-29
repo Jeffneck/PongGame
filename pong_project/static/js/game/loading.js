@@ -20,13 +20,13 @@ export async function startLoading(participantCount) {
             initializeGameControls('keyboard');
         }
 
-        setTimeout(() => {
-            if (participantCount === 1) {
-                displayGame();
-            } else {
-                displayTournamentBracket(participantCount);
-            }
-        }, 20000);
+        // setTimeout(() => {
+        //     if (participantCount === 1) {
+        //         displayGame();
+        //     } else {
+        //         displayTournamentBracket(participantCount);
+        //     }
+        // }, 20000);
     } catch (error) {
         console.log('Erreur chargement page loading:', error);
     }

@@ -85,6 +85,7 @@ REDIS_PORT = int(os.environ.get("REDIS_PORT", 6379))
 #[added]
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:8080',
+    'http://192.168.1.176:8080',  # ONLINE Ajouter l'IP locale de l'ordinateur hebergant l'app
     # 'https://votre_domaine.com',  # Ajoutez votre domaine en production
     # Ajoutez d'autres origines si nécessaire
 ]

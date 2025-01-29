@@ -1,328 +1,1246 @@
-total 28
-drwxr-xr-x 1 User 197121    0 Jan 24 19:27 tournament/
--rw-r--r-- 1 User 197121 1305 Jan 24 19:25 setup_game_parameters.html
--rw-r--r-- 1 User 197121 1114 Jan 24 19:26 results_list.html
-drwxr-xr-x 1 User 197121    0 Jan 24 19:48 online_game/
-drwxr-xr-x 1 User 197121    0 Jan 24 19:47 local_game/
--rw-r--r-- 1 User 197121  669 Jan 24 20:20 index.html
-drwxr-xr-x 1 User 197121    0 Jan 24 20:03 ../
-drwxr-xr-x 1 User 197121    0 Jan 24 20:24 ./
-# local_game_views.py
+# game/game_loop/ball_utils.py
+from .redis_utils import get_key, set_key, delete_key
+from .dimensions_utils import get_terrain_rect
+import time
+import math
+import random
 
-from django.shortcuts import render,  redirect
-from .models import GameSession
-from .manager import schedule_game
-from .forms import GameParametersForm
+BALL_MIN_SPEED = 1
+BALL_MAX_SPEED = 20
+# -------------- BALL : UPDATE OBJECTS  --------------------
+def move_ball(game_id, ball):
+    ball.x = float(get_key(game_id, "ball_x")) + float(get_key(game_id, "ball_vx"))
+    ball.y = float(get_key(game_id, "ball_y")) + float(get_key(game_id, "ball_vy"))
+    update_ball_redis(game_id, ball)
 
 
-def parameter_local_game(request):
-    """
-    Crée un GameSession (UUID), init Redis avec les paramètres personnalisés, lance la loop en non-bloquant
-    """
-    if request.method == 'POST':
-        form = GameParametersForm(request.POST)
-        if form.is_valid():
-            # Créer une nouvelle GameSession
-            session = GameSession.objects.create(status='waiting') 
-            game_id = str(session.id)
+def reset_ball(game_id, ball):
+    terrain_rect = get_terrain_rect(game_id)
+    center_x = terrain_rect['left'] + terrain_rect['width'] // 2
+    center_y = terrain_rect['top'] + terrain_rect['height'] // 2
+    ball.reset(center_x, center_y, 4, 4)  # Vitesse X/Y à ajuster
+    update_ball_redis(game_id, ball)
+    print(f"[game_loop.py] Ball reset to ({ball.x}, {ball.y}) with speed ({ball.speed_x}, {ball.speed_y})")
 
-            # Créer les GameParameters liés à cette session
-            parameters = form.save(commit=False)
-            parameters.game_session = session
-            parameters.save()
-            print(f"[parameter_local_game] GameSession {game_id} created avec paramètres personnalisés. Scheduling game_loop.")
-            schedule_game(game_id)
 
-            return redirect('live_local_game', game_id=game_id)
+def move_ball_sticky(game_id, paddle_left, paddle_right, ball):
+    stuck_side = get_key(game_id, "ball_stuck_side").decode('utf-8')  # 'left' ou 'right'
+    
+    # Récupérer la raquette correspondante
+    if stuck_side == 'left':
+        current_paddle = paddle_left
     else:
-        form = GameParametersForm()
-    return render(request, 'game/local_game/parameter_local_game.html', {'form': form})
+        current_paddle = paddle_right
 
+    # Calculer y en fonction de sticky_relative_pos_<side>
+    rel_pos = float(get_key(game_id, f"sticky_relative_pos_{stuck_side}") or 0)
 
-def live_local_game(request, game_id):
-    """
-    Affiche la page HTML (canvas + websocket) pour la partie <game_id>
-    """
-    return render(request, 'game/local_game/live_local_game.html', {'game_id': game_id})
-# game/local_tournament_views.py
-
-from .models import GameSession
-from django.shortcuts import render, get_object_or_404, redirect
-from .models import GameSession, GameResult, GameParameters, LocalTournament
-from .manager import schedule_game
-from .forms import LocalTournamentForm
-
-
-def parameter_local_tournament(request):
-    if request.method == 'POST':
-        form = LocalTournamentForm(request.POST)
-        if form.is_valid():
-            tournament = form.save()
-            tournament.save()
-            
-            # Ensuite, rediriger ou afficher la page du tournoi
-            return redirect('detail_local_tournament', tournament_id=tournament.id)
+    # Mettre la balle à la nouvelle position
+    # X = collée contre la raquette
+    if stuck_side == 'left':
+        ball.x = current_paddle.x + current_paddle.width + ball.size
     else:
-        form = LocalTournamentForm()
-    return render(request, 'tournament/parameter_local_tournament.html', {'form': form})
+        ball.x = current_paddle.x - ball.size
+
+    # Y = (paddle.y + rel_pos)
+    ball.y = current_paddle.y + rel_pos
+
+    # Vérifier si on doit la relâcher (ex: après 1s)
+    start_t = float(get_key(game_id, f"sticky_start_time_{stuck_side}") or 0)
+    if time.time() - start_t >= 1.0:
+        # Relâcher la balle avec un petit boost
+        release_ball_sticky(game_id, current_paddle, stuck_side, ball)
 
 
-def detail_local_tournament(request, tournament_id):
+
+# -------------- BALL : UPDATE REDIS KEYS  --------------------
+def stick_ball_to_paddle(game_id, stuck_side, current_paddle, ball):
     """
-    Affiche le bracket du tournoi (2 demi-finales, 1 finale).
-    Au bout de X secondes, on rend visible un bouton vers la prochaine étape.
+    Colle la balle sur la raquette <stuck_side>.
     """
-    tournament = get_object_or_404(LocalTournament, pk=tournament_id)
+    print(f"[sticky] stick ball to {stuck_side} paddle")
+    # Calcul de la position relative
+    relative_pos = ball.y - current_paddle.y
 
-    # Récupérer les résultats éventuellement existants pour mettre à jour l'affichage
-    semifinal1_result = None
-    semifinal2_result = None
-    final_result = None
+    # Stocker la vitesse originale de la balle pour la remettre plus tard (facultatif)
+    set_key(game_id, "ball_original_vx", ball.speed_x)
+    set_key(game_id, "ball_original_vy", ball.speed_y)
 
-    if tournament.semifinal1:
-        semifinal1_result = GameResult.objects.filter(game=tournament.semifinal1).first()
-    if tournament.semifinal2:
-        semifinal2_result = GameResult.objects.filter(game=tournament.semifinal2).first()
-    if tournament.final:
-        final_result = GameResult.objects.filter(game=tournament.final).first()
+    # Indiquer en Redis que la balle est collée à cette raquette
+    set_key(game_id, "ball_stuck", 1)
+    set_key(game_id, "ball_stuck_side", stuck_side)
+    set_key(game_id, f"sticky_relative_pos_{stuck_side}", relative_pos)
+    set_key(game_id, f"sticky_start_time_{stuck_side}", time.time())
 
-    context = {
-        'tournament': tournament,
-        'semifinal1_result': semifinal1_result,
-        'semifinal2_result': semifinal2_result,
-        'final_result': final_result,
+    # Mettre la balle immobile
+    ball.speed_x = 0
+    ball.speed_y = 0
+
+    # Positionner la balle contre la raquette
+    if stuck_side == 'left':
+        ball.x = current_paddle.x + current_paddle.width + ball.size
+    else:
+        ball.x = current_paddle.x - ball.size
+
+def release_ball_sticky(game_id, current_paddle, stuck_side, ball):
+    print(f"[sticky] Releasing ball from {stuck_side} paddle")
+    # on conserve l'ancienne
+
+    # On récupère la vitesse originale (si on l'avait stockée)
+    ball.speed_x = float(get_key(game_id, "ball_original_vx") or BALL_MIN_SPEED)
+    ball.speed_y = float(get_key(game_id, "ball_original_vy") or BALL_MIN_SPEED)
+
+    # on donne le status speed boosted pour la rendre plus rapide lors de la prochaine collision avec le paddle
+    set_key(game_id, "ball_speed_boosted", 1)
+    # manage_ball_speed_and_angle(game_id, current_paddle, stuck_side, ball)
+
+    # Nettoyage des cles ayant permis a la balle de stuck
+    delete_key(game_id, "ball_stuck")
+    delete_key(game_id, "ball_stuck_side")
+    delete_key(game_id, f"sticky_relative_pos_{stuck_side}")
+    delete_key(game_id, f"sticky_start_time_{stuck_side}")
+    delete_key(game_id, "ball_original_vx")
+    delete_key(game_id, "ball_original_vy")
+
+    # Nettoyer le flag sticky de la raquette
+    delete_key(game_id, f"paddle_{stuck_side}_sticky")
+
+# -------------- BALL : UPDATE REDIS GENERAL KEYS --------------------
+
+def manage_ball_speed_and_angle(game_id, current_paddle, paddle_side, ball):
+    
+    ball_already_boosted = get_key(game_id, "ball_speed_already_boosted")
+    ball_speed_boosted = get_key(game_id, "ball_speed_boosted")
+    if ball_already_boosted and ball_already_boosted.decode('utf-8') == '1':
+        print("SPEED KILL")
+        ball.speed_x = float(get_key(game_id, "ball_speed_x_before_boost") or BALL_MIN_SPEED)
+        ball.speed_y = float(get_key(game_id, "ball_speed_y_before_boost") or BALL_MIN_SPEED)
+        delete_key(game_id, "ball_speed_x_before_boost")
+        delete_key(game_id, "ball_speed_y_before_boost")
+        delete_key(game_id, "ball_speed_already_boosted")
+    
+    if ball_speed_boosted and ball_speed_boosted.decode('utf-8') == '1':
+        print("SPEED BOOST")
+        set_key(game_id, "ball_speed_x_before_boost", ball.speed_x)
+        set_key(game_id, "ball_speed_y_before_boost", ball.speed_y)
+        set_key(game_id, "ball_speed_already_boosted", 1)
+        delete_key(game_id, "ball_speed_boosted")
+        tmp_speed = math.hypot(ball.speed_x, ball.speed_y) * 2
+    else :
+        tmp_speed = math.hypot(ball.speed_x, ball.speed_y) + 0.3
+    
+    #calculer la vitesse de renvoi de la balle
+    new_speed = max(BALL_MIN_SPEED, min(BALL_MAX_SPEED, tmp_speed)) 
+    print(f"ball new speed = {new_speed}")
+
+    # calculer l'angle de renvoi de la balle
+    relative_y = (ball.y - (current_paddle.y + current_paddle.height / 2)) / (current_paddle.height / 2)
+    relative_y = max(-1, min(1, relative_y))  # Limiter à l'intervalle [-1, 1]
+    angle = relative_y * (math.pi / 4)  # Max 45 degrés
+
+    # definir la speed_x et y grace à la vitesse generale et l'angle de renvoi calculé
+    new_speed_x = new_speed * math.cos(angle)
+    if paddle_side == 'left':
+        ball.speed_x = new_speed_x
+    else:
+        ball.speed_x = -new_speed_x
+
+    ball.speed_y = new_speed * math.sin(angle)
+
+
+
+def update_ball_redis(game_id, ball):
+    set_key(game_id, "ball_x", ball.x)
+    set_key(game_id, "ball_y", ball.y)
+    set_key(game_id, "ball_vx", ball.speed_x)
+    set_key(game_id, "ball_vy", ball.speed_y)# game/game_loop/broadcast.py
+
+from channels.layers import get_channel_layer
+from .redis_utils import get_key
+
+
+# --------- GAME STATE : NOTIFICATIONS -----------
+async def broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right, ball, powerup_orbs, bumpers):
+    """
+    Envoie l'état actuel du jeu aux clients via WebSocket.
+    """
+    # Récupérer les états des power-ups
+    powerups_data = []
+    for powerup_orb in powerup_orbs:
+        active = get_key(game_id, f"powerup_{powerup_orb.effect_type}_active" or 0)
+        if active and active.decode('utf-8') == '1':
+            x = float(get_key(game_id, f"powerup_{powerup_orb.effect_type}_x") or 0)
+            y = float(get_key(game_id, f"powerup_{powerup_orb.effect_type}_y") or 0)
+            powerups_data.append({
+                'type': powerup_orb.effect_type,
+                'x': x,
+                'y': y,
+                'color': list(powerup_orb.color)  # Convertir en liste pour JSON
+            })
+
+    # Récupérer les états des bumpers
+    # print(f"[game_loop.py] bumpers to send: {bumpers}")
+    bumpers_data = []
+    for bumper in bumpers:
+        active = get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_active" or 0)
+        if active and active.decode('utf-8') == '1':
+            x = float(get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_x") or 0)
+            y = float(get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_y") or 0)
+            bumpers_data.append({
+                'x': x,
+                'y': y,
+                'size': bumper.size,
+                'color': list(bumper.color)  # Convertir en liste pour JSON
+            })
+
+    data = {
+        'type': 'game_state',
+        'ball_x': ball.x,
+        'ball_y': ball.y,
+        'ball_size': ball.size,
+        'ball_speed_x': ball.speed_x,
+        'ball_speed_y': ball.speed_y,
+        'paddle_left_y': paddle_left.y,
+        'paddle_right_y': paddle_right.y,
+        'paddle_width': paddle_left.width,
+        'paddle_left_height': paddle_left.height,
+        'paddle_right_height': paddle_right.height,
+        'score_left': int(get_key(game_id, "score_left") or 0),
+        'score_right': int(get_key(game_id, "score_right") or 0),
+        'powerups': powerups_data,
+        'bumpers': bumpers_data,
+        'flash_effect': bool(get_key(game_id, f"flash_effect"))
     }
-    return render(request, 'tournament/detail_local_tournament.html', context)
+    # IMPROVE le flash effect peut etre renvoye en notif powerup applied
+
+    await channel_layer.group_send(f"pong_{game_id}", {
+        'type': 'broadcast_game_state',
+        'data': data
+    })
+    # print(f"[game_loop.py] Broadcast game_state for game_id={game_id}")
 
 
-def next_game_presentation_tournament(request, tournament_id, match_type):
+
+
+# --------- POWER UPS : NOTIFICATIONS -----------
+async def notify_powerup_spawned(game_id, powerup_orb):
+    channel_layer = get_channel_layer()
+    await channel_layer.group_send(
+        f"pong_{game_id}",
+        {
+            'type': 'powerup_spawned',
+            'powerup': {
+                'type': powerup_orb.effect_type,
+                'x': powerup_orb.x,
+                'y': powerup_orb.y,
+                'color': list(powerup_orb.color)
+            }
+        }
+    )
+
+async def notify_powerup_applied(game_id, player, effect, effect_duration):
+    channel_layer = get_channel_layer()
+    await channel_layer.group_send(
+        f"pong_{game_id}",
+        {
+            'type': 'powerup_applied',
+            'player': player,
+            'effect': effect,
+            'duration': effect_duration
+        }
+    )
+
+async def notify_powerup_expired(game_id, powerup_orb):
+    channel_layer = get_channel_layer()
+    await channel_layer.group_send(
+        f"pong_{game_id}",
+        {
+            'type': 'powerup_expired',
+            'powerup': {
+                'type': powerup_orb.effect_type,
+                'x': powerup_orb.x,
+                'y': powerup_orb.y
+            }
+        }
+    )
+
+# --------- BUMPERS : NOTIFICATIONS -----------
+async def notify_bumper_spawned(game_id, bumper):
+    channel_layer = get_channel_layer()
+    await channel_layer.group_send(
+        f"pong_{game_id}",
+        {
+            'type': 'bumper_spawned',
+            'bumper': {
+                'x': bumper.x,
+                'y': bumper.y,
+            }
+        }
+    )
+
+
+async def notify_bumper_expired(game_id, bumper):
+    channel_layer = get_channel_layer()
+    await channel_layer.group_send(
+        f"pong_{game_id}",
+        {
+            'type': 'bumper_expired',
+            'bumper': {
+                'x': bumper.x,
+                'y': bumper.y
+            }
+        }
+    )
+
+# --------- COLLISIONS : NOTIFICATIONS -----------
+async def notify_collision(game_id, collision_info):
+    channel_layer = get_channel_layer()
+    await channel_layer.group_send(
+        f"pong_{game_id}",
+        {
+            'type': 'collision_event',
+            'collision': collision_info
+        }
+    )
+
+async def notify_paddle_collision(game_id, paddle_side, ball):
+    collision_info = {
+        'type': 'paddle_collision',
+        'paddle_side': paddle_side,
+        'new_speed_x': ball.speed_x,
+        'new_speed_y': ball.speed_y,
+    }
+    await notify_collision(game_id, collision_info)
+
+    print(f"[collisions.py] Ball collided with {paddle_side} paddle. New speed: ({ball.speed_x}, {ball.speed_y})")
+
+async def notify_border_collision(game_id, border_side, ball):
+    collision_info = {
+        'type': 'border_collision',
+        'border_side': border_side,
+        'coor_x_collision': ball.x,
+    }
+    await notify_collision(game_id, collision_info)
+
+    print(f"[collisions.py] Ball collided with {border_side} border at coor x = {ball.x}.")
+
+async def notify_bumper_collision(game_id, bumper, ball):
+    collision_info = {
+        'type': 'bumper_collision',
+        'bumper_x': bumper.x,
+        'bumper_y': bumper.y,
+        'new_speed_x': ball.speed_x,
+        'new_speed_y': ball.speed_y,
+    }
+    await notify_collision(game_id, collision_info)
+
+    print(f"[collisions.py] Ball collided with bumper at ({bumper.x}, {bumper.y}). New speed: ({ball.speed_x}, {ball.speed_y})")
+
+
+# --------- END GAME : NOTIFICATIONS  -----------
+
+async def notify_game_finished(game_id, tournament_id, winner, looser):
+    channel_layer = get_channel_layer()
+    await channel_layer.group_send(
+        f"pong_{game_id}",
+        {
+            'type': 'game_over',
+            'tournament_id': str(tournament_id),
+            'winner': winner,
+            'looser': looser
+        }
+    )# game/game_loop/bumpers_utils.py
+
+import time
+from .redis_utils import get_key, set_key, delete_key
+from .dimensions_utils import get_terrain_rect
+from .broadcast import notify_bumper_spawned, notify_bumper_expired
+import random
+
+MAX_ACTIVE_BUMPERS = 3
+SPAWN_INTERVAL_BUMPERS = 7
+# -------------- BUMPERS --------------------
+async def handle_bumpers_spawn(game_id, bumpers, current_time):
+    # Initialisation de last_bumper_spawn_time si elle n'est pas déjà définie
+    if not hasattr(handle_bumpers_spawn, "last_bumper_spawn_time"):
+        handle_bumpers_spawn.last_bumper_spawn_time = current_time  # Initialisation lors du premier appel
+
+    # Utilisation de la variable statique pour vérifier l'intervalle de temps
+    if current_time - handle_bumpers_spawn.last_bumper_spawn_time >= SPAWN_INTERVAL_BUMPERS:
+        active_bumpers = count_active_bumpers(game_id, bumpers)
+        if active_bumpers < MAX_ACTIVE_BUMPERS:
+            # S'assurer qu'on ne génère qu'un seul bumper à la fois
+            bumper = random.choice(bumpers)
+            if not bumper.active:
+                terrain = get_terrain_rect(game_id)
+                spawned = await spawn_bumper(game_id, bumper, terrain)
+                if spawned:
+                    # Mettre à jour le temps de spawn du bumper pour éviter les doubles spawns
+                    handle_bumpers_spawn.last_bumper_spawn_time = current_time
+                    print(f"[game_loop.py] game_id={game_id} - Bumper spawned at ({bumper.x}, {bumper.y}).")
+
+
+async def spawn_bumper(game_id, bumper, terrain_rect):
+    if bumper.spawn(terrain_rect):
+        set_bumper_redis(game_id, bumper)
+        print(f"[game_loop.py] Bumper spawned at ({bumper.x}, {bumper.y})")
+        await notify_bumper_spawned(game_id, bumper)
+        return True
+    return False
+
+def count_active_bumpers(game_id, bumpers):
+    count = 0
+    for bumper in bumpers:
+        # active = int(get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_active") or 0)
+        active = get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_active") or 0
+        if active and active.decode('utf-8') == '1':
+        # if active :
+            count += 1
+    print(f"[loop.py] count_active_bumpers ({count})")
+    return count
+
+async def handle_bumper_expiration(game_id, bumpers):
+    current_time = time.time()
+    for bumper in bumpers:
+        active = get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_active") or 0
+        # active = int(get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_active") or 0)
+        if active and active.decode('utf-8') == '1'and current_time - bumper.spawn_time >= bumper.duration:
+        # if active and current_time - bumper.spawn_time >= bumper.duration:
+            delete_bumper_redis(game_id, bumper)
+            print(f"[loop.py] Bumper at ({bumper.x}, {bumper.y}) expired")
+            await notify_bumper_expired(game_id, bumper)
+
+# -------------- BUMPERS : UPDATE REDIS DATA --------------------
+def set_bumper_redis(game_id, bumper):
+    bumper.activate()
+    set_key(game_id, f"bumper_{bumper.x}_{bumper.y}_active", 1)
+    set_key(game_id, f"bumper_{bumper.x}_{bumper.y}_x", bumper.x)
+    set_key(game_id, f"bumper_{bumper.x}_{bumper.y}_y", bumper.y)
+
+
+def delete_bumper_redis(game_id, bumper):
+    bumper.deactivate()
+    delete_key(game_id, f"bumper_{bumper.x}_{bumper.y}_active")
+    delete_key(game_id, f"bumper_{bumper.x}_{bumper.y}_x")
+    delete_key(game_id, f"bumper_{bumper.x}_{bumper.y}_y")# game/game_loop/collisions.py
+
+import math
+import random
+import time
+from asgiref.sync import sync_to_async
+from .ball_utils import  stick_ball_to_paddle, manage_ball_speed_and_angle, update_ball_redis
+from .redis_utils import get_key, set_key, delete_key
+from .powerups_utils import apply_powerup
+from .broadcast import notify_paddle_collision, notify_border_collision, notify_bumper_collision, notify_powerup_applied
+
+MIN_SPEED = 1.0
+
+async def handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right, ball):
     """
-    Affiche un écran de 'préparation' pour la partie à venir (ex: semifinal1, semifinal2, final).
-    Au bout de 3 sec, un bouton "Commencer la partie" apparaît.
+    Gère le fait qu'on marque un point ou qu'on ait juste un rebond sur la raquette.
+    Retourne 'score_left', 'score_right' ou None si on continue le jeu.
     """
-    tournament = get_object_or_404(LocalTournament, pk=tournament_id)
+    
+    # 1) Vérifier si la balle sort à gauche => point pour la droite
+    if ball.x - ball.size <= paddle_left.x + paddle_left.width:
+        # Soit on a collision, soit c'est un but
+        if paddle_left.y <= ball.y <= paddle_left.y + paddle_left.height:
+            # Collision raquette gauche
+            # Vérifier sticky
+            is_sticky = bool(get_key(game_id, "paddle_left_sticky") or 0)
+            if is_sticky : 
+                is_already_stuck = bool(get_key(game_id, "ball_stuck") or 0)
+                if not is_already_stuck:
+                    # On "colle" la balle
+                    stick_ball_to_paddle(game_id, 'left', paddle_left, ball)
+                    # set_key(game_id, "paddle_left_already_stuck", 1)
+                return None
+            else:
 
-    if match_type == 'semifinal1':
-        player_left = tournament.player1
-        player_right = tournament.player2
-    elif match_type == 'semifinal2':
-        player_left = tournament.player3
-        player_right = tournament.player4
-    elif match_type == 'final':
-        # Pour la finale, on suppose que les vainqueurs des 2 semi-finals sont déjà connus.
-        # On peut aller chercher les winners via les GameResults:
-        from .models import GameResult
-        semi1_result = GameResult.objects.filter(game=tournament.semifinal1).first()
-        semi2_result = GameResult.objects.filter(game=tournament.semifinal2).first()
-        if semi1_result and semi2_result:
-            # On récupère le pseudo vainqueur = "left" ou "right" correspond aux pseudos initiaux
-            # ou stocker autrement. Ici on suppose qu'on a stocké direct "player1" ou "player2" dans winner.
-            player_left = semi1_result.winner
-            player_right = semi2_result.winner
+                # Rebond classique
+                ball.last_player = 'left'
+                await process_paddle_collision(game_id, 'left', paddle_left, ball)
+                return None
         else:
-            # Erreur ou fallback
-            player_left = "????"
-            player_right = "????"
-    else:
-        # Cas non géré
-        return redirect('detail_local_tournament', tournament_id=tournament_id)
+            # Balle sortie côté gauche => score pour la droite
+            return 'score_right'
 
-    context = {
-        'tournament': tournament,
-        'match_type': match_type,
-        'player_left': player_left,
-        'player_right': player_right,
+    # 2) Vérifier si la balle sort à droite => point pour la gauche
+    if ball.x + ball.size >= paddle_right.x:
+        if paddle_right.y <= ball.y <= paddle_right.y + paddle_right.height:
+            # Collision raquette droite
+            is_sticky = bool(get_key(game_id, "paddle_right_sticky") or 0)
+            if is_sticky:
+                is_already_stuck = bool(get_key(game_id, "ball_stuck") or 0)
+                if not is_already_stuck:
+                    # On "colle" la balle
+                    stick_ball_to_paddle(game_id, 'right', paddle_right, ball)
+                    # set_key(game_id, "paddle_right_already_stuck", 1)
+                return None
+            else:
+                ball.last_player = 'right'
+                await process_paddle_collision(game_id, 'right', paddle_right, ball)
+                return None
+        else:
+            return 'score_left'
+
+    return None
+
+
+
+#ball
+async def process_paddle_collision(game_id, paddle_side, current_paddle, ball):
+    """
+    Gère la logique de collision entre la balle et une raquette.
+    Ajuste la vitesse et la direction de la balle, met à jour Redis et notifie les clients.
+    """
+    print("process_paddle_collision")
+
+
+    # speed = math.hypot(ball.speed_x, ball.speed_y) * 1.03  # Augmenter la vitesse
+    speed = manage_ball_speed_and_angle(game_id, current_paddle, paddle_side, ball)
+
+
+
+
+    # Mettre à jour la balle dans Redis
+    update_ball_redis(game_id, ball)
+
+    # Notifier la collision via WebSocket
+    await notify_paddle_collision(game_id, paddle_side, ball)
+    
+
+async def handle_border_collisions(game_id, ball):
+    """
+    Gère les collisions avec les bords supérieur et inférieur.
+    Ajuste la vitesse de la balle en conséquence.
+    """
+    if ball.y - ball.size <= 50:
+        border_side = "up"
+        ball.speed_y = abs(ball.speed_y)  # Rebond vers le bas
+        update_ball_redis(game_id, ball)
+        await notify_border_collision(game_id, border_side, ball)
+
+    elif ball.y + ball.size >= 350:
+        border_side = "down"
+        ball.speed_y = -abs(ball.speed_y)  # Rebond vers le haut
+        update_ball_redis(game_id, ball)
+        await notify_border_collision(game_id, border_side, ball)
+
+
+async def handle_bumper_collision(game_id, ball, bumpers):
+    """
+    Gère les collisions entre la balle et les bumpers.
+    Ajuste la vitesse et la direction de la balle, met à jour Redis et notifie les clients.
+    """
+    current_time = time.time()
+    for bumper in bumpers:
+        if bumper.active:
+            dist = math.hypot(ball.x - bumper.x, ball.y - bumper.y)
+            if dist <= ball.size + bumper.size:
+                # if current_time - bumper.last_collision_time >= COOLDOWN_TIME:
+                angle = math.atan2(ball.y - bumper.y, ball.x - bumper.x)
+                speed = math.hypot(ball.speed_x, ball.speed_y)
+                ball.speed_x = speed * math.cos(angle)
+                ball.speed_y = speed * math.sin(angle)
+
+                # Mettre à jour la balle dans Redis
+                update_ball_redis(game_id, ball)
+
+                # IMPROVE (inutile ?) Mettre à jour le temps de la dernière collision
+                bumper.last_collision_time = current_time
+
+                # Notifier la collision via WebSocket
+                await notify_bumper_collision(game_id, bumper, ball)
+                    
+
+async def handle_powerup_collision(game_id, ball, powerup_orbs):
+    """
+    Vérifie si la balle a ramassé un power-up en dehors des collisions avec les paddles.
+    Applique l'effet du power-up au joueur concerné, met à jour Redis et notifie les clients.
+    """
+    for powerup_orb in powerup_orbs:
+        if powerup_orb.active:
+            dist = math.hypot(ball.x - powerup_orb.x, ball.y - powerup_orb.y)
+            if dist <= ball.size + powerup_orb.size:
+                # Associer le power-up au dernier joueur qui a touché la balle
+                last_player = ball.last_player
+                if last_player:
+                    await apply_powerup(game_id, last_player, powerup_orb)
+# game/game_loop/dimensions_utils.py
+def get_terrain_rect(game_id):
+    """
+    Retourne les dimensions du terrain. Peut être ajusté pour récupérer les dimensions dynamiquement.
+    """
+    return {
+        'left': 50,
+        'top': 50,
+        'width': 700,
+        'height': 300
     }
-    return render(request, 'tournament/next_game_presentation_tournament.html', context)
+# game/game_loop/initialize_game.py
 
-# tournoi
-def start_next_tournament_game(request, tournament_id, match_type):
-    tournament = get_object_or_404(LocalTournament, pk=tournament_id)
+from .redis_utils import set_key
+from ..game_objects import Paddle, Ball, PowerUpOrb, Bumper
+from .dimensions_utils import get_terrain_rect
 
-    if match_type == 'semifinal1':
-        # Créer systématiquement la GameSession pour la demi-finale 1
-        gs = GameSession.objects.create(
-            player_left=tournament.player1,
-            player_right=tournament.player2,
-            status='waiting'
-        )
 
-        # Associer des paramètres à cette GameSession
-        if tournament.parameters:
-            GameParameters.objects.create(
-                game_session=gs,
-                ball_speed=tournament.parameters.ball_speed,
-                paddle_size=tournament.parameters.paddle_size,
-                bonus_enabled=tournament.parameters.bonus_enabled,
-                obstacles_enabled=tournament.parameters.obstacles_enabled
-            )
+FIELD_HEIGHT = 300
 
-        # Enregistrer cette demi-finale dans le tournoi
-        tournament.semifinal1 = gs
-        tournament.status = 'semifinal1_in_progress'
-        tournament.save()
+#------------- INITIALIZE : CREATE ALL GAME OBJECTS WITH THEIR INITIAL VALUES --------------
+def initialize_game_objects(game_id, parameters):
+    paddle_size = {1: 30, 2: 60, 3: 90}[parameters.paddle_size]
+    paddle_speed = 6  # Peut être ajusté si nécessaire
+    ball_speed_multiplier = parameters.ball_speed
 
-    elif match_type == 'semifinal2':
-        # Créer la GameSession pour la demi-finale 2
-        gs = GameSession.objects.create(
-            player_left=tournament.player3,
-            player_right=tournament.player4,
-            status='waiting'
-        )
-        # Associer des paramètres à cette GameSession
-        if tournament.parameters:
-            GameParameters.objects.create(
-                game_session=gs,
-                ball_speed=tournament.parameters.ball_speed,
-                paddle_size=tournament.parameters.paddle_size,
-                bonus_enabled=tournament.parameters.bonus_enabled,
-                obstacles_enabled=tournament.parameters.obstacles_enabled
-            )
-        tournament.semifinal2 = gs
-        tournament.status = 'semifinal2_in_progress'
-        tournament.save()
+    # Obtenir les dimensions du terrain
+    terrain_rect = get_terrain_rect(game_id)
 
-    elif match_type == 'final':
-        # Pour la finale, on récupère éventuellement les vainqueurs
-        semi1_result = GameResult.objects.filter(game=tournament.semifinal1).first()
-        semi2_result = GameResult.objects.filter(game=tournament.semifinal2).first()
+    # Initialiser les raquettes
+    paddle_left = Paddle('left', paddle_size, paddle_speed)
+    paddle_right = Paddle('right', paddle_size, paddle_speed)
 
-        # Récupérer les pseudos vainqueurs ou fallback
-        winner_semifinal1 = semi1_result.winner if semi1_result else tournament.player1
-        winner_semifinal2 = semi2_result.winner if semi2_result else tournament.player3
+    # Initialiser la balle
+    initial_ball_speed_x = 4 * ball_speed_multiplier
+    initial_ball_speed_y = 4 * ball_speed_multiplier
+    ball = Ball(
+        terrain_rect['left'] + terrain_rect['width'] // 2,
+        terrain_rect['top'] + terrain_rect['height'] // 2,
+        initial_ball_speed_x,
+        initial_ball_speed_y
+    )
 
-        # Créer la GameSession pour la finale
-        gs = GameSession.objects.create(
-            player_left=winner_semifinal1,
-            player_right=winner_semifinal2,
-            status='waiting'
-        )
-        # Associer des paramètres à la finale
-        if tournament.parameters:
-            GameParameters.objects.create(
-                game_session=gs,
-                ball_speed=tournament.parameters.ball_speed,
-                paddle_size=tournament.parameters.paddle_size,
-                bonus_enabled=tournament.parameters.bonus_enabled,
-                obstacles_enabled=tournament.parameters.obstacles_enabled
-            )
-        tournament.final = gs
-        tournament.status = 'final_in_progress'
-        tournament.save()
+    # Initialiser les power-ups et bumpers
+    powerup_orbs = [
+        PowerUpOrb(game_id, 'invert', terrain_rect, color=(255, 105, 180)),  # Rose pour inverser
+        PowerUpOrb(game_id, 'shrink', terrain_rect, color=(255, 0, 0)),      # Rouge pour rétrécir
+        PowerUpOrb(game_id, 'ice', terrain_rect, color=(0, 255, 255)),       # Cyan pour glace
+        PowerUpOrb(game_id, 'speed', terrain_rect, color=(255, 215, 0)),     # Or pour vitesse
+        PowerUpOrb(game_id, 'flash', terrain_rect, color=(255, 255, 0)),     # Jaune pour flash
+        PowerUpOrb(game_id, 'sticky', terrain_rect, color=(50, 205, 50))     # Vert lime pour collant
+    ]
 
+    bumpers = []
+    if parameters.obstacles_enabled:
+        bumpers = [Bumper(game_id, terrain_rect) for _ in range(3)]  # Ajuster le nombre si nécessaire
+
+    return paddle_left, paddle_right, ball, powerup_orbs, bumpers
+
+
+
+#------------- INITIALIZE : UPDATE REDIS DATABASE WITH OBJECTS VALUES--------------
+def initialize_redis(game_id, paddle_left, paddle_right, ball):
+    # Positions initiales des raquettes
+    set_key(game_id, "paddle_left_y", paddle_left.y)
+    set_key(game_id, "paddle_right_y", paddle_right.y)
+
+    # Vélocités initiales des raquettes (0 => immobiles)
+    set_key(game_id, "paddle_left_velocity", 0)
+    set_key(game_id, "paddle_right_velocity", 0)
+
+    # Balle
+    set_key(game_id, "ball_x", ball.x)
+    set_key(game_id, "ball_y", ball.y)
+    set_key(game_id, "ball_vx", ball.speed_x)
+    set_key(game_id, "ball_vy", ball.speed_y)# game/game_loop/loop.py
+
+import asyncio
+import time
+from django.conf import settings
+from channels.layers import get_channel_layer
+from asgiref.sync import sync_to_async
+
+from .redis_utils import get_key
+from .models_utils import get_gameSession_status, set_gameSession_status, get_gameSession_parameters
+from .initialize_game import initialize_game_objects, initialize_redis
+from .paddles_utils import move_paddles
+from .ball_utils import move_ball, move_ball_sticky, reset_ball
+from .collisions import (
+    handle_scoring_or_paddle_collision,
+    # make_paddle_sticky,
+    handle_border_collisions,
+    handle_bumper_collision,
+    handle_powerup_collision
+)
+from .score_utils import handle_score, winner_detected, finish_game
+from .bumpers_utils import handle_bumpers_spawn, handle_bumper_expiration
+from .powerups_utils import handle_powerups_spawn, handle_powerup_expiration
+from .broadcast import broadcast_game_state
+
+async def game_loop(game_id):
+    """
+    Boucle principale pour UNE partie identifiée par game_id.
+    Tourne ~60 fois/s tant que la partie n'est pas 'finished'.
+    """
+    channel_layer = get_channel_layer()
+    dt = 1/60
+    print(f"[game_loop.py] Starting loop for game_id={game_id}.")
+
+    try:
+        # Récupérer/charger les paramètres
+        parameters = await get_gameSession_parameters(game_id)
+        if not parameters:
+            print(f"[game_loop] Pas de paramètres pour le game_id={game_id}, on quitte.")
+            return
+
+        # Construire les objets (raquettes, balle, powerups, bumpers)
+        paddle_left, paddle_right, ball, powerup_orbs, bumpers = initialize_game_objects(game_id, parameters)
+        initialize_redis(game_id, paddle_left, paddle_right, ball)
+        print(f"[game_loop] Game objects initialisés pour game_id={game_id}")
+
+        # 1) Attendre que le statut devienne 'ready' (durée max 60s)
+        timeout = 60
+        start_time = time.time()
+
+        while True:
+            session_status = await get_gameSession_status(game_id)
+            print(f"[game_loop] game_id={game_id} en attente du statut 'ready'. Actuel={session_status}")
+
+            # IMPROVE : quand la session est en ready afficher le message, "READY" sur le front, 
+            # quand le joueur1 clique sur Lancer la partie il passe session status en running ce qui sort de la boucle d'attente (running = break)
+            if session_status == 'ready':
+                print(f"[game_loop] game_id={game_id} => statut 'ready' détecté. On lance le jeu.")
+                break
+
+            if time.time() - start_time > timeout:
+                print(f"[game_loop] Timeout: la partie {game_id} n'est jamais passée en 'ready' après {timeout}s.")
+                return  # On abandonne
+
+            await asyncio.sleep(1)
+
+        # 2) Passer en 'running' et faire la boucle ~60fps IMPROVE ce ne sera plus le jeu lui meme qui fera passer la session en running mais le clic sur le bouton Lancer partie
+        await set_gameSession_status(game_id, 'running')
+        print(f"[game_loop] game_id={game_id} => statut 'running'. Début de la boucle.")
+
+        while True:
+            # Vérifier si la partie est encore 'running' ou si on l'a terminée
+            session_status = await get_gameSession_status(game_id)
+            if session_status != 'running':
+                print(f"[game_loop] game_id={game_id} => statut={session_status}. Fin de la boucle.")
+                break
+
+            current_time = time.time()
+
+            # 2.1 - Mouvements
+            move_paddles(game_id, paddle_left, paddle_right)
+
+            #creer fonction is_sticky dans powerup utils ou ball utils
+            stuck_flag = get_key(game_id, "ball_stuck")
+            if stuck_flag and stuck_flag.decode('utf-8') == '1':
+                move_ball_sticky(game_id, paddle_left, paddle_right, ball)
+            else :
+                move_ball(game_id, ball)
+            # print(f"1")#debug
+            # 2.2 - Collisions
+            await handle_border_collisions(game_id, ball)
+            await handle_bumper_collision(game_id, ball, bumpers)
+            await handle_powerup_collision(game_id, ball, powerup_orbs)
+            # print(f"2")#debug
+
+            # 2.3 - Paddles / Score
+            scorer = await handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right, ball)
+            if scorer in ['score_left', 'score_right']:
+                handle_score(game_id, scorer)
+
+                # Vérifier si on a un gagnant
+                if winner_detected(game_id):
+                    await finish_game(game_id)
+                    break
+                else:
+                    # Sinon reset de la balle
+                    reset_ball(game_id, ball)
+
+            # print(f"3")#debug
+            # 2.4 - Powerups & Bumpers
+            if parameters.bonus_enabled:
+                await handle_powerups_spawn(game_id, powerup_orbs, current_time)
+                await handle_powerup_expiration(game_id, powerup_orbs)
+
+            if parameters.obstacles_enabled:
+                await handle_bumpers_spawn(game_id, bumpers, current_time)
+                await handle_bumper_expiration(game_id, bumpers)
+            # print(f"4")#debug
+
+            # 2.5 - Broadcast de l'état
+            await broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right, ball, powerup_orbs, bumpers)
+
+            # print(f"5")#debug
+            # 2.6 - Attendre ~16ms
+            await asyncio.sleep(dt)
+
+    except Exception as e:
+        print(f"[game_loop] Exception pour game_id={game_id} : {e}")
+
+    finally:
+        print(f"[game_loop] Fin du game_loop pour game_id={game_id}.")# game/game_loop/models_utils.py
+from django.apps import apps  # Import retardé pour éviter les conflits d'import
+from asgiref.sync import sync_to_async
+
+
+async def get_gameSession_status(game_id):
+    GameSession = apps.get_model('game', 'GameSession')
+    try:
+        session = await sync_to_async(GameSession.objects.get)(pk=game_id)
+        return session.status
+    except GameSession.DoesNotExist:
+        return 'finished'
+
+
+async def set_gameSession_status(game_id, status):
+    GameSession = apps.get_model('game', 'GameSession')
+    try:
+        session = await sync_to_async(GameSession.objects.get)(pk=game_id)
+        session.status = status
+        await sync_to_async(session.save)()
+        return session
+    except GameSession.DoesNotExist:
+        return None
+
+
+async def get_gameSession_parameters(game_id):
+    GameSession = apps.get_model('game', 'GameSession')
+    try:
+        session = await sync_to_async(GameSession.objects.get)(pk=game_id)
+        parameters = await sync_to_async(getattr)(session, 'parameters', None)
+        return parameters
+    except GameSession.DoesNotExist:
+        return None
+    
+async def get_LocalTournament(game_id, phase):
+    LocalTournament = apps.get_model('game', 'LocalTournament')
+    if phase == "semifinal1":
+        tournament = await sync_to_async(LocalTournament.objects.filter(semifinal1__id=game_id).first)()
+    elif phase == "semifinal2":
+        tournament = await sync_to_async(LocalTournament.objects.filter(semifinal2__id=game_id).first)()
     else:
-        # Cas non géré (erreur ou retour)
-        return redirect('detail_local_tournament', tournament_id=tournament.id)
-
-    # Lance la loop asynchrone pour la partie
-    schedule_game(str(gs.id))
-
-    # Redirige vers la page de la partie
-    return redirect('live_tournament_game', game_id=gs.id)
-
-def live_tournament_game(request, game_id):
-    """
-    Affiche la page HTML (canvas + websocket) pour la partie <game_id>
-    """
-    return render(request, 'tournament/live_tournament_game.html', {'game_id': game_id})# game/views.py
-
-# from django.shortcuts import render,  redirect
-# from .models import GameSession
-# from .manager import schedule_game
-# from .forms import GameParametersForm
+        tournament = await sync_to_async(LocalTournament.objects.filter(final__id=game_id).first)()
+    return tournament
 
 
-# def parameter_online_game(request):
-#     """
-#     Crée un GameSession (UUID), init Redis avec les paramètres personnalisés, lance la loop en non-bloquant
-#     """
-#     if request.method == 'POST':
-#         form = GameParametersForm(request.POST)
-#         if form.is_valid():
-#             # Créer une nouvelle GameSession
-#             session = GameSession.objects.create(status='waiting') 
-#             game_id = str(session.id)
+async def create_gameResults(game_id, endgame_infos):
+    GameSession = apps.get_model('game', 'GameSession')
+    GameResult = apps.get_model('game', 'GameResult')
+    try:
+        session = await sync_to_async(GameSession.objects.get)(pk=game_id)
+        await sync_to_async(GameResult.objects.create)(
+            game=session,
+            winner=endgame_infos['winner'],
+            looser=endgame_infos['looser'],
+            score_left=endgame_infos['score_left'],
+            score_right=endgame_infos['score_right']
+        )
+    except GameSession.DoesNotExist:
+        print(f"[create_gameResults] GameSession {game_id} does not exist.")# game/game_loop/paddles_utils.py
+from .redis_utils import get_key, set_key
+from .dimensions_utils import get_terrain_rect
+# FIELD_HEIGHT = 400
 
-#             # Créer les GameParameters liés à cette session
-#             parameters = form.save(commit=False)
-#             parameters.game_session = session
-#             parameters.save()
-#             print(f"[create_game] GameSession {game_id} created avec paramètres personnalisés. Scheduling game_loop.")
-#             schedule_game(game_id)
+# -------------- PADDLES --------------------
+def move_paddles(game_id, paddle_left, paddle_right):
+    # 1) Lire les infos depuis Redis
+    left_vel = float(get_key(game_id, "paddle_left_velocity") or 0)
+    right_vel = float(get_key(game_id, "paddle_right_velocity") or 0)
 
-#             return redirect('send_online_game_invitation', game_id=game_id)
+    # Hauteurs
+    new_left_height = float(get_key(game_id, "paddle_left_height") or paddle_left.height)
+    new_right_height = float(get_key(game_id, "paddle_right_height") or paddle_right.height)
+
+    # Effets
+    is_left_inverted = bool(get_key(game_id, "paddle_left_inverted"))
+    is_right_inverted = bool(get_key(game_id, "paddle_right_inverted"))
+    is_left_on_ice = bool(get_key(game_id, "paddle_left_ice_effect"))
+    is_right_on_ice = bool(get_key(game_id, "paddle_right_ice_effect"))
+    has_left_speed_boost = bool(get_key(game_id, "paddle_left_speed_boost"))
+    has_right_speed_boost = bool(get_key(game_id, "paddle_right_speed_boost"))
+
+    # 2) Appliquer la hauteur
+    paddle_left.height = new_left_height
+    paddle_right.height = new_right_height
+
+    # 3) Calculer la direction effective
+    #    si invert => inverser le signe
+    if is_left_inverted:
+        left_vel = -left_vel
+    if is_right_inverted:
+        right_vel = -right_vel
+
+    #    si speed_boost => multiplier la vitesse
+    if has_left_speed_boost:
+        left_vel *= 1.5
+    if has_right_speed_boost:
+        right_vel *= 1.5
+
+    # 4) Déduire direction ou laisser en “velocity”
+    #    si on préfère la “direction” => -1,0,+1
+    #    ou rester en “velocity” direct
+    #    Dans le Paddle, on a la logique : if is_on_ice => friction etc.
+    direction_left = 0
+    if left_vel > 0: direction_left = 1
+    elif left_vel < 0: direction_left = -1
+
+    direction_right = 0
+    if right_vel > 0: direction_right = 1
+    elif right_vel < 0: direction_right = -1
+
+    # 5) Appeler la méthode move(...) de la classe Paddle
+    terrain_top = 50
+    terrain_bottom = 350
+
+    # On peut éventuellement passer “speed_boost” dans la signature.
+    # Ou, comme ci-dessous, vous appliquez la friction/glace directement dedans.
+    paddle_left.move(direction_left, is_left_on_ice, terrain_top, terrain_bottom, speed_boost=has_left_speed_boost)
+    paddle_right.move(direction_right, is_right_on_ice, terrain_top, terrain_bottom, speed_boost=has_right_speed_boost)
+
+    # 6) Sauvegarder la position finale dans Redis
+    set_key(game_id, "paddle_left_y", paddle_left.y)
+    set_key(game_id, "paddle_right_y", paddle_right.y)
+    # Ici, on peut aussi sauvegarder la velocity si on veut la persister.
+
+# -------------- PADDLES : UPDATE REDIS--------------------
+# def update_paddles_redis(game_id, paddle_left, paddle_right):
+#     """Updates paddle positions considering active effects."""
+#     left_vel = float(get_key(game_id, f"paddle_left_velocity") or 0)
+#     right_vel = float(get_key(game_id, f"paddle_right_velocity") or 0)
+
+#     # Apply speed boost if active
+#     if get_key(game_id, f"paddle_left_speed_boost"):
+#         left_vel *= 1.5  # 50% speed increase
+#     if get_key(game_id, f"paddle_right_speed_boost"):
+#         right_vel *= 1.5  # 50% speed increase
+
+#     # Convert velocity to direction
+#     left_direction = 0 if left_vel == 0 else (1 if left_vel > 0 else -1)
+#     right_direction = 0 if right_vel == 0 else (1 if right_vel > 0 else -1)
+
+#     # Apply inverted controls first
+#     if get_key(game_id, f"paddle_left_inverted"):
+#         left_direction *= -1
+#         left_vel *= -1
+#     if get_key(game_id, f"paddle_right_inverted"):
+#         right_direction *= -1
+#         right_vel *= -1
+
+#     # Check ice effects
+#     left_on_ice = bool(get_key(game_id, f"paddle_left_ice_effect"))
+#     right_on_ice = bool(get_key(game_id, f"paddle_right_ice_effect"))
+
+#     # Get current paddle heights from Redis
+#     left_height = float(get_key(game_id, f"paddle_left_height") or paddle_left.height)
+#     right_height = float(get_key(game_id, f"paddle_right_height") or paddle_right.height)
+
+#     # Define boundaries
+#     TOP_BOUNDARY = 50
+#     BOTTOM_BOUNDARY = 350  # This is the bottom border of the play area
+
+#     # Move paddles with ice physics if active, otherwise normal movement
+#     if left_on_ice:
+#         paddle_left.move(left_direction, left_on_ice, TOP_BOUNDARY, BOTTOM_BOUNDARY)
 #     else:
-#         form = GameParametersForm()
-#     return render(request, 'online_game/parameter_online_game.html', {'form': form})
+#         # Update position
+#         paddle_left.y += left_vel
+#         # Constrain movement using current height
+#         # Bottom boundary is the maximum y position where the paddle can be placed
+#         paddle_left.y = max(TOP_BOUNDARY, min(BOTTOM_BOUNDARY - left_height, paddle_left.y))
+
+#     if right_on_ice:
+#         paddle_right.move(right_direction, right_on_ice, TOP_BOUNDARY, BOTTOM_BOUNDARY)
+#     else:
+#         # Update position
+#         paddle_right.y += right_vel
+#         # Constrain movement using current height
+#         paddle_right.y = max(TOP_BOUNDARY, min(BOTTOM_BOUNDARY - right_height, paddle_right.y))
+#     set_key(game_id, f"paddle_left_y", paddle_left.y)
+#     set_key(game_id, f"paddle_right_y", paddle_right.y)import time
+from .dimensions_utils import get_terrain_rect
+from .redis_utils import set_key, get_key, delete_key
+from .broadcast import notify_powerup_applied, notify_powerup_spawned, notify_powerup_expired
+import asyncio
+import math
+import random
+
+MAX_ACTIVE_POWERUPS = 2
+SPAWN_INTERVAL_POWERUPS = 5
+DURATION_EFFECT_POWERUPS = 5
+
+# -------------- POWER UP --------------------
+async def handle_powerups_spawn(game_id, powerup_orbs, current_time):
+    # Initialisation de last_powerup_spawn_time si elle n'est pas déjà définie
+    if not hasattr(handle_powerups_spawn, "last_powerup_spawn_time"):
+        handle_powerups_spawn.last_powerup_spawn_time = current_time  # Initialisation lors du premier appel
+
+    # Utilisation de la variable statique pour vérifier l'intervalle de temps
+    if current_time - handle_powerups_spawn.last_powerup_spawn_time >= SPAWN_INTERVAL_POWERUPS:
+        active_powerups = count_active_powerups(game_id, powerup_orbs)
+        if active_powerups < MAX_ACTIVE_POWERUPS:
+            # S'assurer qu'on ne génère qu'un seul powerup à la fois
+            powerup_orb = random.choice(powerup_orbs)
+            if not powerup_orb.active:
+                terrain = get_terrain_rect(game_id)
+                spawned = await spawn_powerup(game_id, powerup_orb, terrain)
+                if spawned:
+                    # Mettre à jour le temps de spawn du powerup pour éviter les doubles spawns
+                    handle_powerups_spawn.last_powerup_spawn_time = current_time
+                    print(f"[game_loop.py] game_id={game_id} - PowerUp {powerup_orb.effect_type} spawned.")
 
 
-# def live_local_game(request, game_id):
-#     """
-#     Affiche la page HTML (canvas + websocket) pour la partie <game_id>
-#     """
-#     return render(request, 'game/local_game/live_local_game.html', {'game_id': game_id})
-# game/views.py
 
-from django.http import JsonResponse
-from .models import GameSession
-from django.shortcuts import render
-from .models import GameSession, GameResult
+async def spawn_powerup(game_id, powerup_orb, terrain_rect):
+    # Ne pas faire spawn 2 fois le même powerup sur le terrain
+    if powerup_orb.active:
+        print(f"[powerups.py] PowerUp {powerup_orb.effect_type} is already active, skipping spawn.")
+        return False
+
+    if (powerup_orb.spawn)(terrain_rect):
+        set_powerup_redis(game_id, powerup_orb)
+        print(f"[powerups.py] PowerUp {powerup_orb.effect_type} spawned at ({powerup_orb.x}, {powerup_orb.y})")
+        await notify_powerup_spawned(game_id, powerup_orb)
+        return True
+    return False
+
+
+
+async def apply_powerup(game_id, player, powerup_orb):
+    print(f"[powerups.py] Applying power-up {powerup_orb.effect_type} to {player}")
+    # Create task for handling effect duration
+    asyncio.create_task(handle_powerup_duration(game_id, player, powerup_orb))
+    print(f"[game_loop.py] Creating duration task for {powerup_orb.effect_type}")
+    delete_powerup_redis(game_id, powerup_orb)
+    await notify_powerup_applied(game_id, player, powerup_orb.effect_type, DURATION_EFFECT_POWERUPS)
+
+
+async def handle_powerup_duration(game_id, player, powerup_orb): 
+    """Handles the duration of a power-up effect asynchronously."""
+    effect_type = powerup_orb.effect_type
+    effect_duration = 5  # 5 seconds for all effects
+
+    print(f"[game_loop.py] Starting effect {effect_type} for {player}")
+
+    # Apply effect
+    #IMPROVE => utiliser shown_size de paddle pour original_height
+    
+
+    print("handle_powerup_duration")
+    if effect_type == 'flash':
+        set_key(game_id, f"flash_effect", 1)
+        await asyncio.sleep(0.3) # Flash lasts 300ms
+        delete_key(game_id, f"flash_effect")
+
+    elif effect_type == 'shrink':
+        opponent = 'left' if player == 'right' else 'right'
+        print(f"[game_loop.py] Applying shrink to {opponent}")  # Debug log
+        
+        # Get current height and store it as original
+        current_height = float(get_key(game_id, f"paddle_{opponent}_height") or 60)
+        print(f"[game_loop.py] Original height: {current_height}")  # Debug log
+        
+        # Store original height for restoration
+        set_key(game_id, f"paddle_{opponent}_original_height", current_height)
+        
+        # Calculate and set new height
+        new_height = current_height * 0.5
+        set_key(game_id, f"paddle_{opponent}_height", new_height)
+        print(f"[game_loop.py] New height set to: {new_height}")  # Debug log
+        
+        # Wait for duration
+        await asyncio.sleep(effect_duration)
+    
+        # Restore original height
+        original_height = float(get_key(game_id, f"paddle_{opponent}_original_height") or 60)
+        set_key(game_id, f"paddle_{opponent}_height", original_height)
+        delete_key(game_id, f"paddle_{opponent}_original_height")
+        print(f"[game_loop.py] Height restored to: {original_height}")  # Debug log
+
+    elif effect_type == 'speed':
+        # Set paddle speed multiplier
+        set_key(game_id, f"paddle_{player}_speed_boost", 1)  # Flag for speed boost
+        print(f"[game_loop.py] Speed boost applied to {player} paddle")
+        
+        await asyncio.sleep(effect_duration)
+        
+        # Remove speed boost
+        delete_key(game_id, f"paddle_{player}_speed_boost")
+        print(f"[game_loop.py] Speed boost removed from {player} paddle")
+
+    elif effect_type == 'ice':
+        opponent = 'left' if player == 'right' else 'right'
+        set_key(game_id, f"paddle_{opponent}_ice_effect", 1)
+        await asyncio.sleep(effect_duration)
+        delete_key(game_id, f"paddle_{opponent}_ice_effect")
+
+    elif effect_type == 'sticky':
+        set_key(game_id, f"paddle_{player}_sticky", 1)
+        await asyncio.sleep(effect_duration)
+        delete_key(game_id, f"paddle_{player}_sticky")
+
+    elif effect_type == 'invert':
+        opponent = 'left' if player == 'right' else 'right'
+        set_key(game_id, f"paddle_{opponent}_inverted", 1)
+        await asyncio.sleep(effect_duration)
+        delete_key(game_id, f"paddle_{opponent}_inverted")
+    print("END handle_powerup_duration")
+
+
+
+
+
+def count_active_powerups(game_id, powerup_orbs):
+    count = 0
+    for powerup_orb in powerup_orbs:
+        active = get_key(game_id, f"powerup_{powerup_orb.effect_type}_active") or 0
+        if active and active.decode('utf-8') == '1':
+            count += 1
+    # print(f"[loop.py] count_active_powerups ({count})")
+    return count
+
+async def handle_powerup_expiration(game_id, powerup_orbs):
+    current_time = time.time()
+    for powerup_orb in powerup_orbs:
+        if powerup_orb.active and current_time - powerup_orb.spawn_time >= powerup_orb.duration:
+            delete_powerup_redis(game_id, powerup_orb)
+            print(f"[game_loop.py] PowerUp {powerup_orb.effect_type} expired at ({powerup_orb.x}, {powerup_orb.y})")
+            await notify_powerup_expired(game_id, powerup_orb)
+
+
+# -------------- POWER UP : UPDATE REDIS DATA --------------------
+def set_powerup_redis(game_id, powerup_orb):
+    powerup_orb.activate()
+    set_key(game_id, f"powerup_{powerup_orb.effect_type}_active", 1)
+    set_key(game_id, f"powerup_{powerup_orb.effect_type}_x", powerup_orb.x)
+    set_key(game_id, f"powerup_{powerup_orb.effect_type}_y", powerup_orb.y)
+
+def delete_powerup_redis(game_id, powerup_orb):
+    powerup_orb.deactivate()
+    delete_key(game_id, f"powerup_{powerup_orb.effect_type}_active")
+    delete_key(game_id, f"powerup_{powerup_orb.effect_type}_x")
+    delete_key(game_id, f"powerup_{powerup_orb.effect_type}_y")
+# game/game_loop/redis_utils.py
+
 import redis
 from django.conf import settings
 
 r = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=0)
 
-def index(request):
-    """
-    Page d'accueil -> bouton pour créer une partie
-    """
-    return render(request, 'index.html')
+def set_key(game_id, key, value):
+    r.set(f"{game_id}:{key}", value)
 
-# @csrf_exempt
-def ready_game(request, game_id):
-    """
-    Marque la partie comme prête à être lancée.
-    """
-    if request.method == 'POST':
-        print(f"[DEBUG] game_id reçu dans la vue : {game_id}")  # Debug
-        try:
-            game_session = GameSession.objects.get(pk=game_id)
-            print(f"[DEBUG] gamesession trouvee : {game_session}")  # Debug
-            game_session.status = 'ready'  # On passe le statut à 'ready'
-            game_session.save()
-            return JsonResponse({'success': True, 'message': 'Game marked as ready'})
-        except GameSession.DoesNotExist:
-            return JsonResponse({'success': False, 'message': 'Game session not found'}, status=404)
-    return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=400)
+def get_key(game_id, key):
+    return r.get(f"{game_id}:{key}")
 
-def list_results(request):
-    """
-    Affiche la liste des parties terminées.
-    """
-    results = GameResult.objects.select_related('game').order_by('-ended_at')[:20]
-    return render(request, 'game/results.html', {'results': results})
-# game/urls.py
+def delete_key(game_id, key):
+    r.delete(f"{game_id}:{key}")
 
-from django.urls import path
-from . import views
-from . import local_game_views
-from . import online_game_views
-from . import local_tournament_views
+def scan_and_delete_keys(game_id):
+    keys = list(r.scan_iter(f"{game_id}:*"))
+    for key in keys:
+        r.delete(key)
 
-urlpatterns = [
-    path('', views.index, name='index'),
-    path('list_results/', views.list_results, name='list_results'),
+# game/game_loop/score_utils.py
 
-    # views ne renvoyant pas de html
-    path('ready-game/<uuid:game_id>/', views.ready_game, name='ready_game'),
-    
-    path('local_game/<uuid:game_id>/', local_game_views.live_local_game, name='live_local_game'),
-    path('local_game/parameter_local_game/', local_game_views.parameter_local_game, name='parameter_local_game'),
-    
-    path('tournament/parameter_local_tournament/', local_tournament_views.parameter_local_tournament, name='parameter_local_tournament'),
-    path('tournament/<uuid:game_id>/', local_tournament_views.live_tournament_game, name='live_tournament_game'),
-    path('tournament/<uuid:tournament_id>/', local_tournament_views.detail_local_tournament, name='bracket_tournament'),
-    path('tournament/<uuid:tournament_id>/<str:match_type>/next_game_presentation_tournament/', local_tournament_views.next_game_presentation_tournament, name='next_game_presentation_tournament'),
-    path('tournament/<uuid:tournament_id>/<str:match_type>/start_next_tournament_game/', local_tournament_views.start_next_tournament_game, name='start_next_tournament_game'),
-    
-]
+from channels.layers import get_channel_layer
+from asgiref.sync import sync_to_async
+from .broadcast import notify_game_finished
+from .redis_utils import set_key, get_key, scan_and_delete_keys
+from .models_utils import set_gameSession_status, create_gameResults, get_LocalTournament
+
+# transformer en parametre ajustable GameParameters?
+WIN_SCORE = 5 
+
+def handle_score(game_id, scorer):
+    if scorer == 'score_left':
+        score_left = int(get_key(game_id, "score_left") or 0) + 1
+        set_key(game_id, "score_left", score_left)
+        print(f"[loop.py] Player Left scored. Score: {score_left} - {get_key(game_id, 'score_right')}")            
+
+    else :
+        score_right = int(get_key(game_id, "score_right") or 0) + 1
+        set_key(game_id, "score_right", score_right)
+        print(f"[loop.py] Player Right scored. Score: {get_key(game_id, 'score_left')} - {score_right}")
+
+# async def check_end_conditions(game_id, quitter):
+#     if(quitter): 
+#         if(quitter == "player_left"): 
+#             score_left = 0
+#             score_right = WIN_SCORE
+#         if(quitter == "player_right"): 
+#             score_left = WIN_SCORE
+#             score_right = 0
+#     else :
+#         score_left = int(get_key(game_id, "score_left") or 0)
+#         score_right = int(get_key(game_id, "score_right") or 0)
+
+#     if (score_left == WIN_SCORE or score_right == WIN_SCORE):
+#         finish_game(game_id)
+#         return True
+#     return False
+
+def winner_detected(game_id):
+
+    score_left = int(get_key(game_id, "score_left") or 0)
+    score_right = int(get_key(game_id, "score_right") or 0)
+
+    if (score_left == WIN_SCORE or score_right == WIN_SCORE):
+        return True
+    return False
+
+async def finish_game(game_id):
+    # Récupérer les scores depuis Redis
+    score_left = int(get_key(game_id, "score_left") or 0)
+    score_right = int(get_key(game_id, "score_right") or 0)
+
+    # Marquer la session comme terminée et récupérer ses informations
+    gameSession = await set_gameSession_status(game_id, "finished")
+    if not gameSession:
+        print(f"[finish_game] GameSession {game_id} does not exist.")
+        return
+
+    # Identifier le gagnant et le perdant
+    if score_left > score_right:
+        winner = gameSession.player_left
+        looser = gameSession.player_right
+    else:
+        winner = gameSession.player_right
+        looser = gameSession.player_left
+
+    # Préparer les informations de fin de partie
+    endgame_infos = {
+        'winner': winner,
+        'looser': looser,
+        'score_left': score_left,
+        'score_right': score_right,
+    }
+    # Récupérer tournament_id depuis gameSession
+    tournament_id = gameSession.tournament_id
+    print(f"[finish_game] tournament_id={tournament_id}")
+
+    # IMPROVE : donner tournament_id au GameResult ? (es ce necessaire ?)
+    # Créer un enregistrement des résultats
+    await create_gameResults(game_id, endgame_infos)
+
+    # Une fois qu'on a créé le GameResult (disons new_result), on peut faire :
+    # Chercher s’il y a un LocalTournament qui pointe sur ce game_id en semifinal1, semifinal2 ou final
+    # Chercher s’il y a un LocalTournament qui pointe sur ce game_id en semifinal1, semifinal2 ou final
+    tournament = await get_LocalTournament(game_id, "semifinal1")
+    if tournament:
+        print(f"[finish_game] this game was semifinal1 from tournament game_id={game_id}")
+        tournament.status = 'semifinal1_done'
+        await sync_to_async(tournament.save)()
+    else:
+        tournament = await get_LocalTournament(game_id, "semifinal2")
+        if tournament:
+            tournament.status = 'semifinal2_done'
+            await sync_to_async(tournament.save)()
+        else:
+            tournament = await get_LocalTournament(game_id, "final")
+            if tournament:
+                tournament.status = 'finished'
+                await sync_to_async(tournament.save)()
+            else:
+                # Aucun tournoi correspondant à game_id
+                print(f"[finish_game] No tournament found for game_id={game_id}")
+
+    # Notifier les utilisateurs via WebSocket
+    await notify_game_finished(game_id, tournament_id, winner, looser)
+
+    # Nettoyer les clés Redis
+    scan_and_delete_keys(game_id)
+    print(f"[loop.py] Redis keys deleted for game_id={game_id}")

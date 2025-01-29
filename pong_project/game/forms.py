@@ -1,7 +1,7 @@
 # game/forms.py
 
 from django import forms
-from .models import GameParameters, LocalTournament, TournamentParameters, GameInvitationParameters
+from .models import GameParameters, LocalTournament, TournamentParameters
 
 class GameParametersForm(forms.ModelForm):
     class Meta:
@@ -20,24 +20,24 @@ class GameParametersForm(forms.ModelForm):
             'obstacles_enabled': 'Activer les bumpers/obstacles',
         }
 
-class SendInvitationForm(forms.ModelForm):
-    """
-    Formulaire pour envoyer une invitation et stocker
-    les paramètres dans GameInvitationParameters.
-    """
-    friend_username = forms.CharField(
-        required=True,
-        label="Nom d'utilisateur de l'ami à inviter"
-    )
+# class SendInvitationForm(forms.ModelForm):
+#     """
+#     Formulaire pour envoyer une invitation et stocker
+#     les paramètres dans GameInvitationParameters.
+#     """
+#     friend_username = forms.CharField(
+#         required=True,
+#         label="Nom d'utilisateur de l'ami à inviter"
+#     )
 
-    class Meta:
-        model = GameInvitationParameters
-        fields = [
-            'ball_speed', 
-            'paddle_size',
-            'bonus_enabled',
-            'obstacles_enabled'
-        ]
+#     class Meta:
+#         model = GameInvitationParameters
+#         fields = [
+#             'ball_speed', 
+#             'paddle_size',
+#             'bonus_enabled',
+#             'obstacles_enabled'
+#         ]
 
 
 class LocalTournamentForm(forms.ModelForm):

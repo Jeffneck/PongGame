@@ -9,3 +9,4 @@ export { initializeGameHomeView } from './home.js';
 export { handleGameMenu } from './gameMenu.js';
 export { handleSeclectTournament } from './SeclectTournament.js';
 export { startLoading } from './loading.js';
+export { acceptGameInvitation, createGameOnline } from './onlineGame.js'

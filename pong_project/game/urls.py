@@ -33,9 +33,10 @@ from .views.gameHome import GameHomeView
 from .views.gameMenu import GameMenuView
 from .views.gameLoading import LoadingView
 from .views.gameSelectTournament import SelectTournamentView
-from .views.gameInvitation import InviteGameView
-from .views.gameInvitation import SendInvitationView, CancelInvitationView, RespondToInvitationView, ListInvitationsView, AcceptGameInvitationView
+# from .views.gameInvitation import InviteGameView
+# from .views.gameInvitation import SendInvitationView, CancelInvitationView, RespondToInvitationView, ListInvitationsView, AcceptGameInvitationView
 from .views.gameLocal import StartLocalGameView, CreateGameLocalView
+from .views.gameOnline import CreateGameOnlineView, SendGameSessionInvitationView, AcceptGameInvitationView, RejectGameInvitationView, CleanExpiredInvitationsView, CheckGameInvitationStatusView, StartOnlineGameView
 import logging
 
 
@@ -51,16 +52,30 @@ urlpatterns = [
     path('menu/', GameMenuView.as_view(), name='game_menu'),  # Mise à jour pour CBV
     path('loading/', LoadingView.as_view(), name='loading'),  # Mise à jour pour CBV
     path('select_tournament/', SelectTournamentView.as_view(), name='select_tournament'),  # Mise à jour pour CBV
-    path('invite_game/', InviteGameView.as_view(), name='invite_game'),  # Vue fonctionnelle
+    # path('invite_game/', InviteGameView.as_view(), name='invite_game'),  # Vue fonctionnelle
     # path('invite_tournament/', invite_tournament_view, name='invite_tournament'),  # Vue fonctionnelle
-    path('send_invitation/', SendInvitationView.as_view(), name='send_invitation'),
-    path('cancel_invitation/', CancelInvitationView.as_view(), name='cancel_invitation'),  # Vue fonctionnelle
-    path('respond_to_invitation/', RespondToInvitationView.as_view(), name='respond_to_invitation'),
-    path('accept_invitation/<int:invitation_id>/', AcceptGameInvitationView.as_view(), name='accept_invitation'),
-    path('respond_to_invitation/', RespondToInvitationView.as_view(), name='respond_to_invitation'),
-    path('list_invitations/', ListInvitationsView.as_view(), name='list_invitations'),
+    # path('send_invitation/', SendInvitationView.as_view(), name='send_invitation'),
+    # path('cancel_invitation/', CancelInvitationView.as_view(), name='cancel_invitation'),  # Vue fonctionnelle
+    # path('respond_to_invitation/', RespondToInvitationView.as_view(), name='respond_to_invitation'),
+    # path('accept_invitation/<int:invitation_id>/', AcceptGameInvitationView.as_view(), name='accept_invitation'),
+    # path('respond_to_invitation/', RespondToInvitationView.as_view(), name='respond_to_invitation'),
+    # path('list_invitations/', ListInvitationsView.as_view(), name='list_invitations'),
     
+    #LOCAL GAME 
     path('create_local_game/', CreateGameLocalView.as_view(), name='create_local_game'),
     path('start_local_game/<uuid:game_id>/', StartLocalGameView.as_view(), name='start_local_game'),
 
+    #ONLINE GAME
+    # create game
+    path('create_game_online/', CreateGameOnlineView.as_view(), name='create_game_online'),
+
+    # invitation
+    path('send_gameSession_invitation/', SendGameSessionInvitationView.as_view(), name='send_gameSession_invitation'),
+    path('check_invitation_status/<uuid:invitation_id>/', CheckGameInvitationStatusView.as_view(), name='check_invitation_status'),
+    path('start_online_game/<uuid:game_id>/', StartOnlineGameView.as_view(), name='start_online_game'),
+
+    # acceptance, rejection
+    path('accept_game_invitation/<uuid:invitation_id>/', AcceptGameInvitationView.as_view(), name='accept_game_invitation'),
+    path('reject_game_invitation/<uuid:invitation_id>/', RejectGameInvitationView.as_view(), name='reject_game_invitation'),
+    path('clean_expired_invitations/<uuid:invitation_id>/', CleanExpiredInvitationsView.as_view(), name='clean_expired_invitations'),
 ]

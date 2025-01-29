@@ -138,10 +138,11 @@ class LocalTournament(models.Model):
 
 # utile pour savoir si une invitation a expire
 def default_expiration_time():
-    """Retourne l'heure actuelle + 5 minutes."""
-    return now() + timedelta(minutes=5)
+    """Retourne l'heure actuelle + 30 secondes."""
+    return now() + timedelta(seconds=30)
 
 class GameInvitation(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     from_user = models.ForeignKey(CustomUser, related_name='invitations_sent', on_delete=models.CASCADE)
     to_user = models.ForeignKey(CustomUser, related_name='invitations_received', on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -169,28 +170,28 @@ class GameInvitation(models.Model):
         return f"Invitation de {self.from_user.username} à {self.to_user.username} - {self.status}"
 
 
-class GameInvitationParameters(models.Model):
-    """
-    Permet de stocker les paramètres de jeu pour une invitation en ligne
-    (avant que la session ne soit créée).
-    """
-    invitation = models.OneToOneField(
-        GameInvitation,
-        on_delete=models.CASCADE,
-        related_name='parameters'
-    )
+# class GameInvitationParameters(models.Model):
+#     """
+#     Permet de stocker les paramètres de jeu pour une invitation en ligne
+#     (avant que la session ne soit créée).
+#     """
+#     invitation = models.OneToOneField(
+#         GameInvitation,
+#         on_delete=models.CASCADE,
+#         related_name='parameters'
+#     )
 
-    BALL_SPEED_CHOICES = [(1, 'Slow'), (2, 'Medium'), (3, 'Fast')]
-    ball_speed = models.PositiveSmallIntegerField(choices=BALL_SPEED_CHOICES, default=2)
+#     BALL_SPEED_CHOICES = [(1, 'Slow'), (2, 'Medium'), (3, 'Fast')]
+#     ball_speed = models.PositiveSmallIntegerField(choices=BALL_SPEED_CHOICES, default=2)
 
-    paddle_size_CHOICES = [(1, 'Small'), (2, 'Medium'), (3, 'Large')]
-    paddle_size = models.PositiveSmallIntegerField(choices=paddle_size_CHOICES, default=2)
+#     paddle_size_CHOICES = [(1, 'Small'), (2, 'Medium'), (3, 'Large')]
+#     paddle_size = models.PositiveSmallIntegerField(choices=paddle_size_CHOICES, default=2)
 
-    bonus_enabled = models.BooleanField(default=True)
-    obstacles_enabled = models.BooleanField(default=False)
+#     bonus_enabled = models.BooleanField(default=True)
+#     obstacles_enabled = models.BooleanField(default=False)
 
-    def __str__(self):
-        return (f"(Invitation={self.invitation.id}) "
-                f"BallSpeed={self.get_ball_speed_display()}, "
-                f"RacketSize={self.get_paddle_size_display()}, "
-                f"Bonus={self.bonus_enabled}, Bumpers={self.obstacles_enabled}")
+#     def __str__(self):
+#         return (f"(Invitation={self.invitation.id}) "
+#                 f"BallSpeed={self.get_ball_speed_display()}, "
+#                 f"RacketSize={self.get_paddle_size_display()}, "
+#                 f"Bonus={self.bonus_enabled}, Bumpers={self.obstacles_enabled}")

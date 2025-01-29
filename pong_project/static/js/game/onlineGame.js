@@ -3,6 +3,7 @@ import { updateHtmlContent } from "../tools/index.js";
 import { showStatusMessage } from "../tools/index.js";
 import { isTouchDevice } from "../tools/index.js";
 import { initializeGameControls } from "./controls.js";
+import { liveOnlineGame } from "./live_online_game.js";
 
 export async function createGameOnline(onlineParams) {
     console.log('[createGameOnline] Paramètres online = ', onlineParams);
@@ -167,6 +168,10 @@ async function startOnlineGame(game_id){
         } else {
             console.log('response ok startonlingeGame et avant injection')
             updateHtmlContent('#content', response.html);
+            liveOnlineGame({
+                gameId: response.game_id,
+                resultsUrl: '/les_resultats'
+            });
         }
     } catch (error) {
         if (error instanceof HTTPError) {
@@ -197,7 +202,12 @@ export async function acceptGameInvitation(invitationId, action) {
                 // Rediriger l'utilisateur (B) vers loading (SPA => adapter URL si besoin)
                 //IMPROVE ajouter le navigateto pour la gestion de l'historique
                 // navigateTo(`/game-loading`);
-                requestGet('game', `start_online_game/${response.session.id}`)
+                const data = await requestGet('game', `start_online_game/${response.session.id}`)
+                updateHtmlContent('#content', data.html);
+                liveOnlineGame({
+                    gameId: data.game_id,
+                    resultsUrl: '/les_resultats'
+                });
                 //window.location.href = `/game/loading/${response.session.id}`;
             } else {
                 console.error('Erreur à l\'acceptation :', response.message);

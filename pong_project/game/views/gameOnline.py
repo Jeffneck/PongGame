@@ -379,9 +379,9 @@ class StartOnlineGameView(LoginRequiredMixin, View):
             }, status=400)
 
         # OK, on peut lancer la partie
-        schedule_game(game_id)  # Appel à ta fonction d'initialisation/loop
-        session.status = 'running'
-        session.save()
+        # schedule_game(game_id)  # Appel à ta fonction d'initialisation/loop
+        # session.status = 'running'
+        # session.save()
 
         # On peut injecter le HTML de la page de jeu
         rendered_html = render_to_string('game/online_game/live_online_game.html', {
@@ -391,5 +391,54 @@ class StartOnlineGameView(LoginRequiredMixin, View):
         return JsonResponse({
             'status': 'success',
             'html' : rendered_html,
+            'game_id' : str(session.id),
             'message': f"Partie {game_id} lancée (online)."
         })
+
+# lancee par l'appui sur le bouton Lancer la partie
+@method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toute la classe
+class RunOnlineGameView(View):
+    """
+    Démarre la partie locale en exécutant la logique du jeu.
+    """
+    def post(self, request, game_id):
+        try:
+            # Récupérer la session de jeu par son ID
+            session = GameSession.objects.get(id=game_id)
+            print(f"[DEBUG] RunOnlineGameView gameSession {session}")  # Debug
+
+            # Vérifier que la session est une partie locale
+            if session.is_online == False:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': "La partie locale ne peut pas être lancée avec cette API. Cette API sert à lancer une partie online."
+                })
+
+            # Vérifier que la partie n'est pas déjà terminée
+            if session.status == 'finished':
+                return JsonResponse({
+                    'status': 'error',
+                    'message': f"La partie {game_id} est déjà terminée et ne peut pas être relancée."
+                })
+
+            # Si la session est valide, lancez la boucle de jeu
+            # print(f"[start_game] Démarrage de la partie {game_id}.")
+            schedule_game(game_id)  # Cette fonction démarre la boucle de jeu, non-bloquante
+
+            # Mettre la session en état "ready"
+            session.status = 'ready'
+            session.save()
+
+            # print(f"[DEBUG] StartLocalGameView success")  # Debug
+            return JsonResponse({
+                'status': 'success',
+                'message': f"Partie {game_id} lancée avec succès."
+            })
+
+        except GameSession.DoesNotExist:
+            # print(f"[DEBUG] StartLocalGameView la gameSession n'existe pas")  # Debug
+            return JsonResponse({
+                'status': 'error',
+                'message': "La session de jeu spécifiée n'existe pas."
+            })
+

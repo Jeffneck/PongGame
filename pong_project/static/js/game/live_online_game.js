@@ -8,7 +8,7 @@ import { requestPost }  from '../api/index.js';
  * @param {string} [options.csrfToken] - Le token CSRF si nécessaire pour les requêtes POST.
  * @param {string} [options.resultsUrl] - URL de redirection en cas de fin de partie.
  */
-export function liveLocalGame(options) {
+export function liveOnlineGame(options) {
     const {
       gameId,
       resultsUrl = '/results' // Par défaut, on redirige vers /results
@@ -33,8 +33,8 @@ export function liveLocalGame(options) {
     }, 3000);
   
     // -- Fonction pour démarrer la partie
-    async function startGame() {
-      const url = `start_local_game/${gameId}`
+    async function runGame() {
+      const url = `run_online_game/${gameId}`
       // Envoie une requête au backend pour lancer la partie
       const formData = new FormData();
       formData.append('game_id', gameId)
@@ -52,7 +52,7 @@ export function liveLocalGame(options) {
   
     // Attacher l'événement au bouton
     if (startGameBtn) {
-      startGameBtn.addEventListener('click', startGame);
+      startGameBtn.addEventListener('click', runGame);
     }
   
     // -- Mise en place de la logique de redimensionnement du canvas

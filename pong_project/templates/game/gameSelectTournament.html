@@ -1,17 +1,396 @@
-{% load i18n %}
-<div id="tournament-selection" class="d-flex flex-column justify-content-center align-items-center position-fixed" style="height: 100%; width: 100%; z-index: 2;">
-    <div class="container d-flex flex-column justify-content-center align-items-center text-center">
-        <h2 class="text col-12 col-sm-10 text-white mb-4">{% trans "Choisissez le nombre de participants" %}</h2>
-        <div class="col-8 col-sm-5 col-md-5 col-lg-4 col-xl-4 col-xxl-4 text-center">
-            <button id="tournament-4" class="btn btn-primary w-100 mb-4" onclick="window.location.hash='#game-invite_tournament'">{% trans "Tournoi à 4 joueurs" %}</button>
-            <button id="tournament-8" class="btn btn-primary w-100 mb-3" onclick="window.location.hash='#game-invite_tournament'">{% trans "Tournoi à 8 joueurs" %}</button>
-        </div>
-    </div>
+<div id="bracket_tournament" class="container-fluid d-flex flex-column justify-content-center align-items-center" style="height: 100%; width: 100%; ">
+   
+	<!-- Lignes de connexion pour le tournoi -->
+	<div class="bracket ">
+		<div class="tournament-title text-center text-uppercase" style="font-family: 'Jersey 10'">
+			<h2 class="text-light fw-bold">Pong Championship: The Final 4</h2>
+			<p class="text-secondary ">Le Premier match va commencer ..</p> <!-- classe d-none a retirer pour presentation avant match 1-->
+			<p class="text-secondary d-none">Le Deuxième match va commencer ..</p> <!-- classe d-none a retirer pour presentation avant match 2-->
+			<p class="text-secondary d-none">Place à la Final ..</p> <!-- classe d-none a retirer pour presentation avant finale (match 3)-->
+			<p class="text-secondary d-none">Le grand vainqueur est : </p> <!-- classe d-none a retirer pour presentation apres resultat finale -->
+		</div>
+		<div class="lines d-flex flex-column ">
+			<div class=" victory d-flex justify-content-center  align-items-end position-relative">
+				<div class="vertical d-flex justify-content-around align-items-end">
+					<line class="win vertical-line"></line>
+					<img src="png/eclair.png" class="eclair justify-content-center align-items-center position-absolute match-3 d-none"> <!-- classe d-none a retirer pour presentation avant finale (match 3)-->
+					<div class="winner3 d-flex flex-column align-items-center position-absolute d-none"> <!-- classe d-none a retirer pour presentation apres resultat finale -->
+						<div class="winner-name text-center">{ Vainqueur }</div>
+						<img src="svg du gagnant match 3" id="winner_3" class="avatar">
+					</div>
+				</div>
+			</div>
+			
+			<div class="lines-final d-flex flex-column justify-content-start">
+				<div class="horizontale d-flex justify-content-center align-items-start">
+					<line class=" final horizontale-line"></line>
+				</div>
+				<div class="vertical d-flex justify-content-around align-items-end">
+					<line class="final vertical-line"></line>
+					<line class="final vertical-line"></line>
+				</div>
+			</div>
+			<div class="lines-semi-final d-flex flex-column justify-content-start">
+				<div class="horizontale d-flex justify-content-around align-items-start position-relative">
+					<img src="png/eclair.png" class="eclair position-absolute match-1 d-none"> <!-- classe d-none a retirer pour presentation avant match 1 puis remettre le d-none pour les autre etapes-->
+					<img src="png/eclair.png" class="eclair position-absolute match-2 d-none"> <!-- classe d-none a retirer pour presentation avant match 2 puis remettre le d-none pour les autre etapes-->
+					<div class="winner1 d-flex flex-column align-items-center position-absolute d-none"> <!-- classe d-none a retirer pour presentation apres resultat match 1 puis laisser jusqu'à la fin-->
+						<img src="ssvg/astronaut_gang.svg" id="winner_1" class="avatar"> <!-- changer le src par le svg du gagnant du match 1 -->
+						<div class="player-name text-center">(nom du gagnant match 2)</div> <!-- changer le nom du gagnant du match 1 -->
+					</div>
+					<div class="winner2 d-flex flex-column align-items-center position-absolute d-none "> <!-- classe d-none a retirer pour presentation apres resultat match 2 puis laisser jusqu'à la fin-->
+						<img src="svg/death_bath.svg"  class="avatar"> <!-- changer le src par le svg du gagnant du match 2 -->
+						<div class="player-name text-center">(nom du gagnant match 1)</div> <!-- changer le nom du gagnant du match 2 -->
+					</div>
+					<line class="semi horizontale-line"></line>
+					<line class="semi horizontale-line"></line>
+				</div>
+				<div class="vertical d-flex justify-content-around align-items-end">
+					<line class="semi vertical-line"></line>
+					<line class="semi vertical-line"></line>
+					<line class="semi vertical-line"></line>
+					<line class="semi vertical-line"></line>
+				</div>
+
+				<!-- Niveau des joueurs avec avatars et noms -->
+				<div class="round quarter-finals d-flex justify-content-around align-items-end w-100">
+					<div class="match d-flex justify-content-between align-items-center w-30 position-relative">
+						<div class="player1 d-flex flex-column align-items-center position-absolute" data-player-id="1">
+							<img src="svg/astronaut_gang.svg" id="astronaut" class="avatar">
+							<div class="player-name text-center">JOUEUR 1</div>
+						</div>
+							<!-- <img src="png/eclair.png" class="eclair"> -->
+						<div class="player2 d-flex flex-column align-items-center position-absolute" data-player-id="2">
+							<img src="svg/shark_dumbble.svg" id="ninja"  class="avatar">
+							<div class="player-name text-center">JOUEUR 2</div>
+						</div>
+					</div>
+					<div class="match d-flex justify-content-between align-items-center w-30 position-relative">
+						<div class="player3 d-flex flex-column align-items-center position-absolute " data-player-id="3">
+							<img src="svg/monkey_money.svg"  class="avatar">
+							<div class="player-name text-center">JOUEUR 3</div>
+						</div>
+						<div class="player4 d-flex flex-column align-items-center position-absolute" data-player-id="4">
+							<img src="svg/death_bath.svg"  class="avatar">
+							<div class="player-name text-center">JOUEUR 4</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
 </div>
 <style>
-	.btn-primary, .text {
-		/* width: 100%; */
-		font-size: 2em;
-		padding: 5px 10px;
+
+.html, body {
+	overflow: auto;
+}
+
+.bracket {
+	height: 100%;
+	width: 100%;
+}
+
+.tournament-title{
+	margin-bottom: 5vw;
+	margin-top: 2vw;
+}
+.tournament-title h2 {
+    margin-bottom: 0.5vw; /* Réduit l'espace sous le titre */
+	font-size: clamp(20px, 5vw, 150px); 
+}
+
+.tournament-title p {
+    margin-top: 0; /* Supprime l'espace au-dessus du sous-titre */
+	font-size: clamp(15px, 4vw, 120px); 
+}
+
+.w-30 {
+  width: 30%;
+}
+
+.avatar {
+    width: 6vw;
+    height: 6vw;
+    border-radius: 50%;
+    margin-bottom: 0.5vw;
+	border: 2px solid white;
+}
+
+.eclair {
+    width: 6vw;
+    height: 6vw;
+	border-radius: 50%;
+	border: 2px solid white;
+	background-color: #101A32;
+
+}
+
+.eclair.match-1, .winner1 {
+	top: -3vw; /* Ajustez cette valeur pour positionner l'image plus haut ou bas */
+  	left: 22%;
+}
+
+.eclair.match-2, .winner2 {
+	top: -3vw; /* Ajustez cette valeur pour positionner l'image plus haut ou bas */
+  	left: 72%;
+}
+
+.eclair.match-3, .winner3 {
+	top: -5vw; /* Ajustez cette valeur pour positionner l'image plus haut ou bas */
+  	left: 47%;
+}
+
+.winner1 {
+	left: 20%;
+}
+.winner2 {
+	left: 70%;
+}
+.winner3 {
+	left: 45%;
+}
+
+
+.winner1, .winner2, .winner3 {
+	width: 10vw;
+}
+
+.player-name {
+    font-size: clamp(6px, 1.5vw, 300px); 
+    color: #ffffff;
+    font-weight: bold;
+	margin-bottom: 0.5vw;
+	height: 3vw;
+	width: 100%;
+	white-space: nowrap;  /* ✅ Empêche le texte de passer à la ligne */
+    overflow: hidden;  /* ✅ Cache tout ce qui dépasse */
+    text-overflow: ellipsis;  /* ✅ Ajoute "..." à la fin */
+	
+}
+
+.player1, .player2, .player3, .player4 {
+	width: 10vw;
+}
+
+.player1, .player3 {
+	left: -8%;
+}
+.player2, .player4 {
+	left: 75%;
+}
+
+.winner-name {
+    font-size: clamp(6px, 1.5vw, 300px); 
+    color: #ffffff;
+    font-weight: bold;
+	height: 3vw;
+	display: block;
+    width: 100%;  /* ✅ Prend toute la largeur disponible */
+    white-space: nowrap;  /* ✅ Empêche le texte de passer à la ligne */
+    overflow: hidden;  /* ✅ Cache tout ce qui dépasse */
+    text-overflow: ellipsis;  /* ✅ Ajoute "..." à la fin */
+}
+
+.bracket {
+	height: var(--sin-nav-height);
+	width: 100vw;
+}
+
+.lines {
+	height: 25vw;
+	width: 100vw;
+}
+
+.lines-final {
+    top: 15%;
+}
+
+.lines-semi-final {
+    top: 55%;
+}
+
+.victory {
+	top: 0%;
+	height: 5vw;
+	width: 100vw;
+}
+
+
+.lines-final{
+	height: 7.5vw;
+	width: 100vw;
+}
+
+.lines-semi-final {
+	height: 10vw;
+	width: 100vw;
+}
+
+.round {
+	height: 50%;
+}
+
+.horizontale, .vertical {
+	width: 100vw;
+}
+
+.horizontale {
+	height: 3.125%;
+}
+
+.vertical {
+	height: 96.825%;
+}
+
+.vertical-line {
+	
+	background-color: white;
+	height: 100%;
+	width:  0.25%;
+}
+
+.horizontale-line {
+    
+    background-color: white;
+	height: 100%;
+}
+
+.final.horizontale-line {
+	width: 50.25%;
+}
+
+.semi.horizontale-line {
+	width: 25.25%;
+}
+
+@media (max-width: 400px) {
+    #bracket_tournament {
+        position: fixed;
+        top: 50px;
+        left: 0;
+        width: 400px;  /* Taille minimale forcée */
+        height: 100vh;  /* Prend toute la hauteur de l'écran */
+        overflow-y: auto;  /* Ajoute un scroll si besoin */
+    }
+	.tournament-title h2, .tournament-title p {
+		left: 0;
 	}
+	.bracket{
+		height: 100%;
+	}
+    /* Ajuste la taille des éléments à l'intérieur */
+    .bracket, .lines, .lines-final, .lines-semi-final, .victory, .vertical, .horizontale {
+        width: 400px !important;
+    }
+	.lines {
+		height: 140px !important;
+	}
+	.lines-final, .round {
+        height: 30px !important;
+    }
+
+	.lines-semi-final {
+		height: 60px !important;
+	}
+
+	.victory {
+		height: 20px !important;
+
+	}
+	.player1, .player2, .player3, .player4 {
+		height: 40px;
+		width: 40px;
+	}
+
+	.winner1, .winner2, .winner3 {
+		width: 40px;
+	}
+
+    .match {
+        width: 120px;
+		height: 40px;
+    }
+	.avatar, .eclair {
+		width: 24px !important;
+		height: 24px !important;
+		margin-bottom: 4px !important;
+	}
+	.eclair {
+		width: 24px !important;
+		height: 24px !important;
+		top: -12px !important;
+
+	}
+
+	.winner1, .winner2 {
+		top: -12px !important;
+		height: 40px !important;
+	}
+
+	.winner3 {
+		top: -20px !important;
+		height: 40px !important;
+	}
+
+	.winner-name, .player-name {
+		height: 12px !important;
+	}
+}
+
+		
+
+/* .player-lost {
+    opacity: 0.5;
+    filter: grayscale(100%);
+}
+
+.avatar-won {
+    border: 3px solid gold;
+    animation: winnerHighlight 1s infinite alternate;
+}
+
+
+@keyframes winnerHighlight {
+    0% {
+        box-shadow: 0 0 5px gold;
+    }
+    100% {
+        box-shadow: 0 0 20px gold;
+    }
+} */
+
 </style>
+
+<script>
+// // Fonction pour simuler un résultat aléatoire pour chaque match
+// function simulateMatch() {
+//         const matches = document.querySelectorAll('.match');
+
+//         matches.forEach((match) => {
+//             const players = match.querySelectorAll('.avatar');
+
+//             // Déterminer un gagnant aléatoire
+//             const winnerIndex = Math.floor(Math.random() * players.length);
+//             const loserIndex = winnerIndex === 0 ? 1 : 0;
+
+//             const winner = players[winnerIndex];
+//             const loser = players[loserIndex];
+
+//             // Appliquer les styles pour gagnant et perdant
+//             winner.classList.add('avatar-won');
+//             loser.classList.add('player-lost');
+
+//             // Simuler le transfert du gagnant à l'étape suivante
+//             const nextMatch = document.querySelector('.lines-final .match');
+//             if (nextMatch) {
+//                 const nextPlayerSlot = nextMatch.querySelector('.player');
+//                 nextPlayerSlot.innerHTML = winner.innerHTML; // Copie le contenu du gagnant
+//             }
+//         });
+//     }
+
+//     // Simuler le tournoi immédiatement
+//     simulateMatch();
+
+</script>

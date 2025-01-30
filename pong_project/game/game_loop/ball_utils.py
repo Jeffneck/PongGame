@@ -18,7 +18,12 @@ def reset_ball(game_id, ball):
     terrain_rect = get_terrain_rect(game_id)
     center_x = terrain_rect['left'] + terrain_rect['width'] // 2
     center_y = terrain_rect['top'] + terrain_rect['height'] // 2
-    ball.reset(center_x, center_y, 4, 4)  # Vitesse X/Y à ajuster
+
+    # Get the initial ball speed multiplier from Redis / added
+    speed_multiplier = float(get_key(game_id, "initial_ball_speed_multiplier"))
+    initial_speed = 4 * speed_multiplier  # Base speed * multiplier
+
+    ball.reset(center_x, center_y, initial_speed, initial_speed) #modified
     update_ball_redis(game_id, ball)
     print(f"[game_loop.py] Ball reset to ({ball.x}, {ball.y}) with speed ({ball.speed_x}, {ball.speed_y})")
 

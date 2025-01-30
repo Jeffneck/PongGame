@@ -34,22 +34,43 @@ export function liveLocalGame(options) {
   
     // -- Fonction pour démarrer la partie
     async function startGame() {
-      const url = `start_local_game/${gameId}`
-      // Envoie une requête au backend pour lancer la partie
-      const formData = new FormData();
-      formData.append('game_id', gameId)
-      const response = await requestPost('game', url, formData) // IMPROVE, le form ne contient que gameId qui est aussi dans l'url = inutile ?
-      console.log(`[FRONTEND] Debug startGame response ${response}`)
-      if (response.status === 'success')
-      {
-        alert("La partie va commencer !");
-      }
-      else
-      {
-        alert("Erreur lors du démarrage de la partie : " + response.message);
-      }
-    }
+      showCountdown = true;
+      startGameBtn.disabled = true;
+      
+      // Start countdown animation
+      let count = 3;
+      
+      // Function to update the countdown
+      const updateCount = () => {
+          countdownNumber = count;
+          count--;
+          
+          if (count < 0) {
+              clearInterval(countdownInterval);
+              showCountdown = false;
+              sendStartGameRequest();
+          }
+      };
   
+      // Show first number immediately
+      updateCount();
+      
+      // Then update every second
+      const countdownInterval = setInterval(updateCount, 1000);
+  }
+  
+  async function sendStartGameRequest() {
+      const url = `start_local_game/${gameId}`  // Define url here
+      const formData = new FormData();
+      formData.append('game_id', gameId);
+      const response = await requestPost('game', url, formData);
+      console.log(`[FRONTEND] Debug startGame response ${response}`);
+      
+      if (response.status !== 'success') {
+          alert("Erreur lors du démarrage de la partie : " + response.message);
+      }
+  }
+
     // Attacher l'événement au bouton
     if (startGameBtn) {
       startGameBtn.addEventListener('click', startGame);
@@ -133,23 +154,18 @@ export function liveLocalGame(options) {
                   ctx.stroke();
                   break;
 
-              case 'border_collision':
-                  // Wave effect
-                  ctx.strokeStyle = 'white';
-                  ctx.lineWidth = 3 * (1 - progress);
-                  const waveWidth = 60;
-                  const waveAmplitude = 10 * (1 - progress);
+              // case 'border_collision':
+              //     // Simple glow effect at collision point
+              //     const glowSize = 20 * (1 - progress);
+              //     ctx.shadowColor = 'white';
+              //     ctx.shadowBlur = 15 * (1 - progress);
                   
-                  ctx.beginPath();
-                  for (let i = -waveWidth/2; i <= waveWidth/2; i++) {
-                      const x = effect.x + i;
-                      const y = effect.y + Math.sin(i * 0.1 + progress * 10) * waveAmplitude;
-                      if (i === -waveWidth/2) ctx.moveTo(x, y);
-                      else ctx.lineTo(x, y);
-                  }
-                  ctx.stroke();
-                  break;
-                  
+              //     ctx.beginPath();
+              //     ctx.arc(effect.x, effect.border_side === 'up' ? 50 : 350, glowSize, 0, Math.PI * 2);
+              //     ctx.fillStyle = 'rgba(255, 255, 255, ' + (1 - progress) + ')';
+              //     ctx.fill();
+              //     break;
+
               case 'bumper_collision':
                   // Explosion effect
                   const numParticles = 8;
@@ -285,6 +301,34 @@ export function liveLocalGame(options) {
       });
   }
 
+  function drawCountdown() {
+    if (showCountdown) {
+        // Save context state
+        ctx.save();
+        
+        // Add semi-transparent overlay
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw countdown number
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 80px Arial';  // Reduced from 120px to 80px
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Add glow effect
+        ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
+        ctx.shadowBlur = 20;
+        
+        // Position in center of canvas but higher up
+        // Changed from canvas.height / 2 to canvas.height / 3 to move it up
+        ctx.fillText(countdownNumber, canvas.width / 2, canvas.height / 3);
+        
+        // Restore context state
+        ctx.restore();
+    }
+}
+
     function handleResize() {
       const container = document.querySelector('.game-container');
       if (!container) return;
@@ -341,7 +385,9 @@ export function liveLocalGame(options) {
       bumpers: [],
       flash_effect: false
     };
-  
+    let showCountdown = false;
+    let countdownNumber = 3;
+
     socket.onopen = () => {
       console.log("[Frontend] WebSocket connection opened.");
     };
@@ -925,6 +971,7 @@ export function liveLocalGame(options) {
         });
       }
       drawCollisionEffects();
+      drawCountdown();
       requestAnimationFrame(draw);
     }
   

@@ -37,6 +37,7 @@ from .views.gameSelectTournament import SelectTournamentView
 # from .views.gameInvitation import SendInvitationView, CancelInvitationView, RespondToInvitationView, ListInvitationsView, AcceptGameInvitationView
 from .views.gameLocal import StartLocalGameView, CreateGameLocalView
 from .views.gameOnline import CreateGameOnlineView, SendGameSessionInvitationView, AcceptGameInvitationView, RejectGameInvitationView, CleanExpiredInvitationsView, CheckGameInvitationStatusView, StartOnlineGameView, JoinOnlineGameAsLeftView, JoinOnlineGameAsRightView
+from .views.gameTournament import CreateTournamentView, CreateTournamentGameSessionView, StartTournamentGameSessionView
 import logging
 
 
@@ -64,6 +65,11 @@ urlpatterns = [
     #LOCAL GAME 
     path('create_local_game/', CreateGameLocalView.as_view(), name='create_local_game'),
     path('start_local_game/<uuid:game_id>/', StartLocalGameView.as_view(), name='start_local_game'),
+
+    # LOCAL TOURNAMENT GAMES
+    path('create_tournament/', CreateTournamentView.as_view(), name='create_tournament'),
+    path('create_tournament_gameSession/', CreateTournamentGameSessionView.as_view(), name='create_tournament_gameSession'),
+    path('start_tournament_gameSession/', StartTournamentGameSessionView.as_view(), name='start_tournament_gameSession'),
 
     #ONLINE GAME
     # create game

@@ -70,30 +70,21 @@ class GameResult(models.Model):
 
 # TOURNAMENT MODELS
 
-class TournamentParameters(models.Model):
-    BALL_SPEED_CHOICES = [(1, 'Slow'), (2, 'Medium'), (3, 'Fast')]
-    ball_speed = models.PositiveSmallIntegerField(choices=BALL_SPEED_CHOICES, default=2)
-
-    paddle_size_CHOICES = [(1, 'Small'), (2, 'Medium'), (3, 'Large')]
-    paddle_size = models.PositiveSmallIntegerField(choices=paddle_size_CHOICES, default=2)
-
-    bonus_enabled = models.BooleanField(default=True)
-    obstacles_enabled = models.BooleanField(default=False)
 
 class LocalTournament(models.Model):
     """
-    Modèle pour gérer un tournoi local à 4 joueurs (type 'mini-bracket').
+    Un tournoi local avec 4 joueurs, 2 demi-finales + 1 finale.
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100, default='Local Tournament')
-    # Les pseudos ou Users pour les 4 joueurs
+
+    # Les pseudos pour 4 joueurs (pas forcément des CustomUser)
     player1 = models.CharField(max_length=50)
     player2 = models.CharField(max_length=50)
     player3 = models.CharField(max_length=50)
     player4 = models.CharField(max_length=50)
-    
 
-    # Parties du bracket : 2 demi-finales + 1 finale
+    # Parties du bracket
     semifinal1 = models.ForeignKey(
         'GameSession',
         on_delete=models.SET_NULL,
@@ -113,28 +104,54 @@ class LocalTournament(models.Model):
         related_name='tournament_final'
     )
 
-    # Paramètres de jeu (pour dupliquer sur chaque partie)
-    # On met un on_delete = SET_NULL (ou CASCADE si tu préfères)
-    parameters = models.OneToOneField(
-        TournamentParameters,
-        on_delete=models.SET_NULL,
-        null=True, blank=True
-    )
-
     created_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(
         max_length=30,
-        default='pending',  
-        help_text="Status du tournoi: 'pending', ''semifinal1_in_progress', 'semifinal2_in_progress', 'final_in_progress', 'finished', etc."
+        default='pending',
+        help_text="Ex: 'pending', 'semifinal1_in_progress', 'semifinal2_in_progress', 'final_in_progress', 'finished', etc."
     )
 
     def __str__(self):
         return f"Tournament {self.name} - {self.id}"
 
 
+class TournamentParameters(models.Model):
+    """
+    Paramètres généraux valables pour TOUTES les parties d'un tournoi.
+    """
+    # Lien 1-1 avec le tournoi : 
+    #   - on_delete=CASCADE (ou SET_NULL) au choix, ici on peut supprimer 
+    #     les params si le tournoi est supprimé.
+    tournament = models.OneToOneField(
+        LocalTournament,
+        on_delete=models.CASCADE,
+        related_name='parameters'
+    )
+
+    BALL_SPEED_CHOICES = [
+        (1, 'Slow'),
+        (2, 'Medium'),
+        (3, 'Fast'),
+    ]
+    ball_speed = models.PositiveSmallIntegerField(choices=BALL_SPEED_CHOICES, default=2)
+
+    PADDLE_SIZE_CHOICES = [
+        (1, 'Small'),
+        (2, 'Medium'),
+        (3, 'Large'),
+    ]
+    paddle_size = models.PositiveSmallIntegerField(choices=PADDLE_SIZE_CHOICES, default=2)
+
+    bonus_enabled = models.BooleanField(default=True)
+    obstacles_enabled = models.BooleanField(default=False)
+
+    def __str__(self):
+        return (f"TournamentParameters for {self.tournament} | "
+                f"Ball speed={self.get_ball_speed_display()}, "
+                f"Racket size={self.get_paddle_size_display()}, "
+                f"Bonus={self.bonus_enabled}, Obstacles={self.obstacles_enabled}")
 
 # INVITATIONS ----------------------------------------
-
 
 # utile pour savoir si une invitation a expire
 def default_expiration_time():

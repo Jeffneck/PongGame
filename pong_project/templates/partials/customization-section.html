@@ -39,7 +39,24 @@
                 {% trans "Activer les bonus et malus !" %}
             </label>
         </div>
-
+        <!-- added Champs pour les noms des 4 joueurs -->
+        <div class="mb-3">
+            <label for="player1-name-{{ customization_id }}" class="form-label">{% trans "Nom du Joueur 1" %}</label>
+            <input type="text" id="player1-name-{{ customization_id }}" class="form-control" placeholder="{% trans 'Joueur 1' %}">
+        </div>
+        <div class="mb-3">
+            <label for="player2-name-{{ customization_id }}" class="form-label">{% trans "Nom du Joueur 2" %}</label>
+            <input type="text" id="player2-name-{{ customization_id }}" class="form-control" placeholder="{% trans 'Joueur 2' %}">
+        </div>
+        <div class="mb-3">
+            <label for="player3-name-{{ customization_id }}" class="form-label">{% trans "Nom du Joueur 3" %}</label>
+            <input type="text" id="player3-name-{{ customization_id }}" class="form-control" placeholder="{% trans 'Joueur 3' %}">
+        </div>
+        <div class="mb-3">
+            <label for="player4-name-{{ customization_id }}" class="form-label">{% trans "Nom du Joueur 4" %}</label>
+            <input type="text" id="player4-name-{{ customization_id }}" class="form-control" placeholder="{% trans 'Joueur 4' %}">
+        </div>
+        <!-- Fin de la section noms des joueurs -->
         <!-- Bouton Voir Tuto -->
         <button id="tutorial-btn-{{ customization_id }}" class="btn btn-secondary w-100">
             {% trans "Voir Tuto Bonus" %}

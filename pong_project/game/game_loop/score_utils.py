@@ -4,7 +4,7 @@ from channels.layers import get_channel_layer
 from asgiref.sync import sync_to_async
 from .broadcast import notify_game_finished
 from .redis_utils import set_key, get_key, scan_and_delete_keys
-from .models_utils import set_gameSession_status, create_gameResults, get_LocalTournament
+from .models_utils import is_gameSession_Online, set_gameSession_status, create_gameResults, get_LocalTournament
 
 # transformer en parametre ajustable GameParameters?
 WIN_SCORE = 5 
@@ -57,31 +57,36 @@ async def finish_game(game_id):
         print(f"[finish_game] GameSession {game_id} does not exist.")
         return
 
-    # Identifier le gagnant et le perdant
-    if score_left > score_right:
-        winner = gameSession.player_left
-        looser = gameSession.player_right
-    else:
-        winner = gameSession.player_right
-        looser = gameSession.player_left
+    
+    # Si la GameSession est Online, créer un enregistrement des gameResults
+    gameSession_isOnline = await is_gameSession_Online(game_id)
+    if gameSession_isOnline :
+        # Identifier le gagnant et le perdant
+        if score_left > score_right:
+            winner = gameSession.player_left
+            looser = gameSession.player_right
+        else:
+            winner = gameSession.player_right
+            looser = gameSession.player_left
+        # Préparer les informations de fin de partie
+        endgame_infos = {
+            'winner': winner,
+            'looser': looser,
+            'score_left': score_left,
+            'score_right': score_right,
+        }
+        # Créer un enregistrement des résultats
+        await create_gameResults(game_id, endgame_infos)
+    # en local on recupere les player_left_name .. car les player_left .. = NULL
+    else :
+                # Identifier le gagnant et le perdant
+        if score_left > score_right:
+            winner = gameSession.player_left_name
+            looser = gameSession.player_right_name
+        else:
+            winner = gameSession.player_right_name
+            looser = gameSession.player_left_name
 
-    # Préparer les informations de fin de partie
-    endgame_infos = {
-        'winner': winner,
-        'looser': looser,
-        'score_left': score_left,
-        'score_right': score_right,
-    }
-    # Récupérer tournament_id depuis gameSession
-    tournament_id = gameSession.tournament_id
-    print(f"[finish_game] tournament_id={tournament_id}")
-
-    # IMPROVE : donner tournament_id au GameResult ? (es ce necessaire ?)
-    # Créer un enregistrement des résultats
-    await create_gameResults(game_id, endgame_infos)
-
-    # Une fois qu'on a créé le GameResult (disons new_result), on peut faire :
-    # Chercher s’il y a un LocalTournament qui pointe sur ce game_id en semifinal1, semifinal2 ou final
     # Chercher s’il y a un LocalTournament qui pointe sur ce game_id en semifinal1, semifinal2 ou final
     tournament = await get_LocalTournament(game_id, "semifinal1")
     if tournament:
@@ -102,6 +107,10 @@ async def finish_game(game_id):
                 # Aucun tournoi correspondant à game_id
                 print(f"[finish_game] No tournament found for game_id={game_id}")
 
+
+    # Récupérer tournament_id depuis gameSession, peut être utile pour la notification
+    tournament_id = gameSession.tournament_id
+    print(f"[finish_game] tournament_id={tournament_id}")
     # Notifier les utilisateurs via WebSocket
     await notify_game_finished(game_id, tournament_id, winner, looser)
 

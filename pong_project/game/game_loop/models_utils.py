@@ -11,6 +11,13 @@ async def get_gameSession_status(game_id):
     except GameSession.DoesNotExist:
         return 'finished'
 
+async def is_gameSession_Online(game_id):
+    GameSession = apps.get_model('game', 'GameSession')
+    try:
+        session = await sync_to_async(GameSession.objects.get)(pk=game_id)
+        return session.is_online
+    except GameSession.DoesNotExist:
+        return False
 
 async def set_gameSession_status(game_id, status):
     GameSession = apps.get_model('game', 'GameSession')

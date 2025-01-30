@@ -379,7 +379,7 @@ class JoinOnlineGameAsRightView(LoginRequiredMixin, View):
             }, status=403)
         
         # On peut injecter le HTML de la page de jeu
-        rendered_html = render_to_string('game/online_game/live_online_game.html')
+        rendered_html = render_to_string('game/online_game/live_online_game_right.html')
 
         return JsonResponse({
             'status': 'success',
@@ -392,8 +392,8 @@ class JoinOnlineGameAsRightView(LoginRequiredMixin, View):
 
 
 # lancee par l'appui sur le bouton Lancer la partie, uniquement cliquable par le joueur left
-# Cree la game-loop avec schedule_game et passe le statut de la partie a ready
-@method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toute la classe
+# Cree la game-loop avec schedule_game et passe le statut de la partie a running
+@method_decorator(csrf_protect, name='dispatch')
 class StartOnlineGameView(View):
     """
     Démarre la partie locale en exécutant la logique du jeu.
@@ -422,8 +422,10 @@ class StartOnlineGameView(View):
             # print(f"[start_game] Démarrage de la partie {game_id}.")
             schedule_game(game_id)  # Cette fonction démarre la boucle de jeu, non-bloquante
 
-            # Mettre la session en état "ready"
-            session.status = 'ready'
+            # Faire passer la session de l'état :
+            # ready(joueur right ayant accepté l'invitation)
+            # à l'état running => le joueur left a appuyé sur le bouton démarrer la partie
+            session.status = 'running'
             session.save()
 
             # print(f"[DEBUG] StartLocalGameView success")  # Debug

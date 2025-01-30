@@ -29,7 +29,7 @@ async def game_loop(game_id):
     Tourne ~60 fois/s tant que la partie n'est pas 'finished'.
     """
     channel_layer = get_channel_layer()
-    dt = 1/60
+    dt = 1/90
     print(f"[game_loop.py] Starting loop for game_id={game_id}.")
 
     try:
@@ -44,30 +44,27 @@ async def game_loop(game_id):
         initialize_redis(game_id, paddle_left, paddle_right, ball)
         print(f"[game_loop] Game objects initialisés pour game_id={game_id}")
 
-        # 1) Attendre que le statut devienne 'ready' (durée max 60s)
         timeout = 60
         start_time = time.time()
 
+        # 1) Attendre que le statut devienne 'running' (durée max 60s) IMPROVE : que se passe t'il si on dépasse les 60 sec
         while True:
             session_status = await get_gameSession_status(game_id)
             print(f"[game_loop] game_id={game_id} en attente du statut 'ready'. Actuel={session_status}")
 
             # IMPROVE : quand la session est en ready afficher le message, "READY" sur le front, 
             # quand le joueur1 clique sur Lancer la partie il passe session status en running ce qui sort de la boucle d'attente (running = break)
-            if session_status == 'ready':
-                print(f"[game_loop] game_id={game_id} => statut 'ready' détecté. On lance le jeu.")
+            if session_status == 'running':
+                print(f"[game_loop] game_id={game_id} => statut 'running' détecté. On lance le jeu.")
                 break
 
             if time.time() - start_time > timeout:
-                print(f"[game_loop] Timeout: la partie {game_id} n'est jamais passée en 'ready' après {timeout}s.")
+                print(f"[game_loop] Timeout: la partie {game_id} n'est jamais passée en 'running' après {timeout}s.")
                 return  # On abandonne
 
             await asyncio.sleep(1)
 
-        # 2) Passer en 'running' et faire la boucle ~60fps IMPROVE ce ne sera plus le jeu lui meme qui fera passer la session en running mais le clic sur le bouton Lancer partie
-        await set_gameSession_status(game_id, 'running')
-        print(f"[game_loop] game_id={game_id} => statut 'running'. Début de la boucle.")
-
+        # 2) Lancer la boucle ~90fps 
         while True:
             # Vérifier si la partie est encore 'running' ou si on l'a terminée
             session_status = await get_gameSession_status(game_id)

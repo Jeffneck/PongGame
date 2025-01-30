@@ -3,7 +3,8 @@ import { updateHtmlContent } from "../tools/index.js";
 import { showStatusMessage } from "../tools/index.js";
 import { isTouchDevice } from "../tools/index.js";
 import { initializeGameControls } from "./controls.js";
-import { liveOnlineGame } from "./live_online_game.js";
+import { liveOnlineGameLeft } from "./live_online_game_left.js";
+import { liveOnlineGameRight } from "./live_online_game_right.js";
 
 export async function createGameOnline(onlineParams) {
     console.log('[createGameOnline] Paramètres online = ', onlineParams);
@@ -66,6 +67,10 @@ async function sendInvitation(button, game_id) {
     }
 }
 
+// Lancée pour le joueur left après qu'il ait fait sendInvitation()
+// Check le statut de l'invitation envoyée toutes les 3 secondes 
+// Pendant que le joueur est sur la page loading.html
+// redirige vers joinOnlineGameAsLeft() quand l'autre joueur a accepté l'invitation
 async function checkGameInvitationStatus(response) {
     // 1) On met à jour le contenu HTML et on initialise les contrôles (comme tu le fais déjà)
     updateHtmlContent('#content', response.html);
@@ -102,10 +107,8 @@ async function checkGameInvitationStatus(response) {
                             // 1) Arrêter le polling
                             clearInterval(pollInterval);
 
-                            // 2) Faire une action : rediriger vers la page de démarrage
-                            //    ou appeler StartOnlineGameView, etc.
-                            // ex:
-                            startOnlineGame(data.session_id);
+                            // 2) Rediriger vers la page de jeu
+                            joinOnlineGameAsLeft(data.session_id);
                             break;
 
                         case 'rejected':
@@ -160,18 +163,21 @@ function initializeFriendInvitationBtn(game_id) {
     });
 }
 
-async function startOnlineGame(game_id){
+
+// cette fonction est lancée par la fonction checkGameInvitation status quand le joueur right a accepté l'invitation
+// elle redirige le joueur left (celui qui a envoyé l'invitation) vers la page de jeu
+// sur la page de jeu le joueur pourra cliquer sur un bouton qui lancera le jeu en arrière plan (cf.live_online_game_left.js)
+async function joinOnlineGameAsLeft(game_id){
     try {
-        const response = await requestPost('game', `start_online_game/${game_id}`, null); 
-        if (response.status === 'error') {
-            showStatusMessage(response.message, 'error');
-        } else {
-            console.log('response ok startonlingeGame et avant injection')
+        const response = await requestGet('game', `join_online_game_as_left/${game_id}`); 
+        if (response.status === 'success') {
+            // afficher le html de la page de jeu
             updateHtmlContent('#content', response.html);
-            liveOnlineGame({
-                gameId: response.game_id,
-                resultsUrl: '/les_resultats'
-            });
+            // afficher le front du jeu au joueur left & transmettre les inputs du joueur left au jeu
+            // le button startGame de live_online_game_as_left.html permettra de lancer l'algo du jeu en back depuis le js de liveOnlineGameLeft()
+            liveOnlineGameLeft({gameId: response.game_id,resultsUrl: '/les_resultats'});
+        } else {
+            showStatusMessage(response.message, 'error');
         }
     } catch (error) {
         if (error instanceof HTTPError) {
@@ -179,57 +185,81 @@ async function startOnlineGame(game_id){
         } else {
             showStatusMessage('Une erreur est survenue.', 'error');
         }
-        console.error('Erreur startOnlineGame :', error);
+        console.error('Erreur joinOnlineGameAsLeft :', error);
     }
 }
 
-
-
+// IMPROVE : creer une fonction manageGameInvitation() qui gere les cas accept et decline
+// lancée par handleGameInvitationBurgerMenu() lorsque le joueur clique sur accepter l'invitation
+// fait disparaitre l'item d'invitation
+// redirige le joueur ayant accepté l'invit vers la page de jeu avec joinOnlineGameAsRight()
 export async function acceptGameInvitation(invitationId, action) {
     try {
         if (action === 'accept') {
-            // On appelle AcceptGameInvitationView
             const url = `accept_game_invitation/${invitationId}`;
-
             const response = await requestPost('game', url, null);
+
             if (response.status === 'success') {
                 console.log('Invitation acceptée => session créée :', response);
+
                 // Supprime l'invitation de l'UI
                 document.querySelector(`[data-invitation-id="${invitationId}"]`)
                     ?.closest('.invitation-item')
                     ?.remove();
 
-                // Rediriger l'utilisateur (B) vers loading (SPA => adapter URL si besoin)
-                //IMPROVE ajouter le navigateto pour la gestion de l'historique
-                // navigateTo(`/game-loading`);
-                const data = await requestGet('game', `start_online_game/${response.session.id}`)
-                updateHtmlContent('#content', data.html);
-                liveOnlineGame({
-                    gameId: data.game_id,
-                    resultsUrl: '/les_resultats'
-                });
-                //window.location.href = `/game/loading/${response.session.id}`;
+                // Rejoindre le jeu en tant que joueur RIGHT
+                joinOnlineGameAsRight(response.session.id);
             } else {
                 console.error('Erreur à l\'acceptation :', response.message);
             }
-        } 
-        else if (action === 'decline') {
-            // On appelle RespondToInvitationView
-            const formData = new FormData();
-            formData.append('invitation_id', invitationId);
-            formData.append('action', 'decline');
-
-            const response = await requestPost('game', 'respond_to_invitation', formData);
-            if (response.status === 'success') {
-                console.log('Invitation refusée :', response);
-                document.querySelector(`[data-invitation-id="${invitationId}"]`)
-                    ?.closest('.invitation-item')
-                    ?.remove();
-            } else {
-                console.error('Erreur lors du refus :', response.message);
-            }
+        } else if (action === 'decline') {
+            await declineGameInvitation(invitationId);
         }
     } catch (error) {
         console.error('Erreur réseau lors du traitement de l\'invitation :', error);
+    }
+}
+
+// lancee par acceptGameInvitation() 
+// rediriger le joueur ayant accepté l'invitation vers la page de jeu
+async function joinOnlineGameAsRight(sessionId) {
+    try {
+        // Récupérer les données pour rejoindre la partie
+        const response = await requestGet('game', `join_online_game_as_right/${sessionId}`);
+
+        // Gestion des erreurs renvoyées par le serveur
+        if (response.status === 'error') {
+            console.error("Erreur lors de la tentative de rejoindre le jeu :", response.message);
+            showStatusMessage(response.message, 'error');
+            return;
+        }
+
+        // Si succès, afficher la page de jeu et initialiser le joueur RIGHT
+        updateHtmlContent('#content', response.html);
+        liveOnlineGameRight({gameId: response.game_id, resultsUrl: '/les_resultats'});
+    } catch (error) {
+        console.error('Erreur réseau lors de la connexion au jeu en tant que joueur Right:', error);
+        showStatusMessage('Une erreur réseau est survenue. Veuillez réessayer.', 'error');
+    }
+}
+
+async function declineGameInvitation(invitationId) {
+    try {
+        const formData = new FormData();
+        formData.append('invitation_id', invitationId);
+        formData.append('action', 'decline');
+
+        const response = await requestPost('game', 'respond_to_invitation', formData);
+
+        if (response.status === 'success') {
+            console.log('Invitation refusée :', response);
+            document.querySelector(`[data-invitation-id="${invitationId}"]`)
+                ?.closest('.invitation-item')
+                ?.remove();
+        } else {
+            console.error('Erreur lors du refus :', response.message);
+        }
+    } catch (error) {
+        console.error('Erreur lors du refus de l\'invitation :', error);
     }
 }

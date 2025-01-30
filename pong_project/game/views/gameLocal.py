@@ -79,6 +79,13 @@ class StartLocalGameView(View):
                     'message': "La partie en ligne ne peut pas être lancée avec cette API. Cette API sert à lancer une partie locale."
                 })
 
+            # Vérifier que la partie n'est pas déjà en cours
+            if session.status == 'running':
+                return JsonResponse({
+                    'status': 'error',
+                    'message': f"La partie {game_id} est déjà en cours."
+                })
+            
             # Vérifier que la partie n'est pas déjà terminée
             if session.status == 'finished':
                 return JsonResponse({
@@ -90,8 +97,8 @@ class StartLocalGameView(View):
             # print(f"[start_game] Démarrage de la partie {game_id}.")
             schedule_game(game_id)  # Cette fonction démarre la boucle de jeu, non-bloquante
 
-            # Mettre la session en état "ready"
-            session.status = 'ready'
+            # Mettre la session en état "running"
+            session.status = 'running'
             session.save()
 
             # print(f"[DEBUG] StartLocalGameView success")  # Debug
@@ -106,22 +113,3 @@ class StartLocalGameView(View):
                 'status': 'error',
                 'message': "La session de jeu spécifiée n'existe pas."
             })
-
-# Quand les 2 joueurs sont prets, l'appui sur le bouton lancer la partie : 
-# met la GameSession en ready ce qui permet à la boucle de jeu de se lancer
-# def setGameSessionReady(request, game_id):
-#     """
-#     Marque la partie comme prête à être lancée.
-#     """
-#     if request.method == 'POST':
-#         print(f"[DEBUG] game_id reçu dans la vue : {game_id}")  # Debug
-#         try:
-#             game_session = GameSession.objects.get(pk=game_id)
-#             print(f"[DEBUG] gamesession trouvee : {game_session}")  # Debug
-#             game_session.status = 'ready'  # On passe le statut à 'ready'
-#             game_session.save()
-#             return JsonResponse({'success': True, 'message': 'Game marked as ready'})
-#         except GameSession.DoesNotExist:
-#             return JsonResponse({'success': False, 'message': 'Game session not found'}, status=404)
-#     return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=400)
-

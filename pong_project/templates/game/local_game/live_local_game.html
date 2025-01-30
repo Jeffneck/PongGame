@@ -1,8 +1,51 @@
-<button id="startGameBtn" disabled>Lancer la partie (LOCAL)</button>
-<div class="game-container">
-  <canvas id="gameCanvas"></canvas>
+<div id="live-local-game-container">
+  <style>
+    /* Styles spécifiques au composant live_local_game */
+    #gameCanvas {
+      z-index: 50000;
+      background: black;
+      border: 2px solid white;
+      display: block;
+      margin: 0 auto;
+      max-width: 100%;
+    }
+
+    /* On utilise .live-local-game-body pour éviter de polluer le body global */
+    .live-local-game-body {
+      z-index: 50000;
+      position: relative; /* Ajouté */
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      height: 100vh;  /* Force full height */
+      background: #1a1a1a;
+      color: white;
+      overflow: hidden;  /* Prevent scrolling */
+      box-sizing: border-box;  /* Include padding in height calculation */
+    }
+    #startGameBtn {
+    z-index: 60000;
+    
+    position: relative; /* Ajouté */
+    }
+    .game-container {
+        z-index: 50000;
+        width: 100%;
+        max-width: 1200px; /* Maximum game width */
+        position: relative;
+        aspect-ratio: 2/1;
+    }
+  </style>
+
+  <!-- Conteneur "virtuel" qui agit comme body local -->
+  <div class="live-local-game-body">
+    <!-- Bouton de lancement -->
+    <button id="startGameBtn" class="btn btn-success" disabled>Lancer la Partie</button>
+    <div class="game-container">
+      <canvas id="gameCanvas" width="800" height="400"></canvas>
+    </div>
+  </div>
 </div>
-<!-- <script src="{% static 'js/live_local_game.js' %}"></script>
-<script>
-  liveLocalGame({ gameId: "{{ game_id }}" });
-</script> -->

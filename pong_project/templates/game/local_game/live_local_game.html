@@ -1,4 +1,4 @@
-<div id="live-local-game-container">
+<!-- <div id="live-local-game-container">
   <style>
     /* Styles spécifiques au composant live_local_game */
     #gameCanvas {
@@ -38,14 +38,75 @@
         position: relative;
         aspect-ratio: 2/1;
     }
-  </style>
+  </style> -->
 
   <!-- Conteneur "virtuel" qui agit comme body local -->
-  <div class="live-local-game-body">
+  <!-- <div class="live-local-game-body"> -->
     <!-- Bouton de lancement -->
-    <button id="startGameBtn" class="btn btn-success" disabled>Lancer la Partie</button>
+    <!-- <button id="startGameBtn" class="btn btn-success" disabled>Lancer la Partie</button>
     <div class="game-container">
       <canvas id="gameCanvas" width="800" height="400"></canvas>
     </div>
   </div>
-</div>
+</div>  -->
+
+
+<div id="livegame" class="container-fluid d-flex flex-column justify-content-center align-items-center">
+
+	<!-- Conteneur "virtuel" qui agit comme body local -->
+	  <!-- Bouton de lancement -->
+	  <button id="startGameBtn" class="btn starting-btn mt-4 mb-4" disabled>Lancer la Partie</button>
+	  <div class="game-container">
+		<canvas id="gameCanvas"></canvas>
+	  </div>
+  </div>
+  
+  
+  
+  <style>
+	  body, html {
+		  overflow: hidden;
+	  }
+  
+	  #ground-game, .terrain{
+		  display: none;
+	  }
+  
+	  /* On utilise .live-local-game-body pour éviter de polluer le body global */
+	  #livegame {
+		z-index: 50000;
+		margin: 0;
+		height: 100%;  /* Force full height */
+		width: 100%;
+		color: white;
+	  }
+  
+	  #startGameBtn {
+	  z-index: 60000;
+	  
+	  }
+  
+	  #gameCanvas {
+		  position: absolute; 
+		  z-index: 50000;
+		  display: block;
+		  margin: 0 auto;
+		  width: 100%; /* Responsive */
+		  height: 100%; /* Proportionnel au conteneur parent */
+		  border: 1px solid white;
+		  border-radius: 1em;
+		  background-color: #101A32;
+	}
+  
+	.game-container {
+		  z-index: 50000;
+		  width: 90%;
+		  aspect-ratio: 2 / 1; /* Ratio fixe */
+		  position: relative;
+		  background-color: #101A32;
+		  min-width: 500px;
+  
+	}
+  
+  
+	</style>

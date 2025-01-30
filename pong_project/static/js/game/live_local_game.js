@@ -778,8 +778,9 @@ export function liveLocalGame(options) {
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       } else {
-        ctx.fillStyle = 'black';
+        ctx.fillStyle = '#101A32'; // Changer la couleur de fond en bleu
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+	
         
         // Terrain
         ctx.strokeStyle = 'white';
@@ -870,6 +871,7 @@ export function liveLocalGame(options) {
           }
         });
       }
+
   
       // Scores
       ctx.fillStyle = 'white';

@@ -69,6 +69,23 @@ async function loadNavbar() {
  * Gère les erreurs et affiche des messages appropriés en cas de problème.
  */
 
+export async function refreshBurgerMenu() {
+    try {
+        const data = await requestGet('accounts', 'burgerMenu');
+
+        if (data.status === 'success') {
+            // Remplacer le contenu du conteneur burger menu
+            updateHtmlContent('#burger-menu-container', data.html);
+            console.log('Burger menu mis à jour avec succès.');
+        } else {
+            console.warn('Burger menu non mis à jour, statut:', data.status);
+        }
+    } catch (error) {
+        console.error('Erreur lors du rafraîchissement du burger menu:', error);
+    }
+}
+
+
 export async function handleNavbar() {
     console.log('Chargement de la navbar...');
     try {
@@ -78,6 +95,8 @@ export async function handleNavbar() {
             await initializeBurgerMenu();
             eventsHandlerBurgerMenu();
             console.log('Navbar et burger menu chargés avec succès.');
+             // ✅ Appeler le refresh périodique si l'user est authentifié
+            setInterval(refreshBurgerMenu, 10000);
         } else {
             console.log('Utilisateur non authentifié ou erreur de chargement.');
         }

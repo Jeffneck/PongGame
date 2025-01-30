@@ -10,7 +10,11 @@
     </div>
 </nav>
 <!-- Inclure le contenu du burger-menu -->
-{{ burger_menu|safe }}
+<!-- Le conteneur pour le contenu du burger menu -->
+<div id="burger-menu-container">
+    <!-- Option 1: On peut charger directement la portion burger_menu ici la 1ère fois -->
+    {{ burger_menu|safe }}
+</div>
 <div id="overlay" style="display: none;" onclick="toggleBurgerMenu()"></div>
 
 <style>

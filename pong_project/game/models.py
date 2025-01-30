@@ -1,12 +1,11 @@
 # game/models.py
 from django.db import models
-from accounts.models import CustomUser
 from django.utils.timezone import now
 from datetime import timedelta
 import uuid
+from django.contrib.auth import get_user_model  # ✅ Import sans circularité
 
-
-
+User = get_user_model()  # ✅ Récupère CustomUser dynamiquement
 class GameSession(models.Model):
     """
     Un enregistrement pour représenter une partie (en cours ou terminée).
@@ -20,8 +19,8 @@ class GameSession(models.Model):
     is_online = models.BooleanField(default=False)
 
     # Si la partie est en ligne, on relie à un CustomUser
-    player_left = models.ForeignKey(CustomUser, related_name='game_sessions_as_player_left', on_delete=models.CASCADE, null=True, blank=True)
-    player_right = models.ForeignKey(CustomUser, related_name='game_sessions_as_player_right', on_delete=models.CASCADE, null=True, blank=True)
+    player_left = models.ForeignKey(User, related_name='game_sessions_as_player_left', on_delete=models.CASCADE, null=True, blank=True)
+    player_right = models.ForeignKey(User, related_name='game_sessions_as_player_right', on_delete=models.CASCADE, null=True, blank=True)
 
     # Si la partie est locale, on utilise des champs de texte (par exemple, les noms des joueurs)
     player_left_name = models.CharField(max_length=50, null=True, blank=True)
@@ -51,21 +50,32 @@ class GameParameters(models.Model):
                 f"Bonus/Malus: {'On' if self.bonus_enabled else 'Off'}, "
                 f"Bumpers: {'On' if self.obstacles_enabled else 'Off'}")
 
-#remplacer game par game_session
+
+
+class GameResultManager(models.Manager):
+    """Manager pour récupérer l'historique des matchs d'un utilisateur."""
+    
+    def get_user_match_history(self, user):
+        """Retourne l'historique des parties jouées par l'utilisateur."""
+        return self.get_queryset().filter(  # ✅ Utilise `get_queryset()` pour éviter l'erreur
+            models.Q(game__player_left=user) | models.Q(game__player_right=user)
+        ).order_by('-ended_at')
+
 class GameResult(models.Model):
     """
     Enregistre le score final d'une partie terminée.
     """
-    game = models.ForeignKey(GameSession, on_delete=models.CASCADE)
+    game = models.ForeignKey("game.GameSession", on_delete=models.CASCADE)
     winner = models.CharField(max_length=50)  # "left" ou "right"
     looser = models.CharField(max_length=50)  # "left" ou "right"
     score_left = models.IntegerField()
     score_right = models.IntegerField()
     ended_at = models.DateTimeField(auto_now_add=True)
 
+    objects = GameResultManager()  # ✅ Ajout du Manager personnalisé
+
     def __str__(self):
         return f"[{self.game.id}] winner={self.winner} looser={self.looser} => {self.score_left}-{self.score_right}"
-
 
 
 # TOURNAMENT MODELS
@@ -143,8 +153,8 @@ def default_expiration_time():
 
 class GameInvitation(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    from_user = models.ForeignKey(CustomUser, related_name='invitations_sent', on_delete=models.CASCADE)
-    to_user = models.ForeignKey(CustomUser, related_name='invitations_received', on_delete=models.CASCADE)
+    from_user = models.ForeignKey(User, related_name='invitations_sent', on_delete=models.CASCADE)
+    to_user = models.ForeignKey(User, related_name='invitations_received', on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField(default=default_expiration_time)
     status = models.CharField(

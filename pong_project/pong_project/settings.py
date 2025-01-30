@@ -35,6 +35,9 @@ LOCALE_PATHS = [
     BASE_DIR / 'locale',  # Assure que le dossier existe à la racine
 ]
 
+# pour get_user_model
+AUTH_USER_MODEL = 'accounts.CustomUser'
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -44,6 +47,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'widget_tweaks',
     'channels',
     'accounts',
     'core',
@@ -85,7 +89,8 @@ REDIS_PORT = int(os.environ.get("REDIS_PORT", 6379))
 #[added]
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:8080',
-    'http://192.168.1.176:8080',  # ONLINE Ajouter l'IP locale de l'ordinateur hebergant l'app
+    'http://192.168.1.176:8080',
+      'http://192.168.1.138:8080'  # ONLINE Ajouter l'IP locale de l'ordinateur hebergant l'app
     # 'https://votre_domaine.com',  # Ajoutez votre domaine en production
     # Ajoutez d'autres origines si nécessaire
 ]
@@ -93,13 +98,13 @@ CSRF_TRUSTED_ORIGINS = [
 CSRF_COOKIE_SECURE = False  # À définir sur True en production avec HTTPS
 # Utiliser SameSite pour renforcer la sécurité
 CSRF_COOKIE_SAMESITE = 'Lax'  # 'Strict' ou 'None' si nécessaire
-# Si vous utilisez HTTPS, ajustez également SESSION_COOKIE_SECURE
-SESSION_COOKIE_SECURE = False  # À définir sur True en production avec HTTPS
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'django.middleware.locale.LocaleMiddleware', # Middleware pour la gestion des langues
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -121,6 +126,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'django.template.context_processors.i18n',  # Ajout du contexte pour la gestion des langues
             ],
         },
     },
@@ -168,7 +174,13 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'fr'  # Langue par défaut
+
+LANGUAGES = [
+    ('fr', 'Français'),
+    ('en', 'English'),
+    ('es', 'Español'),
+]
 
 TIME_ZONE = 'UTC'
 
@@ -184,9 +196,22 @@ STATIC_URL = 'static/'
 
 # [added] IMPORTANT : STATIC_ROOT doit pointer vers un dossier existant ou qui peut être créé
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+
+# Fichiers médias
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# Sécurité des cookies
+SESSION_COOKIE_SECURE = False  # À mettre à True en production avec HTTPS
+CSRF_COOKIE_SECURE = False     # À mettre à True en production avec HTTPS
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = False

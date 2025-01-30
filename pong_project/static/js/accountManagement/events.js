@@ -3,6 +3,7 @@ import { handleEnable2FA, handleDisable2FA, handleDeleteAccount } from '../auth/
 
 async function handleLanguageChange(language) {
     const formData = new FormData();
+    console.log(language);
     formData.append('language', language); // Ajoute la paire clé-valeur "language=fr"
     const data = await  requestPost('accounts', 'set_language', formData);
     if (data.status === 'success') {

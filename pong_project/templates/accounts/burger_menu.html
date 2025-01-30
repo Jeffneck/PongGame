@@ -42,7 +42,7 @@
             <li class="d-flex align-items-center mb-2 friend-item">
                 <div class="position-relative">
                     <img src="{{ friend.avatar.url|default:'/media/avatars/default_avatar.png' }}" alt="Avatar of {{ friend.username }}" class="rounded-circle me-3" style="width: 50px; height: 50px;">
-                    <span class="status-indicator-friend {% if friend.status == 'online' %}online{% else %}offline{% endif %}"></span>
+                    <span class="status-indicator-friend {% if friend.is_online %}online{% else %}offline{% endif %}"></span>
                 </div>
                 <button class="friend-btn">{{ friend.username }}</button>
             </li>

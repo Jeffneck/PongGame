@@ -1,7 +1,5 @@
 import { initializeHomeView } from './landing/coreHome.js';
-import { handleLogin } from './auth/index.js';
-import { initializeRegisterView } from './auth/index.js';
-import { initializeLogin2FAView } from './auth/index.js';
+import { handleLogin, initializeRegisterView, initializeLogin2FAView, handleDisable2FA, handleEnable2FA } from './auth/index.js';
 import { handleInviteGame, initializeGameHomeView } from './game/index.js';
 import { handleAccountsManagement } from './accountManagement/index.js';
 import { handleViewProfile } from './userProfile/index.js';
@@ -36,9 +34,13 @@ export function initializeRouter() {
             console.log('Route: Register');
             initializeRegisterView();
         })
-        .on('/2fa-login', () => {
+        .on('/enable-2fa', () => {
             console.log('Route: 2FA Login');
-            initializeLogin2FAView();
+            handleEnable2FA();
+        })
+        .on('/disable-2fa', () => {
+            console.log('Route: 2FA Login');
+            handleDisable2FA();
         })
         .on('/home', () => {
             console.log('Route: Game Home');
@@ -90,5 +92,6 @@ export function initializeRouter() {
  * @param {string} route - La route cible.
  */
 export function navigateTo(route) {
+    console.log(`Navigation vers ${route}`);
     router.navigate(route);
 }

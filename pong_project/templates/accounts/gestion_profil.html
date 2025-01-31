@@ -41,22 +41,29 @@
     </div>
 
     <!-- Change Username Section -->
-	<div class="row d-flex justify-content-center mb-3">
-		<div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-4 col-xxl-4">
-			<div class="card">
-				<div class="card-body p-4">
-					<h5 class="card-title mb-2">{% trans "Changer de pseudo" %}</h5>
-					<form id="change-username-form" method="POST" style="color: white;">
-						{% csrf_token %}
+    <div class="row d-flex justify-content-center mb-3">
+        <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-4 col-xxl-4">
+            <div class="card">
+                <div class="card-body p-4">
+                    <h5 class="card-title mb-2">{% trans "Changer de pseudo" %}</h5>
+
+                    <!-- Avertissement -->
+                    <div class="text-warning mb-2" style="font-size: 0.9em;">
+                        ⚠ {% trans "Changer de pseudo entraînera une déconnexion automatique." %}
+                    </div>
+
+                    <form id="change-username-form" method="POST" style="color: white;">
+                        {% csrf_token %}
                         {{ profile_form.username |add_class:"form-control mb-3"}}
-						<button type="submit" class="btn btn-primary w-90">{% trans "Valider" %}</button>
-						<div id="change-username-error" class="text-danger mt-2"></div>
-						<div id="change-username-success" class="text-success mt-2"></div>
-					</form>
-				</div>
-			</div>
-		</div>
-	</div>
+                        <button type="submit" class="btn btn-primary w-90">{% trans "Valider" %}</button>
+                        <div id="change-username-error" class="text-danger mt-2"></div>
+                        <div id="change-username-success" class="text-success mt-2"></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
     <!-- Change Password Section -->
 	<div class="row d-flex justify-content-center mb-3">

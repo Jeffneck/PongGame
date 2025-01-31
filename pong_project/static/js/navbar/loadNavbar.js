@@ -96,7 +96,7 @@ export async function handleNavbar() {
             eventsHandlerBurgerMenu();
             console.log('Navbar et burger menu chargés avec succès.');
              // ✅ Appeler le refresh périodique si l'user est authentifié
-            setInterval(refreshBurgerMenu, 10000);
+            setInterval(refreshBurgerMenu, 20000);
         } else {
             console.log('Utilisateur non authentifié ou erreur de chargement.');
         }

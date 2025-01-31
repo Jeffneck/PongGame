@@ -30,7 +30,7 @@ html, body {
     max-width: 100%;
 	background-color: rgba(45, 180, 243);
 	text-align: left;
-	z-index: 30; /* Garder la barre au-dessus de tout */
+	z-index: 60; /* Garder la barre au-dessus de tout */
 	position: fixed;
 	top:0;
 	justify-content: center;
@@ -457,6 +457,7 @@ html, body {
 	height: 100vh; /* Prend toute la hauteur de l'écran */
 	justify-content: center;
 }
+
 .normal-content {
 	height: auto;
 	justify-content: flex-start;
@@ -477,31 +478,4 @@ html, body {
 }
 
 
-.starting-btn {
-	background-color: rgba(45, 180, 243, 1); /* Couleur principale */
-	color: white; /* Texte blanc */
-	font-size: 1em; /* Taille du texte */
-	font-weight: bold; /* Texte gras */
-	text-transform: uppercase; /* Texte en majuscules */
-	padding: 10px 30px; /* Espacement interne */
-	border: 2px solid rgba(45, 180, 243, 0.8); /* Bordure subtile */
-	border-radius: 8px; /* Coins légèrement arrondis */
-	transition: all 0.3s ease; /* Transition douce */
-	box-shadow: 0px 4px 8px rgba(45, 180, 243, 0.6); /* Ombre légère */
-	cursor: not-allowed; /* Curseur pour désactivé */
-	min-width: 200px;
-  }
-  
-  .starting-btn:not(:disabled):hover {
-	background-color: rgba(30, 150, 210, 1); /* Légèrement plus foncé au survol */
-	border-color: rgba(45, 180, 243, 1); /* Bordure plus vive */
-	box-shadow: 0px 6px 12px rgba(45, 180, 243, 0.8); /* Ombre renforcée */
-	transform: scale(1.05); /* Léger agrandissement */
-  }
-  
-  .starting-btn:disabled {
-	background-color: rgba(45, 180, 243, 0.4); /* Couleur atténuée */
-	border-color: rgba(45, 180, 243, 0.4); /* Bordure assortie */
-	color: rgba(255, 255, 255, 0.5); /* Texte gris clair */
-	box-shadow: none; /* Pas d'ombre */
-  }
+/*  */

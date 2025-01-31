@@ -25,17 +25,21 @@ export function liveLocalGame(options) {
       gameTitleEl.textContent = gameId;
     }
   
+	// Rendre le bouton invisible et sans halo au début
+
     // -- Débloquer le bouton après 3 secondes (logique front)
     setTimeout(() => {
       if (startGameBtn) {
+		startGameBtn.style.opacity = "0.7";
         startGameBtn.disabled = false;
+		startGameBtn.classList.add("active");
       }
     }, 3000);
   
     // -- Fonction pour démarrer la partie
     async function startGame() {
       showCountdown = true;
-      startGameBtn.disabled = true;
+      startGameBtn.classList.add('d-none');
       
       // Start countdown animation
       let count = 3;
@@ -329,30 +333,33 @@ export function liveLocalGame(options) {
     }
 }
 
-    function handleResize() {
-      const container = document.querySelector('.game-container');
-      if (!container) return;
-  
-      const containerWidth = container.clientWidth;
-      const containerHeight = container.clientHeight;
-      
-      // Calculate new scale
-      scale = Math.min(containerWidth / ORIGINAL_WIDTH, containerHeight / ORIGINAL_HEIGHT);
-      
-      // Set canvas style size
-      canvas.style.width = (ORIGINAL_WIDTH * scale) + 'px';
-      canvas.style.height = (ORIGINAL_HEIGHT * scale) + 'px';
-      
-      // Keep canvas resolution sharp
-      canvas.width = ORIGINAL_WIDTH;
-      canvas.height = ORIGINAL_HEIGHT;
-      
-      // Reset context properties
-      ctx.imageSmoothingEnabled = false;
-    }
-  
-    window.addEventListener('resize', handleResize);
-    handleResize(); // Initial
+function handleResize() {
+    const container = document.querySelector('.game-container');
+    if (!container) return;
+
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+    const windowHeight = window.innerHeight; // Récupère la hauteur de l'écran
+
+    // Calcul du scale basé sur la hauteur de l'écran
+    let scale = Math.min(containerWidth / ORIGINAL_WIDTH, windowHeight * 0.7 / ORIGINAL_HEIGHT);
+
+    // Appliquer le scale sans dépasser la hauteur disponible
+    canvas.style.width = (ORIGINAL_WIDTH * scale) + 'px';
+    canvas.style.height = (ORIGINAL_HEIGHT * scale) + 'px';
+
+    // Garder la résolution nette
+    canvas.width = ORIGINAL_WIDTH;
+    canvas.height = ORIGINAL_HEIGHT;
+    
+    // Ajuster dynamiquement la hauteur de .game-container
+    container.style.height = Math.min(windowHeight * 0.8, containerWidth / 2) + 'px';
+
+    ctx.imageSmoothingEnabled = false;
+}
+
+window.addEventListener('resize', handleResize);
+handleResize(); // Appel initial
   
     // -- Configuration WebSocket
     const protocol = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';

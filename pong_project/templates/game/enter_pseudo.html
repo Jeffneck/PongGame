@@ -1,0 +1,100 @@
+<div id="tournament_player" class="container-fluid d-flex flex-column align-items-center" style="height: 100%; padding-top: 20px;"">
+	<h1 class="text-center text-white mb-4">Entrez les pseudos des joueurs</h1>
+
+	<!-- Bloc qui contient les 4 avatars et inputs -->
+	<div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5 col-xxl-4 mb-3">
+		<div class="card p-4">
+			<!-- Joueur 1 -->
+			<div class="row align-items-center g-3 mb-4">
+				<div class="col-auto">
+					<img src="svg/astronaut_gang.svg" data-player-id="1" class="avatar" />
+				</div>
+				<div class="col">
+					<input
+					type="text"
+					class="form-control"
+					placeholder="Pseudo Joueur 1"
+					/>
+				</div>
+			</div>
+
+			<!-- Joueur 2 -->
+			<div class="row align-items-center g-3 mb-4">
+				<div class="col-auto">
+					<img src="svg/shark_dumbble.svg" data-player-id="2" class="avatar" />
+				</div>
+				<div class="col">
+					<input
+					type="text"
+					class="form-control"
+					placeholder="Pseudo Joueur 2"
+					/>
+				</div>
+			</div>
+
+			<!-- Joueur 3 -->
+			<div class="row align-items-center g-3 mb-4">
+				<div class="col-auto">
+					<img src="svg/monkey_money.svg" data-player-id="3" class="avatar" />
+				</div>
+				<div class="col">
+					<input
+					type="text"
+					class="form-control"
+					placeholder="Pseudo Joueur 3"
+					/>
+				</div>
+			</div>
+
+			<!-- Joueur 4 -->
+			<div class="row align-items-center g-3">
+				<div class="col-auto">
+					<img src="svg/death_bath.svg" data-player-id="4" class="avatar" />
+				</div>
+				<div class="col">
+					<input
+					type="text"
+					class="form-control"
+					placeholder="Pseudo Joueur 4"
+					/>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class=" col-12 col-sm-8 col-md-6 col-lg-5 col-xl-4 col-xxl-4">
+		<button id="valide-players-btn" class="btn btn-primary w-100 mb-3 mt-2" disabled style="background-color: #2DB4F3">Commencer</button>
+	</div>
+</div>
+
+<style>
+
+html, body {
+		overflow-y: auto;
+	}
+
+.avatar {
+    width: 3em;
+    height: 3em;
+    border-radius: 50%;
+    /* margin-bottom: 1vw; */
+	border: 2px solid white;
+}
+
+.card {
+	background-color: #101A32;
+	border: 2px solid rgb(153, 148, 148);
+	min-width: 250px;
+}
+
+.card-title {
+	font-size: 1.7rem;
+	color: #ffffff;
+}
+
+.form-control::placeholder {
+  color: #9d9b9b; /* Exemple : placeholder en rouge */
+  opacity: 1;     /* Par défaut, le placeholder est parfois moins opaque */
+}
+
+</style>

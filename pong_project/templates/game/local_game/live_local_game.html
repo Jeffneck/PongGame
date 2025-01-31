@@ -1,112 +1,120 @@
-<!-- <div id="live-local-game-container">
-  <style>
-    /* Styles spécifiques au composant live_local_game */
-    #gameCanvas {
-      z-index: 50000;
-      background: black;
-      border: 2px solid white;
-      display: block;
-      margin: 0 auto;
-      max-width: 100%;
-    }
-
-    /* On utilise .live-local-game-body pour éviter de polluer le body global */
-    .live-local-game-body {
-      z-index: 50000;
-      position: relative; /* Ajouté */
-      margin: 0;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-height: 100vh;
-      height: 100vh;  /* Force full height */
-      background: #1a1a1a;
-      color: white;
-      overflow: hidden;  /* Prevent scrolling */
-      box-sizing: border-box;  /* Include padding in height calculation */
-    }
-    #startGameBtn {
-    z-index: 60000;
-    
-    position: relative; /* Ajouté */
-    }
-    .game-container {
-        z-index: 50000;
-        width: 100%;
-        max-width: 1200px; /* Maximum game width */
-        position: relative;
-        aspect-ratio: 2/1;
-    }
-  </style> -->
-
-  <!-- Conteneur "virtuel" qui agit comme body local -->
-  <!-- <div class="live-local-game-body"> -->
-    <!-- Bouton de lancement -->
-    <!-- <button id="startGameBtn" class="btn btn-success" disabled>Lancer la Partie</button>
-    <div class="game-container">
-      <canvas id="gameCanvas" width="800" height="400"></canvas>
-    </div>
-  </div>
-</div>  -->
-
-
-<div id="livegame" class="container-fluid d-flex flex-column justify-content-center align-items-center">
-
-	<!-- Conteneur "virtuel" qui agit comme body local -->
-	  <!-- Bouton de lancement -->
-	  <button id="startGameBtn" class="btn starting-btn mt-4 mb-4" disabled>Lancer la Partie</button>
-	  <div class="game-container">
+<div id="livegame" class="container-fluid d-flex flex-column align-items-center justify-content-center position-fixed">
+	<!-- Bouton de lancement -->
+	<div class="game-container d-flex justify-content-center align-items-center">
+		<button id="startGameBtn" class="btn starting-btn" disabled>PLAY</button>
 		<canvas id="gameCanvas"></canvas>
-	  </div>
-  </div>
+	</div>
+</div>
   
   
-  
-  <style>
-	  body, html {
-		  overflow: hidden;
-	  }
-  
-	  #ground-game, .terrain{
-		  display: none;
-	  }
-  
-	  /* On utilise .live-local-game-body pour éviter de polluer le body global */
-	  #livegame {
-		z-index: 50000;
+
+<style>
+	body, html {
+		overflow: hidden;
+	}
+
+	#ground-game, .terrain{
+		display: none;
+	}
+
+	#startGameBtn {
+		z-index: 60;
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+	}
+
+	#livegame {
+		z-index: 50;
 		margin: 0;
-		height: 100%;  /* Force full height */
+		height: 100vh;
 		width: 100%;
+		padding-top: 50px;
 		color: white;
-	  }
-  
-	  #startGameBtn {
-	  z-index: 60000;
-	  
-	  }
-  
-	  #gameCanvas {
-		  position: absolute; 
-		  z-index: 50000;
-		  display: block;
-		  margin: 0 auto;
-		  width: 100%; /* Responsive */
-		  height: 100%; /* Proportionnel au conteneur parent */
-		  border: 1px solid white;
-		  border-radius: 1em;
-		  background-color: #101A32;
 	}
-  
+
 	.game-container {
-		  z-index: 50000;
-		  width: 90%;
-		  aspect-ratio: 2 / 1; /* Ratio fixe */
-		  position: relative;
-		  background-color: #101A32;
-		  min-width: 500px;
-  
+		z-index: 50;
+		width: max(80vw, 400px);
+		aspect-ratio: 2 / 1;
+		position: relative;
+		top :0;
 	}
+
+	#gameCanvas {
+		position: absolute; 
+		z-index: 50;
+		display: block;
+		margin: 0 auto;
+		width: 100%;
+		height: auto; 
+		border: 1px solid white;
+		border-radius: 1em;
+		background-color: #101A32;
+	}
+
+	/* .starting-btn {
+        font-family: "Jersey 10";
+        font-size: 15vw; 
+        color: #2DB4F3;
+        background: #101A32;
+        border: none;
+		z-index: 60;
+        animation: blink 2s infinite;
+    }
+
+	@keyframes blink {
+		0%, 100% 
+		{
+			opacity: 1;
+		}
+		50% 
+		{
+			opacity: 0;
+		}
+	} */
+
+
+	.starting-btn {
+    font-family: "Jersey 10", sans-serif; /* Garde uniquement la police que tu utilises */
+	width: 30%;
+    height: 40%;
+    color: rgba(45, 180, 243, 0.4); /* Couleur atténuée au début */
+    background: none; /* Pas de fond pour un effet propre */
+    border: none;
+    z-index: 60;
+	opacity: 0.1;
+    transition: opacity 0.5s ease-in-out, text-shadow 0.5s ease-in-out;
+
+	font-size: clamp(2rem, 20vw, 15vh); /* Adapte le texte à la taille du bouton */
+    
+    /* Centrer le texte dans le bouton */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+
+	min-width: 100px;
+}
+
+
+
+/* Clignotement normal */
+@keyframes blink {
+    0%, 100% { opacity: 0; }
+    50% { opacity: 1; }
+}
+
+/* Effet de lumière rétro autour du texte sans flou */
+
+
+/* Activation du clignotement normal après le lent */
+.starting-btn.active {
+    color: #2DB4F3; /* Couleur vive */
+    animation: blink 2s infinite;
+}
+
+
   
-  
-	</style>
+</style>

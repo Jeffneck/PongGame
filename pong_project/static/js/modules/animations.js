@@ -27,7 +27,7 @@ function adjustContainer(ContainerId) {
 		container.classList.remove('center-content');
 		container.classList.add('normal-content');
 	} else {
-    container.classList.add('center-content');
+    	container.classList.add('center-content');
 		container.classList.remove('normal-content');
 	}
 }

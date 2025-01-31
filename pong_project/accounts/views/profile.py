@@ -28,11 +28,11 @@ class ProfileView(View):
             matches = GameResult.objects.get_user_match_history(user)
             match_count = matches.count()
 
-            # Calcul des victoires/défaites
-            victories = matches.filter(winner=user.username).count()
-            defeats = matches.filter(looser=user.username).count()
+            # ✅ Corrigé : Comparaison avec `user` et non `user.username`
+            victories = matches.filter(winner=user).count()
+            defeats = matches.filter(looser=user).count()
 
-            # Calcul du meilleur score
+            # ✅ Corrigé : Comparaison avec `user` et non `user.username`
             best_score = max(
                 matches.filter(game__player_left=user).aggregate(Max('score_left'))['score_left__max'] or 0,
                 matches.filter(game__player_right=user).aggregate(Max('score_right'))['score_right__max'] or 0,
@@ -44,8 +44,8 @@ class ProfileView(View):
             for match in matches:
                 opponent = match.game.player_right if match.game.player_left == user else match.game.player_left
                 match_histories.append({
-                    'opponent': opponent.username,
-                    'result': 'win' if match.winner == user.username else 'loss',
+                    'opponent': opponent.username,  # ✅ Récupère le `username`
+                    'result': 'win' if match.winner == user else 'loss',
                     'score_user': match.score_left if match.game.player_left == user else match.score_right,
                     'score_opponent': match.score_right if match.game.player_left == user else match.score_left,
                     'played_at': match.ended_at,

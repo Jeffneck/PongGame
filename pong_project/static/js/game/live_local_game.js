@@ -23,6 +23,8 @@ export function liveLocalGame(options) {
   // 2) Construire l'URL du WebSocket
   const protocol = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
   const wsUrl = `${protocol}//${window.location.host}/ws/pong/${gameId}/`;
+  console.log("Tentative de connexion WebSocket à :", wsUrl);
+
 
   // 3) Appeler initLiveGame
   initLiveGame({

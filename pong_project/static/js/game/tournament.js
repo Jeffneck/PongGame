@@ -1,144 +1,178 @@
 import { requestGet, requestPost } from "../api/index.js";
 import { updateHtmlContent } from "../tools/index.js";
-import { showStatusMessage } from "../tools/index.js";
-import { initLiveGame } from './live_game_utils.js'; // Adjust path
+import { initLiveGame } from './live_game_utils.js';
 
+// Fonction principale appelée quand on clique sur "Lancer Tournoi" dans le menu
 export async function handleTournament(tournamentParam) {
-  // Effectuer une requête GET pour récupérer le formulaire
-  const responseGet = await requestGet('game', 'create_tournament');
+  // 1) Récupère le formulaire (GET)
+  const formHtml = await getTournamentForm();
+  updateHtmlContent('#content', formHtml);
 
-  if (responseGet.status === 'success') {
-      updateHtmlContent('#content', responseGet.html);
-  }
-
-  // Sélectionner le formulaire après l'injection du HTML
+  // 2) Sélection du form dans le DOM
   const form = document.querySelector('#content form');
   if (!form) {
-      console.error("Formulaire introuvable.");
-      return;
+    console.error("Formulaire introuvable dans le HTML injecté.");
+    return;
   }
 
-  // Ajouter un écouteur d'événement sur le formulaire pour capturer la soumission
-  form.addEventListener("submit", async function (event) {
-      event.preventDefault();  // Empêcher le rechargement de la page
+  // 3) Au submit => POST de création du tournoi
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
 
-      const formData = new FormData(form);
+    // Récupération des champs du form
+    const formData = new FormData(form);
 
-      // Ajouter les paramètres du tournoi s'ils existent
-      if (tournamentParam) {
-          formData.append('ball_speed', tournamentParam.ball_speed);
-          formData.append('paddle_size', tournamentParam.paddle_size);
-          formData.append('bonus_enabled', tournamentParam.bonus_enabled);
-          formData.append('obstacles_enabled', tournamentParam.obstacles_enabled);
+    // Si vous avez d’autres paramètres passés depuis un menu (tournamentParam),
+    // on peut forcer/écraser ici dans le formData :
+    if (tournamentParam) {
+      formData.set('ball_speed', tournamentParam.ball_speed);
+      formData.set('paddle_size', tournamentParam.paddle_size);
+      formData.set('bonus_enabled', tournamentParam.bonus_enabled);
+      formData.set('obstacles_enabled', tournamentParam.obstacles_enabled);
+    }
+
+    try {
+      const response = await createTournament(formData);
+      if (response.status === 'success') {
+        alert(`Tournoi créé : ID = ${response.tournament_id}`);
+        // Lance la suite (loop + affichage bracket + next match etc.)
+        await runTournamentFlow(response.tournament_id);
+      } else {
+        alert("Erreur : " + response.message);
       }
-      const tournamentName = document.getElementById(`tournament-name`);
-      const player1 = document.getElementById(`player1`);
-      const player2 = document.getElementById(`player2`);
-      const player3 = document.getElementById(`player3`);
-      const player4 = document.getElementById(`player4`);
-
-      formData.append('name', tournamentName);
-      formData.append('player1', player1);
-      formData.append('player2', player2);
-      formData.append('player3', player3);
-      formData.append('player4', player4);
-      
-
-      try {
-          // Envoyer la requête POST
-          const response = await requestPost('game', 'create_tournament', formData);
-          
-          if (response.status === 'success') {
-              alert(`Tournoi créé avec succès : ID = ${response.tournament_id}`);
-              updateHtmlContent('#content', response.html);
-              tournamentLoop(response.tournament_id);
-          } else {
-              alert(response.message);
-          }
-      } catch (error) {
-          console.error("Erreur lors de la soumission du formulaire :", error);
-          alert("Une erreur est survenue lors de la création du tournoi.");
-      }
+    } catch (error) {
+      console.error("Erreur lors de la création du tournoi :", error);
+      alert("Une erreur est survenue lors de la création du tournoi.");
+    }
   });
 }
 
-async function tournamentLoop(tournament_id) {
+// -- Petites fonctions factorielles pour clarifier --
+
+async function getTournamentForm() {
+  const responseGet = await requestGet('game', 'create_tournament');
+  if (responseGet.status === 'success') {
+    return responseGet.html;
+  } else {
+    console.error("Impossible de récupérer le formulaire du tournoi");
+    return "<p>Erreur chargement formulaire</p>";
+  }
+}
+
+async function createTournament(formData) {
+  // Appel POST vers /game/create_tournament
+  return await requestPost('game', 'create_tournament', formData);
+}
+
+// -- Le “flow” du tournoi (récup bracket, next match, etc.) --
+
+async function runTournamentFlow(tournamentId) {
   while (true) {
-      // Récupérer le contexte du tournoi
-      const responseGet = await requestGet('game', `extract_tournament/${tournament_id}`);
-      
-      if (!responseGet || responseGet.status !== "success") {
-          console.error("Impossible de récupérer le contexte du tournoi.");
-          return;
-      }
-
-      // Vérifier si le tournoi est terminé
-      if (responseGet.tournament_context.tournament_status === "finished") {
-          console.log("Tournoi terminé.");
-          break;
-      }
-
-      // Afficher le bracket pendant 4 secondes
-      updateHtmlContent("#content", responseGet.html);
-      await delay(4000);
-
-      // Afficher les joueurs qui s'affrontent pendant 3 secondes
-      const nextGameResponse = await requestGet('game', `tournament_next_game/${tournament_id}`);
-
-      if (!nextGameResponse || nextGameResponse.status !== "success") {
-          console.error("Impossible de récupérer les joueurs du prochain match.");
-          return;
-      }
-
-      updateHtmlContent("#content", nextGameResponse.html);
-      await delay(3000);
-
-      // Créer une nouvelle session de jeu et récupérer la `game_id`
-      const game_id = await createTournamentGameSession(tournament_id);
-
-      if (game_id) {
-          liveTournamentGame(game_id); // Lancer la partie
-      } else {
-          console.error("Erreur lors de la création de la session de match.");
-          return;
-      }
-  }
-}
-
-// Fonction utilitaire pour créer une pause asynchrone
-function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-
-
-function liveTournamentGame(game_id) {
-
-  // 1) Définir la callback pour "Start la partie" (start_Tournament_game)
-  async function startTournamentGame(gameId) {
-    const url = `start_Tournament_game/${gameId}`;
-    const formData = new FormData();
-    formData.append('game_id', gameId);
-
-    const response = await requestPost('game', url, formData);
-    if (response.status === 'success') {
-      alert("La partie va commencer (Tournament)!");
-    } else {
-      alert("Erreur lors du démarrage (Tournament): " + response.message);
+    // 1) Afficher le bracket
+    const bracketResp = await requestGet('game', `tournament_bracket/${tournamentId}`);
+    if (!bracketResp || bracketResp.status !== "success") {
+      console.error("Impossible de récupérer le bracket du tournoi.");
+      break;
     }
+
+    // TODO : si le backend renvoie un champ indiquant “finished”, sortir de la boucle
+    // Exemple si bracketResp renvoie un `tournament_finished: true` ou
+    // un champ `tournament_status = "finished"`.
+    // if (bracketResp.tournament_status === "finished") {
+    //   console.log("Tournoi terminé (d’après bracket).");
+    //   break;
+    // }
+
+    updateHtmlContent("#content", bracketResp.html);
+    await delay(4000);  // Pause de 4s (si vraiment nécessaire)
+
+    // 2) Récupérer les joueurs du prochain match
+    const nextResp = await requestGet('game', `tournament_next_game/${tournamentId}`);
+    if (!nextResp || nextResp.status !== "success") {
+      console.error("Impossible de récupérer le prochain match.");
+      break;
+    }
+
+    if (nextResp.next_match_type === "finished") {
+      console.log("Tournoi terminé (d’après next_game).");
+      break;
+    }
+
+    updateHtmlContent("#content", nextResp.html);
+    await delay(3000);
+
+    // 3) Créer la session de match (semi1, semi2, finale…) en POST
+    const gameId = await createTournamentGameSession(tournamentId, nextResp.next_match_type);
+    if (!gameId) {
+      console.error("Erreur lors de la création de la session de match.");
+      break;
+    }
+
+    // 4) Gérer l’aspect “live game”
+    await liveTournamentGame(gameId);
   }
 
-  // 2) Construire l'URL du WebSocket
+  console.log("Fin du flux tournoi");
+}
+
+// Création de la session (POST vers /game/create_tournament_game_session/<tournament_id>)
+async function createTournamentGameSession(tournamentId, nextMatchType) {
+  try {
+    const formData = new FormData();
+    formData.set('next_match_type', nextMatchType);
+
+    const response = await requestPost(
+      'game',
+      `create_tournament_game_session/${tournamentId}`,
+      formData
+    );
+    if (response.status === 'success') {
+      return response.game_id; // On retourne juste l’ID
+    } else {
+      console.error("createTournamentGameSession error:", response.message);
+      return null;
+    }
+  } catch (err) {
+    console.error("createTournamentGameSession exception:", err);
+    return null;
+  }
+}
+
+// Exemple de fonction pour gérer la partie live
+async function liveTournamentGame(gameId) {
+  // 1) Charger éventuellement le snippet HTML retourné par la création
+  //    (si vous le voulez, ou s’il est dans response.html)
+  //    updateHtmlContent('#content', laRéponse.html);
+
+  // 2) Construire l’URL du WebSocket
   const protocol = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
   const wsUrl = `${protocol}//${window.location.host}/ws/pong/${gameId}/`;
 
-  // 3) Appeler initLiveGame
+  // 3) Initialiser la partie en live
+  //    (onStartGame sera la fonction qui fait le POST “startTournamentGameSession” par ex.)
   initLiveGame({
     gameId,
-    userRole: 'both',           // => Tournament = Local Game => on bouge left + right
-    resultsUrl,
-    wsUrl,
-    startGameSelector: "#startGameBtn",  // le bouton
-    onStartGame: startTournamentGame         // la callback
+    userRole: 'both',          // local game
+    wsUrl: wsUrl,
+    // resultsUrl: ???,         // si besoin
+    startGameSelector: "#startGameBtn",
+    onStartGame: async () => {
+      // Faire le POST pour lancer réellement la session (status=running)
+      const startResponse = await requestPost('game', `start_tournament_game_session/${gameId}`, new FormData());
+      if (startResponse.status === 'success') {
+        alert("La partie va commencer !");
+      } else {
+        alert("Erreur lors du démarrage de la partie : " + (startResponse.message || 'inconnue'));
+      }
+    }
   });
+
+  // 4) Eventuellement, attendre la fin de la partie ?
+  //    Soit en polling, soit par un event WebSocket, etc.
+  //    Vous pouvez renvoyer une Promise qui se résout quand la game est terminée.
+}
+
+// Petit utilitaire de pause asynchrone
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }

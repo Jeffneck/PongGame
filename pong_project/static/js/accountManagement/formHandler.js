@@ -1,6 +1,9 @@
 import { requestPost } from '../api/index.js';
+import { navigateTo } from '../router.js';
 import { displayErrorMessage } from '../tools/index.js';
 import { attachProfileEvents } from './events.js';
+import { handleNavbar } from '../navbar/index.js';
+import { handleLogout } from '../auth/index.js';
 
 // Fonction pour gérer la soumission des formulaires
 async function handleFormSubmit(form, app, view, successMessage, successSelector, errorSelector) {
@@ -15,7 +18,11 @@ async function handleFormSubmit(form, app, view, successMessage, successSelector
                 setTimeout(() => successElem.style.display = 'none', 3000);
             }
             form.reset();
-            window.location.hash = '#accounts-profile';
+            if (successSelector === '#change-avatar-success') {
+                await handleNavbar(); 
+            }
+            navigateTo('/account')
+           
         } else {
             const errors = response.errors || response.error || 'Une erreur est survenue.';
             displayErrorMessage(errorSelector, errors);
@@ -36,6 +43,7 @@ export function initializeaccountsManagementFormHandlers() {
                 switch (form.id) {
                     case 'change-username-form':
                         await handleFormSubmit(form, 'accounts', 'profile/update', 'Pseudo mis à jour!', '#change-username-success', '#change-username-error');
+                        await handleLogout();
                         break;
                     case 'change-password-form':
                         await handleFormSubmit(form, 'accounts', 'profile/change_password', 'Mot de passe mis à jour!', '#change-password-success', '#change-password-error');

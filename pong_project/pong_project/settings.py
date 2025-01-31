@@ -10,33 +10,55 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
-from pathlib import Path
 import os
+from pathlib import Path
 from datetime import timedelta
 
-
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# ------------------------------------------------------------------
+# 1) Base Directory
+# ------------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
+# ------------------------------------------------------------------
+# 2) Clés de sécurité & Debug
+# ------------------------------------------------------------------
 SECRET_KEY = 'django-insecure-%s7coj5xib2ic$tx*$k6$@7gtf7d^rd$lk0jbe-qjy@=e-s6#v'
+DEBUG = False  # À mettre sur False en production
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# ------------------------------------------------------------------
+# 3) Hôtes autorisés
+# ------------------------------------------------------------------
+ALLOWED_HOSTS = ['*'] 
+# En production, remplace '*' par l'IP ou le domaine, ex: ['192.168.1.138', 'example.com']
 
-ALLOWED_HOSTS = ['*']  # Pour permettre à Django de répondre aux requêtes de tous les hôtes
+# ------------------------------------------------------------------
+# 4) Authentification utilisateur
+# ------------------------------------------------------------------
+AUTH_USER_MODEL = 'accounts.CustomUser'
 
-# differentes langues/ traductions
-LOCALE_PATHS = [
-    BASE_DIR / 'locale',  # Assure que le dossier existe à la racine
+# ------------------------------------------------------------------
+# 5) Internationalisation & Localisation
+# ------------------------------------------------------------------
+LANGUAGE_CODE = 'fr'
+
+LANGUAGES = [
+    ('fr', 'Français'),
+    ('en', 'English'),
+    ('es', 'Español'),
 ]
 
-# Application definition
+LOCALE_PATHS = [
+    BASE_DIR / 'locale',  # Assure-toi que le dossier existe
+]
 
+TIME_ZONE = 'UTC'
+
+USE_I18N = True
+USE_TZ = True
+
+# ------------------------------------------------------------------
+# 6) Applications installées
+# ------------------------------------------------------------------
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -44,17 +66,109 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    'widget_tweaks',
     'channels',
+
     'accounts',
     'core',
     'game',
 ]
 
-AUTH_USER_MODEL = 'accounts.CustomUser'
+# ------------------------------------------------------------------
+# 7) Middlewares
+# ------------------------------------------------------------------
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.locale.LocaleMiddleware',  # Gère les langues
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'pong_project.middleware.JWTAuthenticationMiddleware',  # [TAGS] <JWT_tokens>
+]
 
-# [Added] tout le contenu de cette Macro a ete cree pour que django gere le cache avec Redis (necessite import os)
-# (django-redis ou channels_redis) => cela change quoi
-# Djang-redis cache (optionnel)
+# ------------------------------------------------------------------
+# 8) URL configuration
+# ------------------------------------------------------------------
+ROOT_URLCONF = 'pong_project.urls'
+
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [
+            os.path.join(BASE_DIR, 'templates'),  # Répertoire global des templates
+        ],
+        'APP_DIRS': True,  # Permet de chercher les templates dans chaque app
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+                'django.template.context_processors.i18n',  # Ajout pour la gestion des langues
+            ],
+        },
+    },
+]
+
+WSGI_APPLICATION = 'pong_project.wsgi.application'
+ASGI_APPLICATION = 'pong_project.asgi.application'  # Channels
+
+# ------------------------------------------------------------------
+# 9) Sécurité & HTTPS (Nginx en reverse proxy)
+# ------------------------------------------------------------------
+# Indique à Django que HTTPS est géré par un proxy (Nginx).
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Laisse Nginx gérer la redirection HTTP->HTTPS pour éviter les boucles
+SECURE_SSL_REDIRECT = False
+
+# Cookies uniquement envoyés via HTTPS (en prod).
+SESSION_COOKIE_SECURE = True  # True en production
+CSRF_COOKIE_SECURE = True     # True en production
+
+# HSTS (Strict-Transport-Security) - Recommandé en production si toujours HTTPS
+SECURE_HSTS_SECONDS = 31536000         # 31536000 (1 an) en production
+#Optionnel, si tu veux forcer aussi les sous-domaines et éventuellement précharger ton domaine dans la liste HSTS des navigateurs (requires hstspreload.org).
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+# ------------------------------------------------------------------
+# 10) CSRF
+# ------------------------------------------------------------------
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:8080',
+    'http://192.168.1.138:8080',
+    # 'https://votre-domaine.com',  # Ajoutez votre domaine en production
+]
+CSRF_COOKIE_SAMESITE = 'Lax'
+# CSRF_COOKIE_SECURE = True (activé plus haut si besoin)
+
+# ------------------------------------------------------------------
+# 11) Base de données (PostgreSQL)
+# ------------------------------------------------------------------
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('POSTGRES_DB', 'pong_db'),
+        'USER': os.environ.get('POSTGRES_USER', 'postgres'),
+        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'postgres'),
+        'HOST': os.environ.get('POSTGRES_HOST', 'db'),
+        'PORT': os.environ.get('POSTGRES_PORT', '5432'),
+    }
+}
+
+# ------------------------------------------------------------------
+# 12) Moteur de sessions
+# ------------------------------------------------------------------
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+SESSION_COOKIE_HTTPONLY = True
+
+# ------------------------------------------------------------------
+# 13) Cache (Redis) & Channels
+# ------------------------------------------------------------------
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
@@ -65,10 +179,9 @@ CACHES = {
     }
 }
 
-# [Added] pour le fonctionnement en websockets
-ASGI_APPLICATION = 'pong_project.asgi.application'
+REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.environ.get("REDIS_PORT", 6379))
 
-# [Added] Configuration du layer Channels utilisant Redis
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
@@ -78,115 +191,18 @@ CHANNEL_LAYERS = {
     },
 }
 
-#[added]
-REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
-REDIS_PORT = int(os.environ.get("REDIS_PORT", 6379))
-
-#[added]
-CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:8080',
-    'http://192.168.1.176:8080',  # ONLINE Ajouter l'IP locale de l'ordinateur hebergant l'app
-    # 'https://votre_domaine.com',  # Ajoutez votre domaine en production
-    # Ajoutez d'autres origines si nécessaire
-]
-# Autoriser uniquement les cookies CSRF via HTTPS en production
-CSRF_COOKIE_SECURE = False  # À définir sur True en production avec HTTPS
-# Utiliser SameSite pour renforcer la sécurité
-CSRF_COOKIE_SAMESITE = 'Lax'  # 'Strict' ou 'None' si nécessaire
-# Si vous utilisez HTTPS, ajustez également SESSION_COOKIE_SECURE
-SESSION_COOKIE_SECURE = False  # À définir sur True en production avec HTTPS
-
-MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-]
-
-ROOT_URLCONF = 'pong_project.urls'
-
-TEMPLATES = [
-    {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [
-            os.path.join(BASE_DIR, 'templates'),  # Répertoire global des templates
-        ],
-        'APP_DIRS': True,  # Permet à Django de chercher les templates dans chaque app
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-            ],
-        },
-    },
-]
-
-WSGI_APPLICATION = 'pong_project.wsgi.application'
-
-
-# Database
-# https://docs.djangoproject.com/en/5.1/ref/settings/#databases
-
-# Database modifiee pour fonctionner avec plsql
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('POSTGRES_DB', 'pong_db'),
-        'USER': os.environ.get('POSTGRES_USER', 'postgres'),
-        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'postgres'),
-        # LE POINT IMPORTANT :
-        'HOST': os.environ.get('POSTGRES_HOST', 'db'),
-        'PORT': os.environ.get('POSTGRES_PORT', '5432'),
-    }
-}
-
-
-# Password validation
-# https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
-
-AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
-]
-
-
-# Internationalization
-# https://docs.djangoproject.com/en/5.1/topics/i18n/
-
-LANGUAGE_CODE = 'en-us'
-
-TIME_ZONE = 'UTC'
-
-USE_I18N = True
-
-USE_TZ = True
-
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.1/howto/static-files/
-
+# ------------------------------------------------------------------
+# 14) Gestion des fichiers statiques & médias
+# ------------------------------------------------------------------
 STATIC_URL = 'static/'
 
-# [added] IMPORTANT : STATIC_ROOT doit pointer vers un dossier existant ou qui peut être créé
+# Chemin où collectstatic place ses fichiers (ex: pour la prod)
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
+# ------------------------------------------------------------------
+# 15) Autres
+# ------------------------------------------------------------------
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

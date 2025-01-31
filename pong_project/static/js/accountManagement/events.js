@@ -1,8 +1,10 @@
 import { requestPost } from '../api/api.js';
-import { handleEnable2FA, handleDisable2FA, handleDeleteAccount } from '../auth/index.js';
+import { handleDeleteAccount } from '../auth/index.js';
+import { navigateTo } from '../router.js';
 
 async function handleLanguageChange(language) {
     const formData = new FormData();
+    console.log(language);
     formData.append('language', language); // Ajoute la paire clé-valeur "language=fr"
     const data = await  requestPost('accounts', 'set_language', formData);
     if (data.status === 'success') {
@@ -14,14 +16,18 @@ export function attachProfileEvents() {
     // Bouton Activer 2FA
     const enable2FABtn = document.querySelector('#enable-2fa-btn');
     if (enable2FABtn && !enable2FABtn.dataset.bound) {
-        enable2FABtn.addEventListener('click', handleEnable2FA);
+        enable2FABtn.addEventListener('click', () => {
+            navigateTo('/enable-2fa');
+        });
         enable2FABtn.dataset.bound = true;
     }
 
     // Bouton Désactiver 2FA
     const disable2FABtn = document.querySelector('#disable-2fa-btn');
     if (disable2FABtn && !disable2FABtn.dataset.bound) {
-        disable2FABtn.addEventListener('click', handleDisable2FA);
+        disable2FABtn.addEventListener('click', () => {
+            navigateTo('/disable-2fa');
+        });
         disable2FABtn.dataset.bound = true;
     }
 

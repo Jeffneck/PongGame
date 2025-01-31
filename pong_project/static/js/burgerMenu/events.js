@@ -1,174 +1,149 @@
-import { showFriendPopup, closePopupOnClickOutside, handleOptionPopup,  handleAddFriend, handleFriendInvitation  } from '../friends/index.js';
+
+
+import { 
+    showFriendPopup, 
+    closePopupOnClickOutside, 
+    handleOptionPopup,  
+    handleAddFriend, 
+    handleFriendInvitation  
+} from '../friends/index.js';
+
 import { handleStatusChange } from './index.js';
 import { handleLogout } from '../auth/index.js';
 import { navigateTo } from '../router.js';
-import { acceptGameInvitation} from '../game/index.js';
-// Gestionnaire principal des événements pour le menu burger
+import { acceptGameInvitation } from '../game/index.js';
+
+/**
+ * Gestionnaire principal des événements pour le menu burger via event delegation.
+ * - Attache un seul listener "click" sur #burger-menu-container.
+ * - Gère aussi le "submit" du formulaire d'ajout d'amis.
+ */
 export function eventsHandlerBurgerMenu() {
-    console.log('Initialisation des gestionnaires d\'événements...');
+    console.log('Initialisation des gestionnaires d\'événements (event delegation)...');
 
-    // Initialise les événements spécifiques au menu burger
-    setupStatusChangeEvents();  // Gestion du changement de statut (en ligne/hors ligne)
-    setupProfileViewEvent();    // Gestion du clic sur le bouton "Voir le profil"
-    setupNavigationEvents();    // Gestion des boutons de navigation (Jouer, Tournoi, Paramètres)
-    setupAddFriendEvent();      // Gestion du formulaire d'ajout d'ami
-    setupFriendsListEvent();    // Gestion des clics sur les amis dans la liste
-    setupFriendRequestsEvent(); // Gestion des invitations d'amis
-    setupGameInvitationsEvent();
-    setupPopupEvents();         // Gestion des options du popup d'ami
-    setupLogoutEvent();         // Gestion du bouton de déconnexion
-    setupClosePopupEvent();     // Gestion de la fermeture du popup
-
-    console.log('Tous les gestionnaires d\'événements ont été initialisés.');
-}
-
-// Gestion des boutons pour changer le statut (en ligne/hors ligne)
-function setupStatusChangeEvents() {
-    document.querySelectorAll('.status-selector button[data-status]').forEach(button => {
-        if (!button.dataset.bound) {  // Vérifie si l'événement est déjà attaché
-            button.addEventListener('click', handleStatusChangeWrapper);
-            button.dataset.bound = true; // Marque comme attaché pour éviter les doublons
-        }
-    });
-}
-
-// Wrapper pour gérer le changement de statut
-function handleStatusChangeWrapper(e) {
-    const status = e.target.dataset.status;
-    if (status) handleStatusChange(status);
-}
-
-
-// Gestion du clic sur "Voir le profil"
-function setupProfileViewEvent() {
-    const profileBtn = document.querySelector('#profile-btn');
-    if (profileBtn && !profileBtn.dataset.bound) {
-        profileBtn.addEventListener('click', (event) => {
-            event.preventDefault(); // Empêche le comportement par défaut du lien
-            console.log('Profil bouton cliqué');
-            navigateTo('/profile'); // Navigue vers la route profil
-        });
-        profileBtn.dataset.bound = true; // Marque comme attaché pour éviter les doublons
+    // 1. Récupérer le conteneur principal du burger menu
+    const container = document.getElementById('burger-menu-container');
+    if (!container) {
+        console.warn("Impossible de trouver #burger-menu-container, annulation des events burger.");
+        return;
     }
-}
 
-// Gestion des boutons de navigation (Jouer, Tournoi, Paramètres)
-function setupNavigationEvents() {
-    const navigationButtons = [
-        { selector: '#play-btn', action: () => navigateTo('/game-options') },
-        { selector: '#tournament-link', action: () => navigateTo('/select_tournament')},
-        { selector: '#settings-link', action: () => navigateTo('/account')},
-    ];
+    // 2. Attacher UN SEUL listener "click" si pas déjà fait
+    if (!container.dataset.bound) {
+        container.addEventListener('click', handleBurgerMenuClick);
+        container.dataset.bound = 'true';
+        console.log("Listener 'click' sur #burger-menu-container initialisé.");
+    }
 
-    navigationButtons.forEach(nav => {
-        const button = document.querySelector(nav.selector);
-        if (button && !button.dataset.bound) {
-            console.log('bouton trouvé :', button);
-            button.addEventListener('click', (e) => {
-                e.preventDefault();
-                nav.action();
-            });
-            button.dataset.bound = true;
-        }
-    });
-}
-
-// Gestion du formulaire d'ajout d'ami
-function setupAddFriendEvent() {
+    // 3. Gérer la soumission du formulaire d'ajout d'amis (événement "submit" distinct)
     const addFriendForm = document.querySelector('#add-friend-form');
-    console.log('ajout d\'ami :', addFriendForm);
     if (addFriendForm && !addFriendForm.dataset.bound) {
         addFriendForm.addEventListener('submit', handleAddFriend);
-        addFriendForm.dataset.bound = true;
-    }
-}
-
-// Gestion des clics sur les amis dans la liste
-function setupFriendsListEvent() {
-    const friendsListContainer = document.querySelector('#friends-list-container');
-    if (friendsListContainer && !friendsListContainer.dataset.bound) {
-        friendsListContainer.addEventListener('click', (e) => {
-            const friendButton = e.target.closest('.friend-btn');
-            if (friendButton) showFriendPopup(e, friendButton.innerText.trim());
-        });
-        friendsListContainer.dataset.bound = true;
-    }
-}
-
-// Gestion des clics sur les invitations d'amis
-function setupFriendRequestsEvent() {
-    const friendRequestsContainer = document.querySelector('#friend-requests-list-container');
-    if (friendRequestsContainer && !friendRequestsContainer.dataset.bound) {
-        friendRequestsContainer.addEventListener('click', async (e) => {
-            const button = e.target.closest('button');
-            if (button) {
-                const requestId = button.getAttribute('data-request-id');
-                const action = button.getAttribute('data-action');
-                if (requestId) await handleFriendInvitation(requestId, action);
-            }
-        });
-        friendRequestsContainer.dataset.bound = true;
-    }
-}
-
-// Gestion des clics sur les invitations à jouer
-function setupGameInvitationsEvent() {
-    const gameInvitationsContainer = document.querySelector('#game-invitations-list-container');
-    if (gameInvitationsContainer && !gameInvitationsContainer.dataset.bound) {
-        gameInvitationsContainer.addEventListener('click', async (e) => {
-            const button = e.target.closest('button');
-            if (button) {
-                const invitationId = button.getAttribute('data-invitation-id');
-                const action = button.getAttribute('data-action');
-                if (invitationId && action) {
-                    await acceptGameInvitation(invitationId, action);
-                }
-            }
-        });
-        gameInvitationsContainer.dataset.bound = true;
-    }
-}
-
-// Gestion des événements du popup d'ami (Voir profil, Inviter à jouer, Supprimer)
-function setupPopupEvents() {
-    const viewProfileBtn = document.getElementById('view-profile-btn');
-    const inviteToPlayBtn = document.getElementById('invite-to-play-btn');
-    const removeFriendBtn = document.getElementById('remove-friend-btn');
-
-    if (viewProfileBtn && !viewProfileBtn.dataset.bound) {
-        viewProfileBtn.addEventListener('click', () => handleOptionPopup('Voir le profil'));
-        viewProfileBtn.dataset.bound = true;
+        addFriendForm.dataset.bound = 'true';
+        console.log("Event 'submit' pour #add-friend-form attaché.");
     }
 
-    if (inviteToPlayBtn && !inviteToPlayBtn.dataset.bound) {
-        inviteToPlayBtn.addEventListener('click', () => handleOptionPopup('Inviter à jouer'));
-        inviteToPlayBtn.dataset.bound = true;
-    }
-
-    if (removeFriendBtn && !removeFriendBtn.dataset.bound) {
-        removeFriendBtn.addEventListener('click', () => handleOptionPopup('Supprimer'));
-        removeFriendBtn.dataset.bound = true;
-    }
-}
-
-// Gestion du bouton de déconnexion
-function setupLogoutEvent() {
-    const logoutButton = document.querySelector('#logout-btn');
-    if (logoutButton && !logoutButton.dataset.bound) {
-        logoutButton.addEventListener('click', async (e) => {
-            e.preventDefault();
-            await handleLogout();
-        });
-        logoutButton.dataset.bound = true;
-    }
-}
-
-// Gestion de la fermeture du popup d'ami en cliquant en dehors
-function setupClosePopupEvent() {
+    // 4. Gérer la fermeture du popup d'ami au clic en dehors (hors du container burger)
+    //    Ici, on peut écouter sur document ou sur un autre élément.
     const popup = document.getElementById('friendPopup');
     if (popup && !popup.dataset.bound) {
         document.addEventListener('click', closePopupOnClickOutside);
-        popup.dataset.bound = true;
+        popup.dataset.bound = 'true';
+        console.log("Listener 'click' pour fermer le friendPopup en dehors.");
     }
+
+    console.log('Event delegation pour le burger menu : terminé.');
 }
 
+/**
+ * Fonction centrale qui gère tous les clics à l'intérieur de #burger-menu-container.
+ */
+function handleBurgerMenuClick(e) {
+    // 1. Changement de statut (en ligne/hors ligne)
+    //    Les boutons ont la classe .status-selector et un data-status
+    if (e.target.matches('.status-selector button[data-status]')) {
+        const status = e.target.dataset.status;
+        if (status) handleStatusChange(status);
+        return;
+    }
+
+    // 2. Bouton "Voir le profil" (#profile-btn)
+    if (e.target.matches('#profile-btn')) {
+        e.preventDefault();
+        console.log('Profil bouton cliqué');
+        navigateTo('/profile');
+        return;
+    }
+
+    // 3. Navigation : Jouer (#play-btn), Tournoi (#tournament-link), Paramètres (#settings-link)
+    if (e.target.matches('#play-btn')) {
+        e.preventDefault();
+        navigateTo('/game-options');
+        return;
+    }
+    if (e.target.matches('#tournament-link')) {
+        e.preventDefault();
+        navigateTo('/select_tournament');
+        return;
+    }
+    if (e.target.matches('#settings-link')) {
+        e.preventDefault();
+        navigateTo('/account');
+        return;
+    }
+
+    // 4. Liste d'amis -> .friend-btn
+    //    e.target.closest('.friend-btn') => ouvre un popup
+    const friendButton = e.target.closest('.friend-btn');
+    if (friendButton) {
+        showFriendPopup(e, friendButton.innerText.trim());
+        return;
+    }
+
+    // 5. Invitations d'amis (#friend-requests-list-container) -> bouton[data-request-id]
+    //    on récupère l'ID et l'action (accepter/refuser)
+    const friendRequestButton = e.target.closest('#friend-requests-list-container button[data-request-id]');
+    if (friendRequestButton) {
+        const requestId = friendRequestButton.getAttribute('data-request-id');
+        const action = friendRequestButton.getAttribute('data-action');
+        if (requestId) {
+            handleFriendInvitation(requestId, action);
+        }
+        return;
+    }
+
+    // 6. Invitations de jeu (#game-invitations-list-container) -> bouton[data-invitation-id]
+    const gameInvitationButton = e.target.closest('#game-invitations-list-container button[data-invitation-id]');
+    if (gameInvitationButton) {
+        const invitationId = gameInvitationButton.getAttribute('data-invitation-id');
+        const action = gameInvitationButton.getAttribute('data-action');
+        if (invitationId && action) {
+            acceptGameInvitation(invitationId, action);
+        }
+        return;
+    }
+
+    // 7. Boutons du popup d'ami (voir profil, inviter à jouer, supprimer) => #view-profile-btn, #invite-to-play-btn, #remove-friend-btn
+    if (e.target.matches('#view-profile-btn')) {
+        handleOptionPopup('Voir le profil');
+        return;
+    }
+    if (e.target.matches('#invite-to-play-btn')) {
+        handleOptionPopup('Inviter à jouer');
+        return;
+    }
+    if (e.target.matches('#remove-friend-btn')) {
+        handleOptionPopup('Supprimer');
+        return;
+    }
+
+    // 8. Bouton de déconnexion (#logout-btn)
+    if (e.target.matches('#logout-btn')) {
+        e.preventDefault();
+        handleLogout();
+        return;
+    }
+
+    // Si aucun des cas ci-dessus n'est matché, on ne fait rien de particulier.
+    // console.log("Clic dans burger-menu-container, mais cible non gérée:", e.target);
+}

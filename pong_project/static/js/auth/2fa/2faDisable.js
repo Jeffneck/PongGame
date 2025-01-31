@@ -3,6 +3,7 @@ import { updateHtmlContent, showStatusMessage } from '/static/js/tools/index.js'
 import { navigateTo } from '/static/js/router.js';
 
 
+
 // Fonction pour charger la vue de désactivation de la 2FA
 async function loadDisable2FAView() {
     console.log('Chargement de la vue de désactivation de la 2FA...');
@@ -48,7 +49,11 @@ async function submitDisable2FA(form) {
         const response = await requestPost('accounts', '2fa/disable', formData);
         if (response.status === 'success') {
             showStatusMessage('La 2FA a été désactivée avec succès.', 'success');
-            navigateTo('/account');
+             // 🔥 Ajout de la redirection après désactivation réussie
+             setTimeout(() => {
+                console.log('setTimeout exécuté, on appelle navigateTo("/account")');
+                navigateTo('/account'); // Redirige après 2 secondes
+            }, 2000);
         } else {
             throw new Error(response.message || 'Échec de la désactivation de la 2FA.');
         }

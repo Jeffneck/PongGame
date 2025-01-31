@@ -14,6 +14,7 @@ from django.utils.timezone import now
 
 #[DOCUMENTATION] <Django - User & Abstract User>
 
+
 class CustomUser(AbstractUser):
     """Utilisateur personnalisé."""
     is_2fa_enabled = models.BooleanField(default=False)
@@ -26,12 +27,6 @@ class CustomUser(AbstractUser):
         default='avatars/default_avatar.png'
     )
     is_online = models.BooleanField(default=False)
-
-    def match_history(self):
-        """Retourne l'historique des parties jouées par l'utilisateur."""
-        return GameResult.objects.filter(
-            models.Q(player1=self) | models.Q(player2=self)
-        ).order_by('-date')
 
     def __str__(self):
         return self.username

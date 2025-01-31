@@ -44,7 +44,11 @@ async function verification2FA(event) {
         const response = await requestPost('accounts', '2fa/check', formData);
         if (response.status === 'success') {
             showStatusMessage('2FA activée avec succès.', 'success');
-            navigateTo('/account');
+             // 🔥 Ajout de la redirection après activation réussie
+             setTimeout(() => {
+                console.log('setTimeout exécuté, on appelle navigateTo("/account")');
+                navigateTo('/account'); // Redirige après 2 secondes (pour voir le message)
+            }, 2000);
         } else {
             throw new Error(response.message || 'Code 2FA incorrect.');
         }

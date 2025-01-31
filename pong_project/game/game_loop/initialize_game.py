@@ -3,6 +3,7 @@
 from .redis_utils import set_key
 from ..game_objects import Paddle, Ball, PowerUpOrb, Bumper
 from .dimensions_utils import get_terrain_rect
+import random
 
 
 FIELD_HEIGHT = 300
@@ -21,8 +22,8 @@ def initialize_game_objects(game_id, parameters):
     paddle_right = Paddle('right', paddle_size, paddle_speed)
 
     # Initialiser la balle
-    initial_ball_speed_x = 4 * ball_speed_multiplier
-    initial_ball_speed_y = 4 * ball_speed_multiplier
+    initial_ball_speed_x = random.choice([-3, 3]) * ball_speed_multiplier
+    initial_ball_speed_y = random.choice([-3, 3]) * ball_speed_multiplier
     ball = Ball(
         terrain_rect['left'] + terrain_rect['width'] // 2,
         terrain_rect['top'] + terrain_rect['height'] // 2,

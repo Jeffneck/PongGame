@@ -10,7 +10,7 @@ from .bumpers_utils import handle_bumpers_spawn, delete_bumper_redis
 
 
 # transformer en parametre ajustable GameParameters?
-WIN_SCORE = 5 
+WIN_SCORE = 100 
 
 async def reset_all_objects(game_id, powerup_orbs, bumpers): # / added
     """Reset all active powerups and bumpers when a point is scored."""

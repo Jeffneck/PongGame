@@ -21,7 +21,7 @@ def reset_ball(game_id, ball):
 
     # Get the initial ball speed multiplier from Redis / added
     speed_multiplier = float(get_key(game_id, "initial_ball_speed_multiplier"))
-    initial_speed_x = random.choice([-3, 3]) * speed_multiplier  # Base speed * multiplier
+    initial_speed_x = random.choice([-3, 3]) * speed_multiplier  # Base speed * multiplier / modified
     initial_speed_y = random.choice([-3, 3]) * speed_multiplier
 
     ball.reset(center_x, center_y, initial_speed_x, initial_speed_y) #modified

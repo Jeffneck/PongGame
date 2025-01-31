@@ -22,7 +22,7 @@ def initialize_game_objects(game_id, parameters):
     paddle_right = Paddle('right', paddle_size, paddle_speed)
 
     # Initialiser la balle
-    initial_ball_speed_x = random.choice([-3, 3]) * ball_speed_multiplier
+    initial_ball_speed_x = random.choice([-3, 3]) * ball_speed_multiplier # / modified
     initial_ball_speed_y = random.choice([-3, 3]) * ball_speed_multiplier
     ball = Ball(
         terrain_rect['left'] + terrain_rect['width'] // 2,

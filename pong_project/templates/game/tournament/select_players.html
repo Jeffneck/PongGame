@@ -1,96 +1,89 @@
 {% load i18n %}
 {% load static %}
-
 <div class="container-fluid py-4">
-    <h1 class="text-center mb-4" style="font-size: 2em;">Sélectionner les joueurs</h1>
+  <h1 class="text-center mb-4" style="font-size: 2em;">Sélectionner les joueurs</h1>
 
-    <!-- Formulaire de sélection des joueurs -->
-    <div class="card bg-secondary">
-        <div class="card-body">
-            <form id="tournament-form">
-                <div class="mb-3">
-                    <label for="tournament-name" class="form-label">Nom du Tournoi</label>
-                    <input type="text" id="tournament-name" class="form-control" placeholder="Nom du Tournoi">
-                </div>
-
-                <div class="mb-3">
-                    <label for="player1" class="form-label">Nom du Joueur 1</label>
-                    <input type="text" id="player1" class="form-control" placeholder="Joueur 1">
-                </div>
-                <div class="mb-3">
-                    <label for="player2" class="form-label">Nom du Joueur 2</label>
-                    <input type="text" id="player2" class="form-control" placeholder="Joueur 2">
-                </div>
-                <div class="mb-3">
-                    <label for="player3" class="form-label">Nom du Joueur 3</label>
-                    <input type="text" id="player3" class="form-control" placeholder="Joueur 3">
-                </div>
-                <div class="mb-3">
-                    <label for="player4" class="form-label">Nom du Joueur 4</label>
-                    <input type="text" id="player4" class="form-control" placeholder="Joueur 4">
-                </div>
-
-                <!-- Bouton de soumission -->
-                <button type="submit" class="btn btn-primary mt-3 w-100">Lancer le tournoi</button>
-            </form>
+  <!-- Formulaire de sélection des joueurs -->
+  <div class="card bg-secondary">
+    <div class="card-body">
+      <!-- 
+           id="tournament-form" pour qu'on puisse faire `document.querySelector('#tournament-form')` en JS
+           name=... pour que Django reçoive ces champs dans request.POST 
+      -->
+      <form id="tournament-form">
+        <div class="mb-3">
+          <label for="tournament-name" class="form-label">Nom du Tournoi</label>
+          <input type="text" id="tournament-name" name="name" class="form-control" placeholder="Nom du Tournoi" required>
         </div>
+
+        <div class="mb-3">
+          <label for="player1" class="form-label">Nom du Joueur 1</label>
+          <input type="text" id="player1" name="player1" class="form-control" placeholder="Joueur 1" required>
+        </div>
+        <div class="mb-3">
+          <label for="player2" class="form-label">Nom du Joueur 2</label>
+          <input type="text" id="player2" name="player2" class="form-control" placeholder="Joueur 2" required>
+        </div>
+        <div class="mb-3">
+          <label for="player3" class="form-label">Nom du Joueur 3</label>
+          <input type="text" id="player3" name="player3" class="form-control" placeholder="Joueur 3" required>
+        </div>
+        <div class="mb-3">
+          <label for="player4" class="form-label">Nom du Joueur 4</label>
+          <input type="text" id="player4" name="player4" class="form-control" placeholder="Joueur 4" required>
+        </div>
+
+        <!-- Bouton de soumission -->
+        <button type="submit" class="btn btn-primary mt-3 w-100">Lancer le tournoi</button>
+      </form>
     </div>
+  </div>
 </div>
 
 <style>
-    body {
-        font-size: 1.2em;
-        background-color: #101A32;
-        color: rgb(223, 216, 216);
-        overflow: auto;
-    }
-
-    .container-fluid {
-        padding-top: 20px;
-        padding-bottom: 20px;
-    }
-
-    .form-label {
-        font-size: 1.1em;
-    }
-
-    .card {
-        background-color: #101A32 !important;
-        border: 2px solid rgb(153, 148, 148);
-        min-width: 200px;
-    }
-
-    .form-control {
-        background-color: #2D3A52;
-        border: 1px solid rgb(153, 148, 148);
-        color: rgb(223, 216, 216);
-    }
-
-    .form-check-label {
-        font-size: 1.1em;
-        color: rgb(223, 216, 216);
-    }
-
-    .btn-primary {
-        background-color: #007bff;
-        font-size: 1.2em;
-        border-radius: 20px;
-        min-width: 100px;
-    }
-
-    .btn-primary:hover {
-        background-color: #0056b3;
-    }
-
-    .text-center {
-        font-size: 1.8em;
-    }
-
-    .mb-3 {
-        margin-bottom: 1.5rem;
-    }
-
-    .form-check {
-        margin-top: 1.5rem;
-    }
+  body {
+    font-size: 1.2em;
+    background-color: #101A32;
+    color: rgb(223, 216, 216);
+    overflow: auto;
+  }
+  .container-fluid {
+    padding-top: 20px;
+    padding-bottom: 20px;
+  }
+  .form-label {
+    font-size: 1.1em;
+  }
+  .card {
+    background-color: #101A32 !important;
+    border: 2px solid rgb(153, 148, 148);
+    min-width: 200px;
+  }
+  .form-control {
+    background-color: #2D3A52;
+    border: 1px solid rgb(153, 148, 148);
+    color: rgb(223, 216, 216);
+  }
+  .form-check-label {
+    font-size: 1.1em;
+    color: rgb(223, 216, 216);
+  }
+  .btn-primary {
+    background-color: #007bff;
+    font-size: 1.2em;
+    border-radius: 20px;
+    min-width: 100px;
+  }
+  .btn-primary:hover {
+    background-color: #0056b3;
+  }
+  .text-center {
+    font-size: 1.8em;
+  }
+  .mb-3 {
+    margin-bottom: 1.5rem;
+  }
+  .form-check {
+    margin-top: 1.5rem;
+  }
 </style>

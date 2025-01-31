@@ -73,47 +73,55 @@ class GameResult(models.Model):
 
 class LocalTournament(models.Model):
     """
-    Un tournoi local avec 4 joueurs, 2 demi-finales + 1 finale.
+    Un tournoi local avec 4 joueurs, 2 demi-finales et 1 finale.
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=100, default='Local Tournament')
+    name = models.CharField(max_length=100, default="Local Tournament")
 
-    # Les pseudos pour 4 joueurs (pas forcément des CustomUser)
-    player1 = models.CharField(max_length=50)
-    player2 = models.CharField(max_length=50)
-    player3 = models.CharField(max_length=50)
-    player4 = models.CharField(max_length=50)
+    # Les pseudos des 4 joueurs (pas forcément des utilisateurs enregistrés)
+    player1 = models.CharField(max_length=50, default='mbappe')
+    player2 = models.CharField(max_length=50, default='zizou')
+    player3 = models.CharField(max_length=50, default='ribery')
+    player4 = models.CharField(max_length=50, default='cantona')
 
-    # Parties du bracket
+    # Sessions de jeu pour le bracket
     semifinal1 = models.ForeignKey(
-        'GameSession',
+        "GameSession",
         on_delete=models.SET_NULL,
         null=True, blank=True,
-        related_name='tournament_semifinal1'
+        related_name="tournament_semifinal1",
     )
     semifinal2 = models.ForeignKey(
-        'GameSession',
+        "GameSession",
         on_delete=models.SET_NULL,
         null=True, blank=True,
-        related_name='tournament_semifinal2'
+        related_name="tournament_semifinal2",
     )
     final = models.ForeignKey(
-        'GameSession',
+        "GameSession",
         on_delete=models.SET_NULL,
         null=True, blank=True,
-        related_name='tournament_final'
+        related_name="tournament_final",
     )
+
+    # Gagnants des matchs
+    winner_semifinal_1 = models.CharField(max_length=50, null=True, blank=True)
+    winner_semifinal_2 = models.CharField(max_length=50, null=True, blank=True)
+    winner_final = models.CharField(max_length=50, null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(
         max_length=30,
-        default='pending',
+        default="pending",
         help_text="Ex: 'pending', 'semifinal1_in_progress', 'semifinal2_in_progress', 'final_in_progress', 'finished', etc."
     )
 
+    def get_winner(self):
+        """Retourne le vainqueur du tournoi si la finale est terminée."""
+        return self.winner_final if self.status == "finished" else None
+
     def __str__(self):
         return f"Tournament {self.name} - {self.id}"
-
 
 class TournamentParameters(models.Model):
     """

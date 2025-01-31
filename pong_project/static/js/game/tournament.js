@@ -75,17 +75,18 @@ async function runTournamentFlow(tournamentId) {
       break;
     }
 
+    
+    updateHtmlContent("#content", bracketResp.html);
+    updateBracketUI(bracketResp)
+    await delay(4000);  // Pause de 4s (si vraiment nécessaire)
+    
     // TODO : si le backend renvoie un champ indiquant “finished”, sortir de la boucle
     // Exemple si bracketResp renvoie un `tournament_finished: true` ou
     // un champ `tournament_status = "finished"`.
-    // if (bracketResp.tournament_status === "finished") {
-    //   console.log("Tournoi terminé (d’après bracket).");
-    //   break;
-    // }
-
-    updateHtmlContent("#content", bracketResp.html);
-    await delay(4000);  // Pause de 4s (si vraiment nécessaire)
-
+    if (bracketResp.tournament_status === "finished") {
+      console.log("Tournoi terminé (d’après bracket).");
+      break;
+    }
     // 2) Récupérer les joueurs du prochain match
     const nextResp = await requestGet('game', `tournament_next_game/${tournamentId}`);
     if (!nextResp || nextResp.status !== "success") {
@@ -111,8 +112,55 @@ async function runTournamentFlow(tournamentId) {
     // 4) Gérer l’aspect “live game”
     await liveTournamentGame(gameId);
   }
-
+  // // 5) Afficher le dernier bracket
+  // const finalBracket = await requestGet('game', `tournament_bracket/${tournamentId}`);
+  // if (finalBracket.status === "success") {
+  //   updateHtmlContent("#content", finalBracket.html);
+  //   updateBracketUI(finalBracket);
+  // }
   console.log("Fin du flux tournoi");
+}
+
+// Met à jour le bracket en fonction de l'état du tournoi
+// Improve remplacer par des balises django dans le front ??
+function updateBracketUI(bracketResp) {
+  const status = bracketResp.tournament_status;
+  const winnerSemi1 = bracketResp.winner_semifinal_1;
+  const winnerSemi2 = bracketResp.winner_semifinal_2;
+  const winnerFinal = bracketResp.winner_final;
+
+  document.querySelectorAll('.tournament-title p').forEach(p => p.classList.add('d-none'));
+
+  if (status === "semifinal1_in_progress") {
+    document.querySelector('.tournament-title p:nth-child(2)').classList.remove('d-none'); 
+    document.querySelector('.eclair.match-1').classList.remove('d-none');
+  } else if (status === "semifinal2_in_progress") {
+    document.querySelector('.tournament-title p:nth-child(3)').classList.remove('d-none');
+    document.querySelector('.eclair.match-2').classList.remove('d-none');
+  } else if (status === "final_in_progress") {
+    document.querySelector('.tournament-title p:nth-child(4)').classList.remove('d-none');
+    document.querySelector('.eclair.match-3').classList.remove('d-none');
+  } else if (status === "finished") {
+    document.querySelector('.tournament-title p:nth-child(5)').classList.remove('d-none');
+  }
+
+  if (winnerSemi1) {
+    document.querySelector(".winner1").classList.remove("d-none");
+    document.querySelector(".winner1 .avatar").src = `svg/${winnerSemi1}.svg`;
+    document.querySelector(".winner1 .player-name").textContent = winnerSemi1;
+  }
+
+  if (winnerSemi2) {
+    document.querySelector(".winner2").classList.remove("d-none");
+    document.querySelector(".winner2 .avatar").src = `svg/${winnerSemi2}.svg`;
+    document.querySelector(".winner2 .player-name").textContent = winnerSemi2;
+  }
+
+  if (winnerFinal) {
+    document.querySelector(".winner3").classList.remove("d-none");
+    document.querySelector(".winner3 .avatar").src = `svg/${winnerFinal}.svg`;
+    document.querySelector(".winner3 .winner-name").textContent = winnerFinal;
+  }
 }
 
 // Création de la session (POST vers /game/create_tournament_game_session/<tournament_id>)
@@ -127,6 +175,7 @@ async function createTournamentGameSession(tournamentId, nextMatchType) {
       formData
     );
     if (response.status === 'success') {
+      updateHtmlContent("#content", response.html);
       return response.game_id; // On retourne juste l’ID
     } else {
       console.error("createTournamentGameSession error:", response.message);
@@ -138,38 +187,25 @@ async function createTournamentGameSession(tournamentId, nextMatchType) {
   }
 }
 
-// Exemple de fonction pour gérer la partie live
 async function liveTournamentGame(gameId) {
-  // 1) Charger éventuellement le snippet HTML retourné par la création
-  //    (si vous le voulez, ou s’il est dans response.html)
-  //    updateHtmlContent('#content', laRéponse.html);
+  return initLiveGame({
+      gameId,
+      userRole: 'both',
+      wsUrl: `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/pong/${gameId}/`,
+      startGameSelector: "#startGameBtn",
+      onStartGame: async (gameId) => {
+          const url = `start_tournament_game_session/${gameId}`;
+          const formData = new FormData();
+          formData.append('game_id', gameId);
 
-  // 2) Construire l’URL du WebSocket
-  const protocol = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
-  const wsUrl = `${protocol}//${window.location.host}/ws/pong/${gameId}/`;
-
-  // 3) Initialiser la partie en live
-  //    (onStartGame sera la fonction qui fait le POST “startTournamentGameSession” par ex.)
-  initLiveGame({
-    gameId,
-    userRole: 'both',          // local game
-    wsUrl: wsUrl,
-    // resultsUrl: ???,         // si besoin
-    startGameSelector: "#startGameBtn",
-    onStartGame: async () => {
-      // Faire le POST pour lancer réellement la session (status=running)
-      const startResponse = await requestPost('game', `start_tournament_game_session/${gameId}`, new FormData());
-      if (startResponse.status === 'success') {
-        alert("La partie va commencer !");
-      } else {
-        alert("Erreur lors du démarrage de la partie : " + (startResponse.message || 'inconnue'));
+          const response = await requestPost('game', url, formData);
+          if (response.status === 'success') {
+              alert("La partie va commencer !");
+          } else {
+              alert("Erreur lors du démarrage : " + response.message);
+          }
       }
-    }
   });
-
-  // 4) Eventuellement, attendre la fin de la partie ?
-  //    Soit en polling, soit par un event WebSocket, etc.
-  //    Vous pouvez renvoyer une Promise qui se résout quand la game est terminée.
 }
 
 // Petit utilitaire de pause asynchrone

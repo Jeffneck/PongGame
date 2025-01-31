@@ -34,7 +34,7 @@ from .views.gameMenu import GameMenuView
 from .views.gameLoading import LoadingView
 from .views.gameLocal import StartLocalGameView, CreateGameLocalView
 from .views.gameOnline import CreateGameOnlineView, SendGameSessionInvitationView, AcceptGameInvitationView, RejectGameInvitationView, CleanExpiredInvitationsView, CheckGameInvitationStatusView, StartOnlineGameView, JoinOnlineGameAsLeftView, JoinOnlineGameAsRightView
-from .views.gameTournament import CreateTournamentView, CreateTournamentGameSessionView, StartTournamentGameSessionView
+from .views.gameTournament import CreateTournamentView, CreateTournamentGameSessionView, StartTournamentGameSessionView, TournamentBracketView, TournamentNextGameView
 import logging
 
 
@@ -64,10 +64,10 @@ urlpatterns = [
 
     # LOCAL TOURNAMENT GAMES
     path('create_tournament/', CreateTournamentView.as_view(), name='create_tournament'),
-    path('tournament_bracket/', TournamentBracketView.as_view(), name='tournament_bracket'),
-    path('tournament_next_game/', TournamentNextGameView.as_view(), name='tournament_next_game'),
-    path('create_tournament_gameSession/', CreateTournamentGameSessionView.as_view(), name='create_tournament_gameSession'),
-    path('start_tournament_gameSession/', StartTournamentGameSessionView.as_view(), name='start_tournament_gameSession'),
+    path('tournament_bracket/<uuid:tournament_id>/', TournamentBracketView.as_view(), name='tournament_bracket'),
+    path('tournament_next_game/<uuid:tournament_id>/', TournamentNextGameView.as_view(), name='tournament_next_game'),
+    path('create_tournament_game_session/<uuid:tournament_id>/', CreateTournamentGameSessionView.as_view(), name='create_tournament_gameSession'),
+    path('start_tournament_game_session/<uuid:game_id>/', StartTournamentGameSessionView.as_view(), name='start_tournament_gameSession'),
 
     #ONLINE GAME
     # create game

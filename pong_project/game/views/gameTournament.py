@@ -80,22 +80,20 @@ class TournamentBracketView(View):
         # (les gagnants, le status, etc.)
         tournament_context = {
             'tournament_status': status,
-            'winner_semifinal_1': tournament.winner_semifinal_1,
-            'winner_semifinal_2': tournament.winner_semifinal_2,
-            'winner_final': tournament.winner_final,
         }
 
         # On injecte ce contexte dans un template ex: "tournament_bracket.html"
         rendered_html = render_to_string(
-            'game/tournament/tournament_bracket.html',
-            tournament_context,
-            request=request
+            'game/tournament/tournament_bracket.html'
         )
 
         return JsonResponse({
             'status': 'success',
             'html': rendered_html,
-            'tournament_status': status,  # si besoin côté front
+            'tournament_status': status,
+            'winner_semifinal_1': tournament.winner_semifinal_1,
+            'winner_semifinal_2': tournament.winner_semifinal_2,
+            'winner_final': tournament.winner_final,
         }, status=200)
 
 @method_decorator(csrf_protect, name='dispatch')
@@ -107,7 +105,7 @@ class TournamentNextGameView(View):
     def get(self, request, tournament_id):
         tournament = get_object_or_404(LocalTournament, id=tournament_id)
         tournament_status = tournament.status
-        
+        logger.error(tournament_status)
         # Si le tournoi est déjà fini, on renvoie quelque chose d'explicite
         if tournament_status == "finished":
             return JsonResponse({
@@ -119,12 +117,11 @@ class TournamentNextGameView(View):
         # Mapping logique interne: 
         match_mapping = {
             'pending': 'semifinal1',
-            'semifinal1_in_progress': 'semifinal2',
-            'semifinal2_in_progress': 'final',
-            'final_in_progress': 'finished',  # si on considère la finale en cours => plus de "next"
+            'semifinal1_done': 'semifinal2',
+            'semifinal2_done': 'final',
         }
         next_match_type = match_mapping.get(tournament_status, None)
-        
+        logger.error(next_match_type)
         if not next_match_type:
             return JsonResponse({
                 'status': 'error',
@@ -147,8 +144,8 @@ class TournamentNextGameView(View):
             player_right = tournament.player4
         elif next_match_type == 'final':
             # On récupère les gagnants des 2 demi-finales
-            player_left = tournament.winner_semifinal_1 or "À déterminer"
-            player_right = tournament.winner_semifinal_2 or "À déterminer"
+            player_left = tournament.winner_semifinal_1 
+            player_right = tournament.winner_semifinal_2
         else:
             player_left, player_right = "???", "???"
         

@@ -62,22 +62,11 @@ class PongConsumer(AsyncWebsocketConsumer):
     async def game_over(self, event):
         winner = event['winner']
         looser = event['looser']
-        tournament_id = event['tournament_id']
-
-        if tournament_id and tournament_id.lower() != 'none':
-            # Convertir l'UUID en chaîne de caractères
-            # tournament_id_str = str(tournament_id)
-            # Construire l'URL de la vue detail_tournament avec tournament_id
-            detail_tournament_url = reverse('detail_local_tournament', kwargs={'tournament_id': tournament_id})
-            redirection_url = detail_tournament_url
-        else:
-            # Rediriger vers la vue list_results si aucun tournament_id n'est fourni
-            redirection_url = reverse('list_results')
+        # tournament_id = event['tournament_id']
 
         # Préparer le JSON de réponse
         response_data = {
             'type': 'game_over',
-            'redirection': redirection_url,
             'winner': winner,
             'looser': looser
         }

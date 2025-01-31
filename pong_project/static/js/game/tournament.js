@@ -3,56 +3,111 @@ import { updateHtmlContent } from "../tools/index.js";
 import { showStatusMessage } from "../tools/index.js";
 import { initLiveGame } from './live_game_utils.js'; // Adjust path
 
-export async function createTournament(tournamentParams) {
-    console.log('[createTournament] Paramètres = ', tournamentParams);
+export async function handleTournament(tournamentParam) {
+  // Effectuer une requête GET pour récupérer le formulaire
+  const responseGet = await requestGet('game', 'create_tournament');
 
-    const formData = new FormData();
-    if (tournamentParams) {
-        formData.append('ball_speed',               tournamentParams.ball_speed);
-        formData.append('paddle_size',             tournamentParams.paddle_size);
-        formData.append('bonus_enabled',  tournamentParams.bonus_enabled);
-        formData.append('obstacles_enabled',      tournamentParams.obstacles_enabled);
-        formData.append('player1',      tournamentParams.player1);
-        formData.append('player2',      tournamentParams.player2);
-        formData.append('player3',      tournamentParams.player3);
-        formData.append('player4',      tournamentParams.player4);
-    } else {
-        console.warn('Aucun paramètre.');
-    }
-    // Envoi du formulaire contenant les Tournament Parameters à CreateTournamentView
-    try {
-        const response = await requestPost('game', 'create_tournament', formData);
-        console.log('requestPost create_tournament effectuée'); 
-        if (response.status === 'success') {
-            updateHtmlContent('#content', response.html);
-            tournamentLoop(response.tournament_id);
-        } else {
-            showStatusMessage(response.message, 'error');
-        }
-    } catch (error) {
-            showStatusMessage('Une erreur est survenue.', 'error');
-            console.error('Erreur createTournament :', error);
-    }
+  if (responseGet.status === 'success') {
+      updateHtmlContent('#content', responseGet.html);
+  }
+
+  // Sélectionner le formulaire après l'injection du HTML
+  const form = document.querySelector('#content form');
+  if (!form) {
+      console.error("Formulaire introuvable.");
+      return;
+  }
+
+  // Ajouter un écouteur d'événement sur le formulaire pour capturer la soumission
+  form.addEventListener("submit", async function (event) {
+      event.preventDefault();  // Empêcher le rechargement de la page
+
+      const formData = new FormData(form);
+
+      // Ajouter les paramètres du tournoi s'ils existent
+      if (tournamentParam) {
+          formData.append('ball_speed', tournamentParam.ball_speed);
+          formData.append('paddle_size', tournamentParam.paddle_size);
+          formData.append('bonus_enabled', tournamentParam.bonus_enabled);
+          formData.append('obstacles_enabled', tournamentParam.obstacles_enabled);
+      }
+      const tournamentName = document.getElementById(`tournament-name`);
+      const player1 = document.getElementById(`player1`);
+      const player2 = document.getElementById(`player2`);
+      const player3 = document.getElementById(`player3`);
+      const player4 = document.getElementById(`player4`);
+
+      formData.append('name', tournamentName);
+      formData.append('player1', player1);
+      formData.append('player2', player2);
+      formData.append('player3', player3);
+      formData.append('player4', player4);
+      
+
+      try {
+          // Envoyer la requête POST
+          const response = await requestPost('game', 'create_tournament', formData);
+          
+          if (response.status === 'success') {
+              alert(`Tournoi créé avec succès : ID = ${response.tournament_id}`);
+              updateHtmlContent('#content', response.html);
+              tournamentLoop(response.tournament_id);
+          } else {
+              alert(response.message);
+          }
+      } catch (error) {
+          console.error("Erreur lors de la soumission du formulaire :", error);
+          alert("Une erreur est survenue lors de la création du tournoi.");
+      }
+  });
 }
 
-async function tournamentLoop(tournament_id){
+async function tournamentLoop(tournament_id) {
+  while (true) {
+      // Récupérer le contexte du tournoi
+      const responseGet = await requestGet('game', `extract_tournament/${tournament_id}`);
+      
+      if (!responseGet || responseGet.status !== "success") {
+          console.error("Impossible de récupérer le contexte du tournoi.");
+          return;
+      }
 
-    // boucler jusqu'a ce que tournament.status soit 'finished'
-    // afficher le tournament bracket pendant 4 secondes
-    await displayTournamentbracket(tournament_id);
-    // afficher une page qui présente les 2 joueurs s'affontant au prochain match pendant 3 secondes
-    // affichage différent en fonction du match_type pour les semifinals et des 2 winners des semifinals pour la finale
-    await displayNextGamePlayers(tournament_id);
-    // identifier la bonne gamesession en fonction du status du tournoi
-    CreateTournamentGameSession() //retourne la game_id dans 
+      // Vérifier si le tournoi est terminé
+      if (responseGet.tournament_context.tournament_status === "finished") {
+          console.log("Tournoi terminé.");
+          break;
+      }
+
+      // Afficher le bracket pendant 4 secondes
+      updateHtmlContent("#content", responseGet.html);
+      await delay(4000);
+
+      // Afficher les joueurs qui s'affrontent pendant 3 secondes
+      const nextGameResponse = await requestGet('game', `tournament_next_game/${tournament_id}`);
+
+      if (!nextGameResponse || nextGameResponse.status !== "success") {
+          console.error("Impossible de récupérer les joueurs du prochain match.");
+          return;
+      }
+
+      updateHtmlContent("#content", nextGameResponse.html);
+      await delay(3000);
+
+      // Créer une nouvelle session de jeu et récupérer la `game_id`
+      const game_id = await createTournamentGameSession(tournament_id);
+
+      if (game_id) {
+          liveTournamentGame(game_id); // Lancer la partie
+      } else {
+          console.error("Erreur lors de la création de la session de match.");
+          return;
+      }
+  }
 }
 
-async function CreateTournamentGameSession(tournament_id)
-{
-    // appel a la view CreateTournamentGameSession() pour creer la nouvelle game session 
-
-    // si la view retourne response.success on lance la game
-    liveTournamentGame(game_id)
+// Fonction utilitaire pour créer une pause asynchrone
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 

@@ -3,6 +3,7 @@ import { updateHtmlContent } from '../tools/index.js';
 // import { handleInviteGame } from './handleInvitationGame.js'; // Suppose qu'on gère l'invitation en ligne ici
 import { liveLocalGame } from './live_local_game.js';
 import { createGameOnline } from './onlineGame.js'
+import { handleTournament } from './tournament.js'
 
 function attachGameMenuEvents() {
     const sections = ['local', 'online', 'tournament'];
@@ -121,48 +122,43 @@ function attachGameMenuEvents() {
             });
         }
 
-        if (inviteTournamentButton) {
-            inviteTournamentButton.addEventListener('click', async () => {
-                const formData = new FormData();
-                formData.append('game_type', 'tournament');
-                formData.append('tournament_name', document.getElementById('tournamentName').value); // Exemple pour un champ tournoi
+        if (startGameButton && section === 'tournament') {
+            startGameButton.addEventListener('click', async () => {
+                
 
-                try {
-                    const response = await requestPost('tournament/create', formData);
-                    alert(`Tournoi créé avec succès : ID = ${response.tournament_id}`);
-                } catch (err) {
-                    console.error('Erreur lors de la création du tournoi :', err);
-                    alert('Impossible de créer le tournoi.');
+                // Récupérer les éléments
+                const ballSpeedElement = document.getElementById(`ballSpeed${section}`);
+                const paddleSizeElement = document.getElementById(`paddleSizeSelect${section}`);
+                const bonusCheckbox = document.getElementById(`bonus${section}`);
+                const obstacleCheckbox = document.getElementById(`bonusObstacle${section}`);
+                
+                // Vérifier s’ils existent
+                if (!ballSpeedElement || !paddleSizeElement) {
+                    console.error(`Impossible de trouver les champs pour la section "${section}".`);
+                    return;
                 }
+
+                 // Stockage en mémoire JS
+                const onlineParams = {
+                    ball_speed: ballSpeedElement.value,
+                    paddle_size: paddleSizeElement.value,
+                    bonus_enabled: bonusCheckbox?.checked ?? false,
+                    obstacles_enabled: obstacleCheckbox?.checked ?? false,
+                };
+
+                await handleTournament(onlineParams);
+                
+                console.log(`Vitesse de balle (${section}):`, ballSpeedElement.value);
+                console.log(`Taille de raquette (${section}):`, paddleSizeElement.value);
+                console.log(`Bonus activé (${section}):`, bonusCheckbox?.checked);
+                console.log(`Obstacles activés (${section}):`, obstacleCheckbox?.checked);
+                
+
             });
         }
     });
 }
 
-// added
-// async function startLocalGame(gameId) {
-//     try {
-//         // Appel à une API pour démarrer la partie
-//         const response = await requestPost('game', 'start_local_game', { game_id: gameId });
-
-//         if (response.status === 'success') {
-//             console.log(`Partie ${gameId} lancée avec succès.`);
-//               // Après l'injection, initialiser la logique du jeu
-//         initLiveLocalGame({
-//             gameId: gameId,
-//             csrfToken: 'TON_CSRF_TOKEN_SI_BESOIN',
-//             resultsUrl: '/les_resultats'
-//         });
-//             // Tu peux éventuellement mettre à jour l'UI pour refléter l'état du jeu
-//         } else {
-//             console.error('Erreur lors du démarrage de la partie :', response.message);
-//             alert('Impossible de démarrer la partie.');
-//         }
-//     } catch (err) {
-//         console.error('Erreur lors du démarrage de la partie :', err);
-//         alert('Impossible de démarrer la partie.');
-//     }
-// }
 
 
 export async function handleGameMenu() {

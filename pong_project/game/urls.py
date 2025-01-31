@@ -32,9 +32,6 @@ from django.urls import path
 from .views.gameHome import GameHomeView
 from .views.gameMenu import GameMenuView
 from .views.gameLoading import LoadingView
-from .views.gameSelectTournament import SelectTournamentView
-# from .views.gameInvitation import InviteGameView
-# from .views.gameInvitation import SendInvitationView, CancelInvitationView, RespondToInvitationView, ListInvitationsView, AcceptGameInvitationView
 from .views.gameLocal import StartLocalGameView, CreateGameLocalView
 from .views.gameOnline import CreateGameOnlineView, SendGameSessionInvitationView, AcceptGameInvitationView, RejectGameInvitationView, CleanExpiredInvitationsView, CheckGameInvitationStatusView, StartOnlineGameView, JoinOnlineGameAsLeftView, JoinOnlineGameAsRightView
 from .views.gameTournament import CreateTournamentView, CreateTournamentGameSessionView, StartTournamentGameSessionView
@@ -52,7 +49,6 @@ urlpatterns = [
     path('home/', GameHomeView.as_view(), name='home'),  # Mise à jour pour CBV
     path('menu/', GameMenuView.as_view(), name='game_menu'),  # Mise à jour pour CBV
     path('loading/', LoadingView.as_view(), name='loading'),  # Mise à jour pour CBV
-    path('select_tournament/', SelectTournamentView.as_view(), name='select_tournament'),  # Mise à jour pour CBV
     # path('invite_game/', InviteGameView.as_view(), name='invite_game'),  # Vue fonctionnelle
     # path('invite_tournament/', invite_tournament_view, name='invite_tournament'),  # Vue fonctionnelle
     # path('send_invitation/', SendInvitationView.as_view(), name='send_invitation'),
@@ -68,6 +64,8 @@ urlpatterns = [
 
     # LOCAL TOURNAMENT GAMES
     path('create_tournament/', CreateTournamentView.as_view(), name='create_tournament'),
+    path('tournament_bracket/', TournamentBracketView.as_view(), name='tournament_bracket'),
+    path('tournament_next_game/', TournamentNextGameView.as_view(), name='tournament_next_game'),
     path('create_tournament_gameSession/', CreateTournamentGameSessionView.as_view(), name='create_tournament_gameSession'),
     path('start_tournament_gameSession/', StartTournamentGameSessionView.as_view(), name='start_tournament_gameSession'),
 

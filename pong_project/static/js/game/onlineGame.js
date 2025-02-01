@@ -3,8 +3,7 @@ import { updateHtmlContent } from "../tools/index.js";
 import { showStatusMessage } from "../tools/index.js";
 import { isTouchDevice } from "../tools/index.js";
 import { initializeGameControls } from "./controls.js";
-import { liveOnlineGameLeft } from "./live_online_game_left.js";
-import { liveOnlineGameRight } from "./live_online_game_right.js";
+import { launchLiveGameWithOptions } from "./live_game.js";
 
 export async function createGameOnline(onlineParams) {
     console.log('[createGameOnline] Paramètres online = ', onlineParams);
@@ -175,7 +174,8 @@ async function joinOnlineGameAsLeft(game_id){
             updateHtmlContent('#content', response.html);
             // afficher le front du jeu au joueur left & transmettre les inputs du joueur left au jeu
             // le button startGame de live_online_game_as_left.html permettra de lancer l'algo du jeu en back depuis le js de liveOnlineGameLeft()
-            liveOnlineGameLeft({gameId: response.game_id,resultsUrl: '/les_resultats'});
+            await launchLiveGameWithOptions(gameId, 'left', `start_online_game/${gameId}`);
+            //IMPROVE afficher une page présentant le winner et looser une fois la game terminee
         } else {
             showStatusMessage(response.message, 'error');
         }
@@ -233,10 +233,12 @@ async function joinOnlineGameAsRight(sessionId) {
             showStatusMessage(response.message, 'error');
             return;
         }
-
-        // Si succès, afficher la page de jeu et initialiser le joueur RIGHT
+        // Si succès, afficher la page de jeu 
         updateHtmlContent('#content', response.html);
-        liveOnlineGameRight({gameId: response.game_id, resultsUrl: '/les_resultats'});
+        // lancer la game pour le joueur RIGHT, il a null car pas de startButton de son côté
+        await launchLiveGameWithOptions(gameId, 'right', null);
+        //IMPROVE afficher une page présentant le winner et looser une fois la game terminee
+
     } catch (error) {
         console.error('Erreur réseau lors de la connexion au jeu en tant que joueur Right:', error);
         showStatusMessage('Une erreur réseau est survenue. Veuillez réessayer.', 'error');

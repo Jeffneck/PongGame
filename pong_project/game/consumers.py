@@ -4,7 +4,6 @@ import json
 import redis
 from django.conf import settings
 from channels.generic.websocket import AsyncWebsocketConsumer
-from django.shortcuts import reverse
 from uuid import UUID
 
 # from .game_loop.redis_utils import get_key

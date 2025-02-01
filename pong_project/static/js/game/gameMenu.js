@@ -1,7 +1,7 @@
 import { requestGet, requestPost } from '../api/index.js'; 
 import { updateHtmlContent } from '../tools/index.js'; 
 // import { handleInviteGame } from './handleInvitationGame.js'; // Suppose qu'on gère l'invitation en ligne ici
-import { liveLocalGame } from './live_local_game.js';
+import { launchLiveGameWithOptions } from './live_game.js';
 import { createGameOnline } from './onlineGame.js'
 import { handleTournament } from './tournament.js'
 
@@ -33,9 +33,6 @@ function attachGameMenuEvents() {
         const inviteGameButton = document.getElementById(`invite-game-btn-${section}`);
         const inviteTournamentButton = document.getElementById(`invite-tournament-btn-${section}`);
         const test = document.getElementById(`${section}-game-btn`); 
-        console.log(`test:`, test);
-
-        console.log(`inviteGameButton:`, inviteGameButton);
 
         // Définir un comportement différent selon le bouton
         if (startGameButton && section === 'local') {
@@ -72,11 +69,9 @@ function attachGameMenuEvents() {
                     {
                         alert(`Partie créée avec succès : ID = ${response.game_id}`);
                         updateHtmlContent('#content', response.html);
-                        // await startLocalGame(response.game_id);
-                        liveLocalGame({
-                            gameId: response.game_id,
-                            resultsUrl: '/les_resultats'
-                        });
+                        const gameId = response.game_id;
+                        await launchLiveGameWithOptions(gameId, 'both', `start_local_game/${gameId}`);
+                        //IMPROVE afficher une page présentant le winner et looser une fois la game terminee
                     }
                     else{
                         alert(response.message);

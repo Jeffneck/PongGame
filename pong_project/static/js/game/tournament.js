@@ -1,6 +1,6 @@
 import { requestGet, requestPost } from "../api/index.js";
 import { updateHtmlContent } from "../tools/index.js";
-import { initLiveGame } from './live_game_utils.js';
+import { launchLiveGameWithOptions } from './live_game.js';
 
 // Fonction principale appelée quand on clique sur "Lancer Tournoi" dans le menu
 export async function handleTournament(tournamentParam) {
@@ -102,24 +102,21 @@ async function runTournamentFlow(tournamentId) {
     updateHtmlContent("#content", nextResp.html);
     await delay(3000);
 
-    // 3) Créer la session de match (semi1, semi2, finale…) en POST
+    // 3) Créer la gameSession de match (semi1, semi2, finale…) en POST
     const gameId = await createTournamentGameSession(tournamentId, nextResp.next_match_type);
     if (!gameId) {
       console.error("Erreur lors de la création de la session de match.");
       break;
     }
 
-    // 4) Gérer l’aspect “live game”
-    await liveTournamentGame(gameId);
+    // 4) Lancer le liveGame 
+    await launchLiveGameWithOptions(gameId, 'both', `start_tournament_game_session/${gameId}`);
   }
-  // // 5) Afficher le dernier bracket
-  // const finalBracket = await requestGet('game', `tournament_bracket/${tournamentId}`);
-  // if (finalBracket.status === "success") {
-  //   updateHtmlContent("#content", finalBracket.html);
-  //   updateBracketUI(finalBracket);
-  // }
+
   console.log("Fin du flux tournoi");
 }
+
+
 
 // Met à jour le bracket en fonction de l'état du tournoi
 // Improve remplacer par des balises django dans le front ??
@@ -187,26 +184,6 @@ async function createTournamentGameSession(tournamentId, nextMatchType) {
   }
 }
 
-async function liveTournamentGame(gameId) {
-  return initLiveGame({
-      gameId,
-      userRole: 'both',
-      wsUrl: `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/pong/${gameId}/`,
-      startGameSelector: "#startGameBtn",
-      onStartGame: async (gameId) => {
-          const url = `start_tournament_game_session/${gameId}`;
-          const formData = new FormData();
-          formData.append('game_id', gameId);
-
-          const response = await requestPost('game', url, formData);
-          if (response.status === 'success') {
-              alert("La partie va commencer !");
-          } else {
-              alert("Erreur lors du démarrage : " + response.message);
-          }
-      }
-  });
-}
 
 // Petit utilitaire de pause asynchrone
 function delay(ms) {

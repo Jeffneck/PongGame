@@ -1,6 +1,6 @@
 {% load i18n %}
 {% load static %}
-<div id="customization-{{ customization_id }}" class="card mb-3 bg-secondary d-none">
+<div id="customization-{{ customization_id }}" class="card mb-1 bg-secondary w-100 d-none">
     <div class="card-body">
         <h5 class="card-title">{% trans customization_title %}</h5>
         
@@ -45,7 +45,7 @@
             {% trans "Voir Tuto Bonus" %}
         </button>
         <div id="tutorial-content-{{ customization_id }}" class="collapse mt-3">
-            <p>💥 {% trans "**Power-Ups Légendaires !**" %} 💥</p>
+            <p class="text-white">💥 {% trans "**Power-Ups Légendaires !**" %} 💥</p>
             <ul class="list-unstyled">
                 <li class="d-flex align-items-center mb-2">
                     <img src="{% static 'png_game/obstacle.png' %}" alt="Obstacle" class="img-bonus me-2">

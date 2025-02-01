@@ -23,6 +23,14 @@ html, body {
 	font-size: 18px;
 }
 
+h1, h2, h3, h4, h5, h6 {
+	color: white;
+}
+
+::placeholder {
+    color: rgb(71, 71, 71) !important; /* Change la couleur pour tout le projet */
+    opacity: 1; /* Garde le texte bien visible */
+}
 .navbar {
 	/* min-width: 300px;  */
 	height: 50px;
@@ -272,8 +280,16 @@ html, body {
 /* profil gestion_profil */
 
 .card-title {
-
+	color: white;
 	font-family: "Jersey 10";
+}
+
+.form-label {
+	color: rgb(223, 223, 223);
+}
+
+.list-unstyled{
+	color: white;
 }
 
 /* Terrain de base */

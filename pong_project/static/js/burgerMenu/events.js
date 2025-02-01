@@ -81,11 +81,6 @@ function handleBurgerMenuClick(e) {
         navigateTo('/game-options');
         return;
     }
-    if (e.target.matches('#tournament-link')) {
-        e.preventDefault();
-        navigateTo('/select_tournament');
-        return;
-    }
     if (e.target.matches('#settings-link')) {
         e.preventDefault();
         navigateTo('/account');

@@ -21,8 +21,7 @@ async function handleLoginResponse(response) {
             }, 500);
         }
     } else {
-        const message = response.errors?.join('<br>') || response.message || 'Erreur inconnue.';
-        showStatusMessage(message, 'error');
+        showStatusMessage(response.message, 'error');
     }
 }
 

@@ -23,7 +23,7 @@ function handleHomeButtonClick(isAuthenticated) {
         navigateTo('/home');
     } else {
         // Redirige vers la page de connexion
-        navigateTo('/login');
+        navigateTo('/');
     }
 }
 

@@ -184,14 +184,19 @@ async def notify_bumper_collision(game_id, bumper, ball):
 # --------- END GAME : NOTIFICATIONS  -----------
 
 async def notify_game_finished(game_id, tournament_id, winner, looser):
-    print(f"[broadcast.py] notify_game_finished winner: {winner} looser: {looser} tournament_id: {tournament_id}")
+    # Si winner et looser sont des objets CustomUser, on récupère leur username,
+    # sinon on les laisse tels quels (cas d'un match en mode local, où ce sont déjà des chaînes)
+    winner_serializable = winner.username if hasattr(winner, 'username') else winner
+    looser_serializable = looser.username if hasattr(looser, 'username') else looser
+
+    print(f"[broadcast.py] notify_game_finished winner: {winner_serializable} looser: {looser_serializable} tournament_id: {tournament_id}")
     channel_layer = get_channel_layer()
     await channel_layer.group_send(
         f"pong_{game_id}",
         {
             'type': 'game_over',
             'tournament_id': str(tournament_id),
-            'winner': winner,
-            'looser': looser
+            'winner': winner_serializable,
+            'looser': looser_serializable
         }
     )

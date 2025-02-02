@@ -4,6 +4,7 @@ import { showStatusMessage } from "../tools/index.js";
 import { isTouchDevice } from "../tools/index.js";
 import { initializeGameControls } from "./controls.js";
 import { launchLiveGameWithOptions } from "./live_game.js";
+import { HTTPError } from "../api/index.js";
 
 export async function createGameOnline(onlineParams) {
     console.log('[createGameOnline] Paramètres online = ', onlineParams);
@@ -174,7 +175,7 @@ async function joinOnlineGameAsLeft(game_id){
             updateHtmlContent('#content', response.html);
             // afficher le front du jeu au joueur left & transmettre les inputs du joueur left au jeu
             // le button startGame de live_online_game_as_left.html permettra de lancer l'algo du jeu en back depuis le js de liveOnlineGameLeft()
-            await launchLiveGameWithOptions(gameId, 'left', `start_online_game/${gameId}`);
+            await launchLiveGameWithOptions(response.game_id, 'left', `start_online_game/${game_id}`);
             //IMPROVE afficher une page présentant le winner et looser une fois la game terminee
         } else {
             showStatusMessage(response.message, 'error');
@@ -236,7 +237,7 @@ async function joinOnlineGameAsRight(sessionId) {
         // Si succès, afficher la page de jeu 
         updateHtmlContent('#content', response.html);
         // lancer la game pour le joueur RIGHT, il a null car pas de startButton de son côté
-        await launchLiveGameWithOptions(gameId, 'right', null);
+        await launchLiveGameWithOptions(response.game_id, 'right', null);
         //IMPROVE afficher une page présentant le winner et looser une fois la game terminee
 
     } catch (error) {

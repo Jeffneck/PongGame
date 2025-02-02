@@ -22,12 +22,16 @@ async def is_gameSession_Online(game_id):
 async def set_gameSession_status(game_id, status):
     GameSession = apps.get_model('game', 'GameSession')
     try:
-        session = await sync_to_async(GameSession.objects.get)(pk=game_id)
+        # Précharger player_left et player_right pour éviter des appels ORM en mode lazy
+        session = await sync_to_async(
+            GameSession.objects.select_related('player_left', 'player_right').get
+        )(pk=game_id)
         session.status = status
         await sync_to_async(session.save)()
         return session
     except GameSession.DoesNotExist:
         return None
+
 
 
 async def get_gameSession_parameters(game_id):
@@ -71,6 +75,7 @@ async def create_gameResults(game_id, endgame_infos):
     GameResult = apps.get_model('game', 'GameResult')
 
     try:
+        print(f"[create_gameResults] Creating GameResult for game {game_id}...")
         # Récupérer la session de jeu en mode async
         session = await sync_to_async(GameSession.objects.get)(pk=game_id)
 

@@ -57,29 +57,29 @@ async def finish_game(game_id):
         print(f"[finish_game] GameSession {game_id} does not exist.")
         return
 
-    
+    # Pour être sûr que les attributs player_left et player_right sont préchargés,
+    # vérifiez qu'ils ne déclenchent pas de requête additionnelle.
+    # Ici, ils ont été chargés grâce au select_related dans set_gameSession_status.
+
     # Si la GameSession est Online, créer un enregistrement des gameResults
     gameSession_isOnline = await is_gameSession_Online(game_id)
-    if gameSession_isOnline :
-        # Identifier le gagnant et le perdant
+    if gameSession_isOnline:
         if score_left > score_right:
             winner = gameSession.player_left
             looser = gameSession.player_right
         else:
             winner = gameSession.player_right
             looser = gameSession.player_left
-        # Préparer les informations de fin de partie
+
         endgame_infos = {
             'winner': winner,
             'looser': looser,
             'score_left': score_left,
             'score_right': score_right,
         }
-        # Créer un enregistrement des résultats
         await create_gameResults(game_id, endgame_infos)
-    # en local on recupere les player_left_name .. car les player_left .. = NULL
-    else :
-                # Identifier le gagnant et le perdant
+    else:
+        # Pour une session locale
         if score_left > score_right:
             winner = gameSession.player_left_name
             looser = gameSession.player_right_name
@@ -87,7 +87,7 @@ async def finish_game(game_id):
             winner = gameSession.player_right_name
             looser = gameSession.player_left_name
 
-    # Chercher s’il y a un LocalTournament qui pointe sur ce game_id en semifinal1, semifinal2 ou final
+    # Gestion du tournoi (inchangé)
     tournament = await get_LocalTournament(game_id, "semifinal1")
     if tournament:
         print(f"[finish_game] this game was semifinal1 from tournament game_id={game_id}")
@@ -106,16 +106,10 @@ async def finish_game(game_id):
                 tournament.status = 'finished'
                 await sync_to_async(tournament.save)()
             else:
-                # Aucun tournoi correspondant à game_id
                 print(f"[finish_game] No tournament found for game_id={game_id}")
 
-
-    # Récupérer tournament_id depuis gameSession, peut être utile pour la notification
     tournament_id = gameSession.tournament_id
     print(f"[finish_game] tournament_id={tournament_id}")
-    # Notifier les utilisateurs via WebSocket
     await notify_game_finished(game_id, tournament_id, winner, looser)
-
-    # Nettoyer les clés Redis
     scan_and_delete_keys(game_id)
     print(f"[loop.py] Redis keys deleted for game_id={game_id}")

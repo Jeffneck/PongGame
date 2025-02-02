@@ -51,6 +51,7 @@ class ProfileView(View):
                     'played_at': match.ended_at,
                 })
 
+            logger.info(f"opponent: {opponent.username}")
             logger.info(
                 f"Statistics calculated: match_count={match_count}, victories={victories}, "
                 f"defeats={defeats}, best_score={best_score}, friends_count={friends_count}"

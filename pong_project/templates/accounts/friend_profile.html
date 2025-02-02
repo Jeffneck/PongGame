@@ -41,7 +41,7 @@
                     <ul class="list-group list-group-flush">
                         {% for match in match_histories %}
                             <li class="list-group-item bg-transparent text-white">
-                                <strong>{% trans "Adversaire : " %}</strong>{{ match.opponent.username }}<br>
+                                <strong>{% trans "Adversaire : " %}</strong>{{ match.opponent }}<br>
                                 <strong>{% trans "Résultat : " %}</strong>{% if match.result == "win" %}{% trans "Victoire" %}{% else %}{% trans "Défaite" %}{% endif %}<br>
                                 <strong>{% trans "Joué le : " %}</strong>{{ match.played_at|date:"d/m/Y H:i" }}
                             </li>

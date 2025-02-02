@@ -458,9 +458,9 @@ html, body {
 	justify-content: center;
 }
 .normal-content {
-	height: auto;
-	justify-content: flex-start;
-	padding-top: 20px;
+	height: auto !important;
+	justify-content: flex-start !important;
+	padding-top: 20px !important;
 }
 
 .friend-btn {

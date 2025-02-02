@@ -1,7 +1,7 @@
-<div id="bracket_tournament" class="container-fluid d-flex flex-column justify-content-center align-items-center" style="height: 100%; width: 100%; ">
+<div class="container-fluid d-flex flex-column align-items-center justify-content-start" style="height: 100%; width: 100%; ">
    
 	<!-- Lignes de connexion pour le tournoi -->
-	<div class="bracket ">
+	<div id="bracket_tournament"  class="bracket d-flex flex-column align-items-center justify-content-center">
 		<div class="tournament-title text-center text-uppercase" style="font-family: 'Jersey 10'">
 			<h2 class="text-light fw-bold">Pong Championship: The Final 4</h2>
 			<p class="text-secondary ">Le Premier match va commencer ..</p> <!-- classe d-none a retirer pour presentation avant match 1-->
@@ -84,6 +84,10 @@
 
 .html, body {
 	overflow: auto;
+}
+
+#content{
+	padding-bottom: 0 !important;
 }
 
 .bracket {

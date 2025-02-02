@@ -55,6 +55,6 @@ export function adjustAllContainers() {
         adjustSinNavHeight();
         adjustContainerIfExists('login');
         adjustContainerIfExists('register');
-
+		adjustContainerIfExists('bracket_tournament')
     });
 }

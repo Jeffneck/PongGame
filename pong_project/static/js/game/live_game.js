@@ -29,9 +29,7 @@ export async function launchLiveGameWithOptions(gameId, userRole, urlStartButton
       formData.append('game_id', gameId);
 
       const response = await requestPost('game', url, formData);
-      if (response.status === 'success') {
-        alert("La partie va commencer !");
-      } else {
+      if (response.status !== 'success') {
         alert("Erreur lors du démarrage : " + response.message);
       }
     };
@@ -90,36 +88,298 @@ function initLiveGame(config) {
     // 2) Gérer le bouton "Start" (optionnel)
     if (startGameBtn && config.onStartGame) {
       // Débloquer le bouton après 3s (optionnel)
-      setTimeout(() => { startGameBtn.disabled = false; }, 3000);
+      setTimeout(() => { 
+		startGameBtn.style.opacity = "0.7";
+        startGameBtn.disabled = false;
+		startGameBtn.classList.add("active");
+	
+	}, 3000);
   
       // Clic => on appelle la callback onStartGame
       startGameBtn.addEventListener('click', async () => {
-        await config.onStartGame(config.gameId);
+        await startGameWithCountdown(startGameBtn, config.onStartGame, config.gameId);
       });
     }
+
+	// Draw visual effects / added
+	function drawCollisionEffects() {
+		collisionEffects.forEach(effect => {
+			const age = effect.type.includes('spawn') ?
+			  Date.now() - effect.startTime :
+			  Date.now() - effect.startTime;
+			const duration = effect.type.includes('spawn') ?
+			  SPAWN_EFFECT_DURATION :
+			  EXPIRE_EFFECT_DURATION;
+			const progress = age / duration;
+  
+			ctx.save();
+			ctx.globalAlpha = 1 - progress;
+  
+			switch(effect.type) {
+				case 'paddle_collision':
+					// Ripple effect
+					const rippleSize = 20 + (progress * 40);
+					ctx.strokeStyle = 'white';
+					ctx.lineWidth = 3 * (1 - progress);
+					ctx.beginPath();
+					ctx.arc(effect.x, effect.y, rippleSize, 0, Math.PI * 2);
+					ctx.stroke();
+					break;
+  
+				// case 'border_collision':
+				//     // Simple glow effect at collision point
+				//     const glowSize = 20 * (1 - progress);
+				//     ctx.shadowColor = 'white';
+				//     ctx.shadowBlur = 15 * (1 - progress);
+					
+				//     ctx.beginPath();
+				//     ctx.arc(effect.x, effect.border_side === 'up' ? 50 : 350, glowSize, 0, Math.PI * 2);
+				//     ctx.fillStyle = 'rgba(255, 255, 255, ' + (1 - progress) + ')';
+				//     ctx.fill();
+				//     break;
+  
+				case 'bumper_collision':
+					// Explosion effect
+					const numParticles = 8;
+					const radius = 30 * progress;
+					ctx.strokeStyle = '#4169E1';
+					ctx.lineWidth = 3 * (1 - progress);
+					
+					for (let i = 0; i < numParticles; i++) {
+						const angle = (i / numParticles) * Math.PI * 2;
+						const startX = effect.x + Math.cos(angle) * 10;
+						const startY = effect.y + Math.sin(angle) * 10;
+						const endX = effect.x + Math.cos(angle) * radius;
+						const endY = effect.y + Math.sin(angle) * radius;
+						
+						ctx.beginPath();
+						ctx.moveTo(startX, startY);
+						ctx.lineTo(endX, endY);
+						ctx.stroke();
+					}
+					break;
+				case 'powerup_spawn':
+					// Expanding circles with powerup color
+					const circles = 3;
+					ctx.strokeStyle = effect.color;
+					ctx.lineWidth = 2;
+					
+					for (let i = 0; i < circles; i++) {
+						const circleProgress = (progress + (i / circles)) % 1;
+						const radius = circleProgress * 40;
+						ctx.beginPath();
+						ctx.arc(effect.x, effect.y, radius, 0, Math.PI * 2);
+						ctx.stroke();
+					}
+  
+					// Add sparkles
+					const sparkles = 8;
+					for (let i = 0; i < sparkles; i++) {
+						const angle = (i / sparkles) * Math.PI * 2;
+						const sparkleDistance = 20 + (progress * 20);
+						const x = effect.x + Math.cos(angle) * sparkleDistance;
+						const y = effect.y + Math.sin(angle) * sparkleDistance;
+						
+						ctx.beginPath();
+						ctx.arc(x, y, 2, 0, Math.PI * 2);
+						ctx.fillStyle = effect.color;
+						ctx.fill();
+					}
+					break;
+  
+				case 'powerup_expire':
+					// Imploding effect
+					const fadeRadius = 20 * (1 - progress);
+					ctx.strokeStyle = effect.color;
+					ctx.lineWidth = 2 * (1 - progress);
+					
+					// Shrinking circle
+					ctx.beginPath();
+					ctx.arc(effect.x, effect.y, fadeRadius, 0, Math.PI * 2);
+					ctx.stroke();
+					
+					// Particles moving inward
+					const particles = 6;
+					for (let i = 0; i < particles; i++) {
+						const angle = (i / particles) * Math.PI * 2;
+						const distance = fadeRadius * 2;
+						const x = effect.x + Math.cos(angle) * distance * progress;
+						const y = effect.y + Math.sin(angle) * distance * progress;
+						
+						ctx.beginPath();
+						ctx.arc(x, y, 2, 0, Math.PI * 2);
+						ctx.fill();
+					}
+					break;
+  
+				case 'bumper_spawn':
+					// Expanding diamond pattern
+					ctx.strokeStyle = '#4169E1';
+					ctx.lineWidth = 2;
+					const size = 40 * progress;
+					const rotation = progress * Math.PI;
+					
+					ctx.translate(effect.x, effect.y);
+					ctx.rotate(rotation);
+					
+					// Inner diamond
+					ctx.beginPath();
+					ctx.moveTo(0, -size);
+					ctx.lineTo(size, 0);
+					ctx.lineTo(0, size);
+					ctx.lineTo(-size, 0);
+					ctx.closePath();
+					ctx.stroke();
+					
+					// Outer diamond
+					ctx.beginPath();
+					ctx.moveTo(0, -size * 1.5);
+					ctx.lineTo(size * 1.5, 0);
+					ctx.lineTo(0, size * 1.5);
+					ctx.lineTo(-size * 1.5, 0);
+					ctx.closePath();
+					ctx.stroke();
+					break;
+  
+				case 'bumper_expire':
+					// Dissolving rings effect
+					ctx.strokeStyle = '#4169E1';
+					ctx.lineWidth = 2 * (1 - progress);
+					
+					const rings = 3;
+					for (let i = 0; i < rings; i++) {
+						const ringProgress = (progress + (i / rings)) % 1;
+						const ringRadius = 20 * ringProgress;
+						
+						ctx.beginPath();
+						ctx.arc(effect.x, effect.y, ringRadius, 0, Math.PI * 2);
+						ctx.stroke();
+						
+						// Add dissolving particles
+						const particleCount = 8;
+						for (let j = 0; j < particleCount; j++) {
+							const particleAngle = (j / particleCount) * Math.PI * 2;
+							const distance = ringRadius * (1 + progress);
+							const px = effect.x + Math.cos(particleAngle) * distance;
+							const py = effect.y + Math.sin(particleAngle) * distance;
+							
+							ctx.fillStyle = '#4169E1';
+							ctx.fillRect(px - 1, py - 1, 2, 2);
+						}
+					}
+					break;
+			}
+			ctx.restore();
+		});
+	}
+
+
+	function drawCountdown() {
+		if (showCountdown) {
+			// Save context state
+			ctx.save();
+			
+			// Add semi-transparent overlay
+			ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+			ctx.fillRect(0, 0, canvas.width, canvas.height);
+			
+			// Draw countdown number
+			ctx.fillStyle = 'white';
+			ctx.font = 'bold 80px Arial';  // Reduced from 120px to 80px
+			ctx.textAlign = 'center';
+			ctx.textBaseline = 'middle';
+			
+			// Add glow effect
+			ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
+			ctx.shadowBlur = 20;
+			
+			// Position in center of canvas but higher up
+			// Changed from canvas.height / 2 to canvas.height / 3 to move it up
+			ctx.fillText(countdownNumber, canvas.width / 2, canvas.height / 3);
+			
+			// Restore context state
+			ctx.restore();
+		}
+	}
   
     // 3) Mise en place du redimensionnement du canvas
     const ORIGINAL_WIDTH = 800;
     const ORIGINAL_HEIGHT = 400;
     let scale = 1;
+
+	    // Const for visual effects on notifications / added
+		const collisionEffects = [];
+		const EFFECT_DURATION = 300;
+		const SPAWN_EFFECT_DURATION = 500;
+		const EXPIRE_EFFECT_DURATION = 300;
+	  
+		// spawn visual effect / added
+		function createSpawnEffect(type, x, y, effectType, color) {
+		  const effect = {
+			  type,
+			  x,
+			  y,
+			  effectType,
+			  color: color || '#FFFFFF',
+			  startTime: Date.now(),
+			  alpha: 1
+		  };
+		  collisionEffects.push(effect);
+		  
+		  setTimeout(() => {
+			  const index = collisionEffects.indexOf(effect);
+			  if (index > -1) {
+				  collisionEffects.splice(index, 1);
+			  }
+		  }, type.includes('spawn') ? SPAWN_EFFECT_DURATION : EXPIRE_EFFECT_DURATION);
+	  }
+	
+	  // collision visual effects / added
+	  function createCollisionEffect(type, x, y, color) {
+		const effect = {
+			type,
+			x,
+			y,
+			color,
+			startTime: Date.now(),
+			alpha: 1
+		};
+		collisionEffects.push(effect);
+		
+		// Remove effect after duration
+		setTimeout(() => {
+			const index = collisionEffects.indexOf(effect);
+			if (index > -1) {
+				collisionEffects.splice(index, 1);
+			}
+		}, EFFECT_DURATION);
+	  }
+
   
     function handleResize() {
-      const container = document.querySelector('.game-container');
-      if (!container) return;
-  
-      const containerWidth = container.clientWidth;
-      const containerHeight = container.clientHeight;
-  
-      scale = Math.min(containerWidth / ORIGINAL_WIDTH, containerHeight / ORIGINAL_HEIGHT);
-  
-      canvas.style.width = (ORIGINAL_WIDTH * scale) + 'px';
-      canvas.style.height = (ORIGINAL_HEIGHT * scale) + 'px';
-  
-      canvas.width = ORIGINAL_WIDTH;
-      canvas.height = ORIGINAL_HEIGHT;
-  
-      ctx.imageSmoothingEnabled = false;
-    }
+    const container = document.querySelector('.game-container');
+    if (!container) return;
+
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+    const windowHeight = window.innerHeight; // Récupère la hauteur de l'écran
+
+    // Calcul du scale basé sur la hauteur de l'écran
+    let scale = Math.min(containerWidth / ORIGINAL_WIDTH, windowHeight * 0.7 / ORIGINAL_HEIGHT);
+
+    // Appliquer le scale sans dépasser la hauteur disponible
+    canvas.style.width = (ORIGINAL_WIDTH * scale) + 'px';
+    canvas.style.height = (ORIGINAL_HEIGHT * scale) + 'px';
+
+    // Garder la résolution nette
+    canvas.width = ORIGINAL_WIDTH;
+    canvas.height = ORIGINAL_HEIGHT;
+    
+    // Ajuster dynamiquement la hauteur de .game-container
+    container.style.height = Math.min(windowHeight * 0.8, containerWidth / 2) + 'px';
+
+    ctx.imageSmoothingEnabled = false;
+}
     window.addEventListener('resize', handleResize);
     handleResize(); // initial
   
@@ -154,6 +414,8 @@ function initLiveGame(config) {
       bumpers: [],
       flash_effect: false
     };
+	let showCountdown = false;
+    let countdownNumber = 3;
   
     // 6) Gérer la réception de messages WebSocket
     socket.onmessage = (event) => {
@@ -167,8 +429,58 @@ function initLiveGame(config) {
         // Réinjecter
         activeEffects.left = prevLeft;
         activeEffects.right = prevRight;
-      }
-      else if (data.type === 'game_over') {
+      }  else if (data.type === 'powerup_spawned') {
+		const powerupColor = {
+			'invert': '#FF69B4',
+			'shrink': '#FF0000',
+			'ice': '#00FFFF',
+			'speed': '#FFD700',
+			'flash': '#FFFF00',
+			'sticky': '#32CD32'
+		}[data.powerup.type] || '#FFFFFF';
+		
+		createSpawnEffect('powerup_spawn', 
+			data.powerup.x, 
+			data.powerup.y, 
+			data.powerup.type,
+			powerupColor);
+	  } else if (data.type === 'powerup_expired') {
+		createSpawnEffect('powerup_expire',
+			data.powerup.x,
+			data.powerup.y,
+			data.powerup.type);
+		} else if (data.type === 'bumper_spawned') {
+			createSpawnEffect('bumper_spawn',
+				data.bumper.x,
+				data.bumper.y);
+			
+		} else if (data.type === 'bumper_expired') {
+			createSpawnEffect('bumper_expire',
+				data.bumper.x,
+				data.bumper.y);
+		} else if (data.type === 'collision_event') {
+			const collision = data.collision;
+			switch(collision.type) {
+				case 'paddle_collision':
+					createCollisionEffect('paddle_collision', 
+						collision.paddle_side === 'left' ? 60 : canvas.width - 60, 
+						gameState.ball_y);
+					break;
+					
+				case 'border_collision':
+					createCollisionEffect('border_collision',
+						collision.coor_x_collision,
+						collision.border_side === 'up' ? 50 : 350);
+					break;
+					
+				case 'bumper_collision':
+					createCollisionEffect('bumper_collision',
+						collision.bumper_x,
+						collision.bumper_y);
+					break;
+			}
+		}
+		else if (data.type === 'game_over') {
         console.log("[live_game_utils] Game over detected");
         alert("Game Over! Winner = " + data.winner);
         socket.close();
@@ -280,6 +592,34 @@ function initLiveGame(config) {
   
     const bumperImage = new Image();
     bumperImage.src = createBumperSVG();
+
+
+	// -- Fonction pour démarrer la partie
+    async function startGameWithCountdown(startGameBtn, onStartGame, gameId) {
+		showCountdown = true;
+		startGameBtn.classList.add('d-none');
+		
+		// Start countdown animation
+		let count = 3;
+		
+		// Function to update the countdown
+    const updateCount = async () => {
+			countdownNumber = count;
+			count--;
+			
+			if (count < 0) {
+				clearInterval(countdownInterval);
+				showCountdown = false;
+				onStartGame && await onStartGame(gameId);
+			}
+		};
+	
+		// Show first number immediately
+		updateCount();
+		
+		// Then update every second
+		const countdownInterval = setInterval(updateCount, 1000);
+	}
   
     // 9) La boucle de dessin
     function draw() {
@@ -287,7 +627,7 @@ function initLiveGame(config) {
         ctx.fillStyle = 'white';
         ctx.fillRect(0,0,canvas.width, canvas.height);
       } else {
-        ctx.fillStyle = 'black';
+        ctx.fillStyle = '#101A32';
         ctx.fillRect(0,0,canvas.width, canvas.height);
   
         // Zone de jeu
@@ -395,7 +735,8 @@ function initLiveGame(config) {
           yOffset+=25;
         });
       }
-  
+	  drawCollisionEffects();
+	  drawCountdown();
       requestAnimationFrame(draw);
     }
     requestAnimationFrame(draw);

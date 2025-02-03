@@ -21,7 +21,7 @@ from .collisions import (
 from .score_utils import handle_score, winner_detected, finish_game
 from .bumpers_utils import handle_bumpers_spawn, handle_bumper_expiration
 from .powerups_utils import handle_powerups_spawn, handle_powerup_expiration
-from .broadcast import broadcast_game_state
+from .broadcast import broadcast_game_state, notify_countdown
 
 async def game_loop(game_id):
     """
@@ -50,10 +50,8 @@ async def game_loop(game_id):
         # 1) Attendre que le statut devienne 'running' (durée max 60s) IMPROVE : que se passe t'il si on dépasse les 60 sec
         while True:
             session_status = await get_gameSession_status(game_id)
-            print(f"[game_loop] game_id={game_id} en attente du statut 'ready'. Actuel={session_status}")
+            print(f"[game_loop] game_id={game_id} en attente du statut 'running'. Actuel={session_status}")
 
-            # IMPROVE : quand la session est en ready afficher le message, "READY" sur le front, 
-            # quand le joueur1 clique sur Lancer la partie il passe session status en running ce qui sort de la boucle d'attente (running = break)
             if session_status == 'running':
                 print(f"[game_loop] game_id={game_id} => statut 'running' détecté. On lance le jeu.")
                 break
@@ -64,6 +62,14 @@ async def game_loop(game_id):
 
             await asyncio.sleep(1)
 
+        # fais moi uner boucle qui lance la fonction notifStartCountdown et lance un countdown de 3 secondes ici 
+        
+        # Lancer le compte à rebours de 3 secondes
+        for countdown_nb in range(3, 0, -1):
+            await notify_countdown(game_id, countdown_nb)
+            await asyncio.sleep(1)
+        
+        
         # 2) Lancer la boucle ~90fps 
         while True:
             # Vérifier si la partie est encore 'running' ou si on l'a terminée

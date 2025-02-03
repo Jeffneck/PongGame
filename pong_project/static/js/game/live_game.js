@@ -21,13 +21,22 @@ export async function launchLiveGameWithOptions(gameId, userRole, urlStartButton
   let onStartGame = null;
 
   if (urlStartButton) {
-    startGameSelector = "#startGameBtn";
-    // fonction qui lance le jeu après appui sur #startGameBtn
+    // Sélectionner l'élément DOM correspondant au bouton de démarrage
+    startGameSelector = document.querySelector("#startGameBtn");
+    // Vérifier que l'élément a bien été trouvé
+    if (!startGameSelector) {
+      console.error("L'élément avec le sélecteur '#startGameBtn' n'a pas été trouvé.");
+    }
+    
     onStartGame = async (gameId) => {
+      // Assurez-vous que startGameSelector est bien un élément DOM avant d'accéder à classList
+      if (startGameSelector) {
+        startGameSelector.classList.add('d-none');
+      }
       const url = urlStartButton;
       const formData = new FormData();
       formData.append('game_id', gameId);
-
+  
       const response = await requestPost('game', url, formData);
       if (response.status !== 'success') {
         alert("Erreur lors du démarrage : " + response.message);
@@ -83,21 +92,22 @@ function initLiveGame(config) {
     // 1) Préparer les éléments HTML
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    const startGameBtn = document.querySelector(config.startGameSelector || "#startGameBtn");
+    const startGameBtn = config.startGameSelector;
   
     // 2) Gérer le bouton "Start" (optionnel)
     if (startGameBtn && config.onStartGame) {
       // Débloquer le bouton après 3s (optionnel)
-      setTimeout(() => { 
-		startGameBtn.style.opacity = "0.7";
-        startGameBtn.disabled = false;
-		startGameBtn.classList.add("active");
+  //     setTimeout(() => { 
+	// 	startGameBtn.style.opacity = "0.7";
+  //       startGameBtn.disabled = false;
+	    startGameBtn.classList.add("active");
 	
-	}, 3000);
+	// }, 3000);
   
       // Clic => on appelle la callback onStartGame
       startGameBtn.addEventListener('click', async () => {
-        await startGameWithCountdown(startGameBtn, config.onStartGame, config.gameId);
+        await config.onStartGame()
+        // await startGameWithCountdown(startGameBtn, config.onStartGame, config.gameId);
       });
     }
 
@@ -275,31 +285,20 @@ function initLiveGame(config) {
 
 
 	function drawCountdown() {
-		if (showCountdown) {
-			// Save context state
-			ctx.save();
-			
-			// Add semi-transparent overlay
-			ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-			ctx.fillRect(0, 0, canvas.width, canvas.height);
-			
-			// Draw countdown number
-			ctx.fillStyle = 'white';
-			ctx.font = 'bold 80px Arial';  // Reduced from 120px to 80px
-			ctx.textAlign = 'center';
-			ctx.textBaseline = 'middle';
-			
-			// Add glow effect
-			ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
-			ctx.shadowBlur = 20;
-			
-			// Position in center of canvas but higher up
-			// Changed from canvas.height / 2 to canvas.height / 3 to move it up
-			ctx.fillText(countdownNumber, canvas.width / 2, canvas.height / 3);
-			
-			// Restore context state
-			ctx.restore();
-		}
+    if (typeof gameState.countdown !== 'undefined') {
+      ctx.save();
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+      ctx.fillStyle = 'white';
+      ctx.font = 'bold 80px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
+      ctx.shadowBlur = 20;
+      ctx.fillText(gameState.countdown, canvas.width / 2, canvas.height / 3);
+      ctx.restore();
+    }
 	}
   
     // 3) Mise en place du redimensionnement du canvas
@@ -414,8 +413,8 @@ function initLiveGame(config) {
       bumpers: [],
       flash_effect: false
     };
-	let showCountdown = false;
-    let countdownNumber = 3;
+	// let showCountdown = false;
+    // let countdownNumber = 3;
   
     // 6) Gérer la réception de messages WebSocket
     socket.onmessage = (event) => {
@@ -458,6 +457,10 @@ function initLiveGame(config) {
 			createSpawnEffect('bumper_expire',
 				data.bumper.x,
 				data.bumper.y);
+    } else if (data.type === 'countdown') {
+      // Stocker le compte à rebours dans le gameState
+      gameState.countdown = data.countdown_nb;
+      // drawCountdown(data.countdown_nb);
 		} else if (data.type === 'collision_event') {
 			const collision = data.collision;
 			switch(collision.type) {
@@ -549,7 +552,9 @@ function initLiveGame(config) {
       }
   
       if (player && direction && !keysPressed[evt.key]) {
-        socket.send(JSON.stringify({ action, player, direction }));
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ action, player, direction }));
+        }
         keysPressed[evt.key] = true;
         // console.log(`[live_game_utils] start_move: ${player}, ${direction}`);
       }
@@ -573,7 +578,9 @@ function initLiveGame(config) {
       }
   
       if (player && keysPressed[evt.key]) {
-        socket.send(JSON.stringify({ action, player }));
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ action, player}));
+        }
         keysPressed[evt.key] = false;
         // console.log(`[live_game_utils] stop_move: ${player}`);
       }
@@ -594,32 +601,58 @@ function initLiveGame(config) {
     bumperImage.src = createBumperSVG();
 
 
-	// -- Fonction pour démarrer la partie
-    async function startGameWithCountdown(startGameBtn, onStartGame, gameId) {
-		showCountdown = true;
-		startGameBtn.classList.add('d-none');
+	// // -- Fonction pour démarrer la partie
+  //   async function startGameWithCountdown(startGameBtn, onStartGame, gameId) {
+	// 	showCountdown = true;
+	// 	startGameBtn.classList.add('d-none');
 		
-		// Start countdown animation
-		let count = 3;
+	// 	// Start countdown animation
+	// 	let count = 3;
 		
-		// Function to update the countdown
-    const updateCount = async () => {
-			countdownNumber = count;
-			count--;
+	// 	// Function to update the countdown
+  //   const updateCount = async () => {
+	// 		countdownNumber = count;
+	// 		count--;
 			
-			if (count < 0) {
-				clearInterval(countdownInterval);
-				showCountdown = false;
-				onStartGame && await onStartGame(gameId);
-			}
-		};
+	// 		if (count < 0) {
+	// 			clearInterval(countdownInterval);
+	// 			showCountdown = false;
+	// 			// onStartGame && await onStartGame(gameId);
+	// 		}
+	// 	};
 	
-		// Show first number immediately
-		updateCount();
+	// 	// Show first number immediately
+	// 	updateCount();
 		
-		// Then update every second
-		const countdownInterval = setInterval(updateCount, 1000);
-	}
+	// 	// Then update every second
+	// 	const countdownInterval = setInterval(updateCount, 1000);
+	// }
+
+  // async function displayCountdownNumber(countdown_nb, startGameBtn) {
+	// 	showCountdown = true;
+    
+	// 	drawCountdown(countdown_nb)
+		// Start countdown animation
+		// let count = 3;
+		
+		// // Function to update the countdown
+    // const updateCount = async () => {
+		// 	countdownNumber = count;
+		// 	count--;
+			
+		// 	if (count < 0) {
+		// 		clearInterval(countdownInterval);
+		// 		showCountdown = false;
+		// 		// onStartGame && await onStartGame(gameId);
+		// 	}
+		// };
+	
+		// // Show first number immediately
+		// updateCount();
+		
+		// // Then update every second
+		// const countdownInterval = setInterval(updateCount, 1000);
+	// }
   
     // 9) La boucle de dessin
     function draw() {

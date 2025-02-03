@@ -83,6 +83,25 @@ async def notify_powerup_spawned(game_id, powerup_orb):
         }
     )
 
+async def notify_countdown(game_id, countdown_nb):
+    channel_layer = get_channel_layer()
+    await channel_layer.group_send(
+        f"pong_{game_id}",
+        {
+            'type': 'countdown',
+            'countdown_nb': countdown_nb
+        }
+    )
+
+# async def notify_start_game(game_id):
+#     channel_layer = get_channel_layer()
+#     await channel_layer.group_send(
+#         f"pong_{game_id}",
+#         {
+#             'type': 'start_game',
+#         }
+#     )
+
 async def notify_powerup_applied(game_id, player, effect, effect_duration):
     channel_layer = get_channel_layer()
     await channel_layer.group_send(

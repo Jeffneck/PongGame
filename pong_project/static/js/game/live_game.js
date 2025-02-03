@@ -19,6 +19,7 @@ export async function launchLiveGameWithOptions(gameId, userRole, urlStartButton
 
   let startGameSelector = null;
   let onStartGame = null;
+  
 
   if (urlStartButton) {
     // Sélectionner l'élément DOM correspondant au bouton de démarrage

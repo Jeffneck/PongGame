@@ -4,7 +4,7 @@ services:
     container_name: pong_nginx
     ports:
       - "8080:80"
-      - "443:443"        # ou "443:443" si tu veux le port 443 en direct
+      - "8443:443"        # ou "443:443" si tu veux le port 443 en direct
     volumes:
       - ./static:/static
       - ./media:/app/media

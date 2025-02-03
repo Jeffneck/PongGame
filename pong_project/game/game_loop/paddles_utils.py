@@ -1,6 +1,6 @@
 # game/game_loop/paddles_utils.py
 from .redis_utils import get_key, set_key
-from .dimensions_utils import get_terrain_rect
+# from .dimensions_utils import get_terrain_rect
 # FIELD_HEIGHT = 400
 
 # -------------- PADDLES --------------------

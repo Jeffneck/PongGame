@@ -26,6 +26,11 @@ class GameSession(models.Model):
     player_left_name = models.CharField(max_length=50, null=True, blank=True)
     player_right_name = models.CharField(max_length=50, null=True, blank=True)
 
+    # un joueur pret appuie sur le bouton PLAY et passe ce bool a true
+    ready_left = models.BooleanField(default=False)
+    # valable uniquement quand 2 joueur online
+    ready_right = models.BooleanField(default=False)
+
     def __str__(self):
         return f"GameSession {self.id} (status={self.status})"
 

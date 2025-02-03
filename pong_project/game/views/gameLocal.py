@@ -97,8 +97,9 @@ class StartLocalGameView(View):
             # print(f"[start_game] Démarrage de la partie {game_id}.")
             schedule_game(game_id)  # Cette fonction démarre la boucle de jeu, non-bloquante
 
-            # Mettre la session en état "running"
-            session.status = 'running'
+            # le bouton a ete appuye ce qui signifie que les 2 joueurs sont prets (en local)
+            session.ready_left = True
+            session.ready_right = True
             session.save()
 
             # print(f"[DEBUG] StartLocalGameView success")  # Debug

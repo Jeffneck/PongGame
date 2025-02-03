@@ -3,7 +3,7 @@ from .dimensions_utils import get_terrain_rect
 from .redis_utils import set_key, get_key, delete_key
 from .broadcast import notify_powerup_applied, notify_powerup_spawned, notify_powerup_expired
 import asyncio
-import math
+# import math
 import random
 
 MAX_ACTIVE_POWERUPS = 2

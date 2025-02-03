@@ -1,10 +1,10 @@
 # game/game_loop/score_utils.py
 
-from channels.layers import get_channel_layer
+# from channels.layers import get_channel_layer
 from asgiref.sync import sync_to_async
 from .broadcast import notify_game_finished
 from .redis_utils import set_key, get_key, scan_and_delete_keys
-from .models_utils import is_gameSession_Online, set_gameSession_status, create_gameResults, get_LocalTournament
+from .models_utils import is_online_gameSession, set_gameSession_status, create_gameResults, get_LocalTournament
 
 # transformer en parametre ajustable GameParameters?
 WIN_SCORE = 5 
@@ -62,7 +62,7 @@ async def finish_game(game_id):
     # Ici, ils ont été chargés grâce au select_related dans set_gameSession_status.
 
     # Si la GameSession est Online, créer un enregistrement des gameResults
-    gameSession_isOnline = await is_gameSession_Online(game_id)
+    gameSession_isOnline = await is_online_gameSession(game_id)
     if gameSession_isOnline:
         if score_left > score_right:
             winner = gameSession.player_left

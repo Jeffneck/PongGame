@@ -295,8 +295,9 @@ class StartTournamentGameSessionView(View):
         # On lance la loop de jeu asynchrone
         schedule_game(str(session.id))
 
-        # Mettre la session en "running"
-        session.status = 'running'
+        # le bouton a ete appuye ce qui signifie que les 2 joueurs sont prets (en local)
+        session.ready_left = True
+        session.ready_right = True
         session.save()
 
         return JsonResponse({

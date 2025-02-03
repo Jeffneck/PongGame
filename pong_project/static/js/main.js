@@ -24,4 +24,5 @@ document.addEventListener('DOMContentLoaded', async () => {
     adjustSinNavHeight(); // Pour load
     adjustContainerIfExists('login'); // Pour load
     adjustContainerIfExists('register'); // Pour load
+	adjustContainerIfExists('bracket_tournament'); // Pour load
 });

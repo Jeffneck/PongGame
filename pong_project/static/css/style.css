@@ -30,7 +30,7 @@ html, body {
     max-width: 100%;
 	background-color: rgba(45, 180, 243);
 	text-align: left;
-	z-index: 30; /* Garder la barre au-dessus de tout */
+	z-index: 60; /* Garder la barre au-dessus de tout */
 	position: fixed;
 	top:0;
 	justify-content: center;

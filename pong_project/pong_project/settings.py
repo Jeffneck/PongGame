@@ -36,6 +36,23 @@ ALLOWED_HOSTS = ['*']
 # ------------------------------------------------------------------
 AUTH_USER_MODEL = 'accounts.CustomUser'
 
+
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {
+            'min_length': 8,  # Le mot de passe doit comporter au moins 8 caractères
+        }
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+]
+
+
 # ------------------------------------------------------------------
 # 5) Internationalisation & Localisation
 # ------------------------------------------------------------------
@@ -54,6 +71,7 @@ LOCALE_PATHS = [
 TIME_ZONE = 'UTC'
 
 USE_I18N = True
+USE_L10N = True
 USE_TZ = True
 
 # ------------------------------------------------------------------
@@ -144,6 +162,8 @@ CSRF_TRUSTED_ORIGINS = [
     'http://192.168.1.138:443',
     'https://192.168.1.176:443',
     'https://10.12.6.7:8443',
+    'https://10.12.5.6:8443',
+
     # 'https://votre-domaine.com',  # Ajoutez votre domaine en production
 ]
 CSRF_COOKIE_SAMESITE = 'Lax'

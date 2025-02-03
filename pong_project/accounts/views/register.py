@@ -49,7 +49,14 @@ class RegisterView(View):
             user.save()  # Sauvegarde l'utilisateur dans la base de données
             return JsonResponse({'status': 'success', 'message': 'Inscription réussie.'})
         # Retourne les erreurs de validation du formulaire sous forme de JSON
-        return JsonResponse({'status': 'error', 'errors': form.errors})
+        else:
+            error_messages = []
+            for field, errors in form.errors.items():
+                # Concaténer toutes les erreurs pour un champ donné dans une seule chaîne
+                field_errors = ", ".join(errors)
+                error_messages.append(f"{field}: {field_errors}")
+            error_message = " ".join(error_messages)
+            return JsonResponse({'status': 'error', 'message': error_message})
 
 
 # Le principe des Class-Based Views (CBV) :

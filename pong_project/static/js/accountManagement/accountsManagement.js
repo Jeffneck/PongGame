@@ -1,7 +1,7 @@
 import { requestGet } from "../api/index.js";
 import { updateHtmlContent, displayErrorMessage } from "../tools/index.js";
 import { initializeaccountsManagementFormHandlers } from "./index.js";
-
+import { showStatusMessage } from "../tools/index.js";
 async function loadAccountsManagement() {
     try {
         const response = await requestGet('accounts', 'gestion_profil');
@@ -13,7 +13,7 @@ async function loadAccountsManagement() {
         }
     } catch (error) {
         console.error('Erreur chargement gestion profil:', error);
-        displayErrorMessage('#content', 'Erreur lors du chargement de la vue de gestion de profil.');
+        showStatusMessage(error.message || 'Erreur lors du chargement de la vue de gestion de profil.', 'errors');
     }
 }
 
@@ -25,6 +25,6 @@ export async function handleAccountsManagement() {
         initializeaccountsManagementFormHandlers();
     } catch (error) {
         console.error('Erreur chargement gestion profil:', error);
-        displayErrorMessage('#content', error.message || 'Erreur lors du chargement de la vue de gestion de profil.');
+        showStatusMessage(error.message || 'Erreur lors du chargement de la vue de gestion de profil.', 'errors');
     }
 }

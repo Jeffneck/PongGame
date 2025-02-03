@@ -46,19 +46,20 @@ class ManageProfileView(View):
         })
 
 
-class UpdateProfileView(View):
-    """
-    Handle updates to user profile information.
-    """
-
+class ChangeUsernameView(View):
     def post(self, request):
         user = request.user
-        form = UserNameForm(request.POST, request.FILES, instance=user)
+        form = UserNameForm(request.POST, instance=user)
         if form.is_valid():
             form.save()
-            return JsonResponse({'status': 'success', 'message': 'Profil mis à jour avec succès.'})
+            return JsonResponse({'status': 'success', 'message': "Nom d'utilisateur mis à jour avec succès."})
         else:
-            return JsonResponse({'status': 'error', 'errors': form.errors})
+            error_messages = []
+            for field, errors in form.errors.items():
+                for error in errors:
+                    error_messages.append(error)
+            error_message = " ".join(error_messages)
+            return JsonResponse({'status': 'error', 'message': error_message})
 
 
 class DeleteAccountView(View):
@@ -74,7 +75,12 @@ class DeleteAccountView(View):
             user.delete()
             return JsonResponse({'status': 'success', 'message': 'Votre compte a été supprimé avec succès.'})
         else:
-            return JsonResponse({'status': 'error', 'message': form.errors['password'][0]}, status=400)
+            error_messages = []
+            for field, errors in form.errors.items():
+                for error in errors:
+                    error_messages.append(error)
+            error_message = " ".join(error_messages)
+            return JsonResponse({'status': 'error', 'message': error_message})
 
 class ChangePasswordView(View):
     """
@@ -90,10 +96,14 @@ class ChangePasswordView(View):
             form.save()
             update_session_auth_hash(request, user)  # Maintient la session active après la mise à jour
             return JsonResponse({'status': 'success', 'message': 'Mot de passe mis à jour avec succès.'})
-
-        # Retourner les erreurs si le formulaire est invalide
-        return JsonResponse({'status': 'error', 'errors': form.errors})
-
+        
+        else:
+            error_messages = []
+            for field, errors in form.errors.items():
+                for error in errors:
+                    error_messages.append(error)
+            error_message = " ".join(error_messages)
+            return JsonResponse({'status': 'error', 'message': error_message})
 
 class UpdateAvatarView(View):
     """
@@ -104,5 +114,22 @@ class UpdateAvatarView(View):
         form = AvatarUpdateForm(request.POST, request.FILES, instance=user)
         if form.is_valid():
             form.save()
-            return JsonResponse({'status': 'success', 'message': 'Avatar mis à jour avec succès.'})
-        return JsonResponse({'status': 'error', 'errors': form.errors})
+            return JsonResponse({
+                'status': 'success', 
+                'message': 'Avatar mis à jour avec succès.'
+            })
+        else:
+            logger.error(form.errors)
+            # Récupérer les messages d'erreur de façon plus lisible
+            error_messages = []
+            for field, errors in form.errors.items():
+                # Chaque "errors" est une liste de messages pour le champ "field"
+                for error in errors:
+                    error_messages.append(error)
+            # On peut joindre les messages avec un séparateur, par exemple une virgule ou un saut de ligne
+            error_message = " ".join(error_messages)
+            
+            return JsonResponse({
+                'status': 'error', 
+                'message': error_message
+            })

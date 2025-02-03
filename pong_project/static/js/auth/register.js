@@ -7,11 +7,8 @@ function handleRegisterResponse(response) {
     if (response.status === 'success') {
         showStatusMessage(response.message, 'success');
         navigateTo('/login');
-    } else if (response.errors) {
-        const errorMessages = Object.keys(response.errors)
-            .map(field => response.errors[field].join('<br>'))
-            .join('<br>');
-        showStatusMessage(errorMessages, 'error');
+    } else {
+        showStatusMessage(response.message, 'error');
     }
 }
 

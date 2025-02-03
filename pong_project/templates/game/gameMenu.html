@@ -1,11 +1,11 @@
 {% load i18n %}
 {% load static %}
-<div class="game-menu col-12 col-sm-10 col-md-10 col-lg-6 col-xl-6 col-xxl-5">
-    <div class="container-fluid py-4" style="height: var(--sin-nav-height); font-size: 1.2em;">
+<div class="game-menu">
+	<div class="container-fluid d-flex flex-column align-items-center mb-2 py-4 col-12 col-sm-10 col-md-10 col-lg-6 col-xl-6 col-xxl-5" style="height: 100%; font-size: 1.2em;">
         <h1 class="text-center mb-4" style="font-size: 2em;">{% trans "Menu de Jeu" %}</h1>
 
         <!-- Section de choix de type de partie -->
-        <div class="card mb-3 bg-secondary">
+        <div class="card mb-3 bg-secondary w-100">
             <div class="card-body">
                 <h5 class="card-title">{% trans "Type de Partie" %}</h5>
                 <div class="d-flex flex-column gap-2">
@@ -26,16 +26,23 @@
         <!-- Personnalisation pour Tournoi -->
         {% include 'partials/customization-section.html' with customization_id="tournament" customization_title="Gameplay du Tournoi" button_text="Lancer Tournoi" %}
 
+		<!-- marge en bas de page. (obligatoire) -->
+		<div style="height: 50px; color: #101A32;">.</div>
+
     </div>
 </div>
 
 
 <style>
-	.html, body {
+	html, body {
 		overflow : auto;
 	}
-    .game-menu * {
+    .game-menu {
         color: rgb(223, 216, 216) !important;
+		width: 100vw;
+		height: var(--sin-nav-height);
+		top : 50px;
+		z-index: 1;
     }
 	.mask{
 		display: none;
@@ -46,11 +53,6 @@
 		min-width: 200px;
 	}
 
-	#tutorial-content-local, #tutorial-content-online, #tutorial-content-tournament {
-		transition: all 0.4s ease-in-out;
-		overflow: hidden;
-	}
-
 	.img-bonus {
 		width : 30px; 
 		height : 30px;
@@ -59,7 +61,7 @@
 	}
 
 	.card-title {
-		font-size: 1.3em;
+		font-size: 1.5em;
 	}
 
 	.btn-secondary {
@@ -72,5 +74,6 @@
 
 	#ground-game, .terrain{
         display: none;
+		height: 0px !important; /* pour eviter que cette div bloque le scroll*/
     }
 </style>

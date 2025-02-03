@@ -1,6 +1,7 @@
 import { requestGet, requestPost } from "../api/index.js";
 import { updateHtmlContent } from "../tools/index.js";
 import { launchLiveGameWithOptions } from './live_game.js';
+import { TournamentNextMatch } from './tournament_utils.js';
 
 // Fonction principale appelée quand on clique sur "Lancer Tournoi" dans le menu
 export async function handleTournament(tournamentParam) {
@@ -78,7 +79,7 @@ async function runTournamentFlow(tournamentId) {
     
     updateHtmlContent("#content", bracketResp.html);
     updateBracketUI(bracketResp)
-    await delay(4000);  // Pause de 4s (si vraiment nécessaire)
+    await delay(6000);  // Pause de 4s (si vraiment nécessaire)
     
     // TODO : si le backend renvoie un champ indiquant “finished”, sortir de la boucle
     // Exemple si bracketResp renvoie un `tournament_finished: true` ou
@@ -100,7 +101,8 @@ async function runTournamentFlow(tournamentId) {
     }
 
     updateHtmlContent("#content", nextResp.html);
-    await delay(3000);
+	TournamentNextMatch();
+    await delay(60000);
 
     // 3) Créer la gameSession de match (semi1, semi2, finale…) en POST
     const gameId = await createTournamentGameSession(tournamentId, nextResp.next_match_type);

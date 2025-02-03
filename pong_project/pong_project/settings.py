@@ -140,10 +140,13 @@ SECURE_HSTS_PRELOAD = True
 # ------------------------------------------------------------------
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:8080',
+    'http://localhost:8443',
     'http://192.168.1.138:8080',
     'http://192.168.1.138:443',
     'https://192.168.1.176:443',
-    'https://10.12.6.7:8443',
+    # 'https://10.12.6.7:8443',
+	'https://10.12.6.5:8443',
+	'https://10.12.6.5:8443',
     # 'https://votre-domaine.com',  # Ajoutez votre domaine en production
 ]
 CSRF_COOKIE_SAMESITE = 'Lax'

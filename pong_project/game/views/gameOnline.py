@@ -9,6 +9,7 @@ from django.views.decorators.csrf import csrf_protect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils.timezone import now
+from pong_project.decorators import login_required_json
 
 
 from game.models import GameSession
@@ -33,8 +34,8 @@ logger = logging.getLogger(__name__)
 # (Joueur 1) Vérifie en poll (CheckGameInvitationStatusView) → voit accepted
 # (Joueur 1) Appuie sur « Démarrer » (loading.html) → StartOnlineGameView (session.status = running)
 # Les 2 → redirection vers live_online_game.html?game_id=xxx, connexion WebSocket, etc.
-
 @method_decorator(csrf_protect, name='dispatch')
+@method_decorator(login_required_json, name='dispatch')
 class CreateGameOnlineView(View):
     """
     Crée une GameSession en ligne (player_left = request.user), 
@@ -88,6 +89,7 @@ class CreateGameOnlineView(View):
 
 
 @method_decorator(csrf_protect, name='dispatch')
+@method_decorator(login_required_json, name='dispatch')
 class SendGameSessionInvitationView(LoginRequiredMixin, View):
     """
     Le joueur (request.user) envoie une invitation à friend_username
@@ -160,8 +162,8 @@ class SendGameSessionInvitationView(LoginRequiredMixin, View):
         })
 
 
-#cette vue pourrait génerer l'url de la game session pour que l'utilisateur qui accepte l'invitation soit redirigé vers la page de jeu
-@method_decorator([csrf_protect, login_required], name='dispatch')
+@method_decorator(csrf_protect, name='dispatch')
+@method_decorator(login_required_json, name='dispatch')
 class AcceptGameInvitationView(View):
     """
     Le second joueur accepte l'invitation.
@@ -226,7 +228,8 @@ class AcceptGameInvitationView(View):
         })
 
 
-@method_decorator([csrf_protect, login_required], name='dispatch')
+@method_decorator(csrf_protect, name='dispatch')
+@method_decorator(login_required_json, name='dispatch')
 class RejectGameInvitationView(View):
     """
     Permet au destinataire d'une invitation de la rejeter.
@@ -255,7 +258,8 @@ class RejectGameInvitationView(View):
         })
 
 
-@method_decorator(login_required, name='dispatch')
+@method_decorator(csrf_protect, name='dispatch')
+@method_decorator(login_required_json, name='dispatch')
 class CleanExpiredInvitationsView(View):
     """
     Marque toutes les invitations 'pending' dont la date d'expiration est dépassée
@@ -274,7 +278,8 @@ class CleanExpiredInvitationsView(View):
         })
 
 
-@method_decorator(login_required, name='dispatch')
+@method_decorator(csrf_protect, name='dispatch')
+@method_decorator(login_required_json, name='dispatch')
 class CheckGameInvitationStatusView(View):
     """
     Retourne le statut actuel de l'invitation (pending, accepted, rejected, expired).
@@ -307,6 +312,7 @@ class CheckGameInvitationStatusView(View):
 # lancee par le front du player Left au moment de l'acceptation de l'invitation par le player right
 # IMPROVE pourrait etre une requete get ?
 @method_decorator(csrf_protect, name='dispatch')
+@method_decorator(login_required_json, name='dispatch')
 # class StartOnlineGameView(LoginRequiredMixin, View):
 class JoinOnlineGameAsLeftView(LoginRequiredMixin, View):
     def get(self, request, game_id):
@@ -353,6 +359,7 @@ class JoinOnlineGameAsLeftView(LoginRequiredMixin, View):
 
 # lancee par le front du player RIGHT au moment de l'acceptation de l'invitation par le player right
 @method_decorator(csrf_protect, name='dispatch')
+@method_decorator(login_required_json, name='dispatch')
 class JoinOnlineGameAsRightView(LoginRequiredMixin, View):
     """
     Démarre la partie en ligne.
@@ -394,6 +401,7 @@ class JoinOnlineGameAsRightView(LoginRequiredMixin, View):
 # lancee par l'appui sur le bouton Lancer la partie, uniquement cliquable par le joueur left
 # Cree la game-loop avec schedule_game et passe le statut de la partie a running
 @method_decorator(csrf_protect, name='dispatch')
+@method_decorator(login_required_json, name='dispatch')
 class StartOnlineGameView(View):
     """
     Démarre la partie locale en exécutant la logique du jeu.

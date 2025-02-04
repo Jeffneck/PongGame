@@ -7,6 +7,7 @@ from django.views import View
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
+from pong_project.decorators import login_required_json
 from django.db.models import Max
 from django.contrib.auth import update_session_auth_hash, logout
 from django.contrib.auth import get_user_model
@@ -19,7 +20,8 @@ from accounts.forms import UserNameForm, PasswordChangeForm, AvatarUpdateForm, D
 logger = logging.getLogger(__name__)
 User = get_user_model()
 
-
+@method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toutes les méthodes de la classe
+@method_decorator(login_required_json, name='dispatch')  # Restreint l'accès à la vue aux utilisateurs connectés
 class ManageProfileView(View):
     """
     Display and manage profile-related forms.
@@ -45,7 +47,8 @@ class ManageProfileView(View):
             'html': rendered_html
         })
 
-
+@method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toutes les méthodes de la classe
+@method_decorator(login_required_json, name='dispatch')  # Restreint l'accès à la vue aux utilisateurs connectés
 class ChangeUsernameView(View):
     def post(self, request):
         user = request.user
@@ -61,7 +64,8 @@ class ChangeUsernameView(View):
             error_message = " ".join(error_messages)
             return JsonResponse({'status': 'error', 'message': error_message})
 
-
+@method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toutes les méthodes de la classe
+@method_decorator(login_required_json, name='dispatch')  # Restreint l'accès à la vue aux utilisateurs connectés
 class DeleteAccountView(View):
     """
     Handle account deletion.
@@ -82,6 +86,8 @@ class DeleteAccountView(View):
             error_message = " ".join(error_messages)
             return JsonResponse({'status': 'error', 'message': error_message})
 
+@method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toutes les méthodes de la classe
+@method_decorator(login_required_json, name='dispatch')  # Restreint l'accès à la vue aux utilisateurs connectés
 class ChangePasswordView(View):
     """
     Handle password changes using Django's built-in functions.
@@ -105,6 +111,8 @@ class ChangePasswordView(View):
             error_message = " ".join(error_messages)
             return JsonResponse({'status': 'error', 'message': error_message})
 
+@method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toutes les méthodes de la classe
+@method_decorator(login_required_json, name='dispatch')  # Restreint l'accès à la vue aux utilisateurs connectés
 class UpdateAvatarView(View):
     """
     Handle avatar updates.

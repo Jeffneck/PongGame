@@ -9,9 +9,14 @@ from accounts.models import RefreshToken, CustomUser  # Assurez-vous que CustomU
 import jwt
 import logging
 from accounts.utils import generate_jwt_token
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_protect
+from pong_project.decorators import login_required_json
 
 logger = logging.getLogger(__name__)
 
+@method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toutes les méthodes de la classe
+@method_decorator(login_required_json, name='dispatch')  # Restreint l'accès à la vue aux utilisateurs connectés
 class RefreshJwtView(View):
     """
     Class-Based View to handle token refresh requests.

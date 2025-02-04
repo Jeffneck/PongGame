@@ -5,11 +5,16 @@ import { updateHtmlContent, showStatusMessage } from '/static/js/tools/index.js'
 // Gestionnaire principal pour activer la 2FA
 export async function handleEnable2FA() {
     console.log('Activation de la 2FA...');
+    let enable2FALoaded;
     try {
-        await loadEnable2FAView(); // Charge la vue d'activation de la 2FA
+        enable2FALoaded = await loadEnable2FAView(); // Charge la vue d'activation de la 2FA
     } catch (error) {
         console.error('Erreur dans handleEnable2FA:', error);
         showStatusMessage('Erreur lors de l\'activation de la 2FA.', 'error');
+    }
+
+    if (!enable2FALoaded) {
+        return;
     }
 }
 
@@ -17,6 +22,9 @@ export async function handleEnable2FA() {
 async function loadEnable2FAView() {
     try {
         const response = await requestGet('accounts', '2fa/enable');
+        if (!response) {
+            return false;
+        }
         if (response.status === 'success' && response.html) {
             updateHtmlContent('#content', response.html); // Met à jour la vue
 

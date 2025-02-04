@@ -161,6 +161,9 @@ export async function handleGameMenu() {
     try {
         // 1) On va chercher le HTML du menu
         const response = await requestGet('game', 'menu');
+        if (!response) {
+            return;
+        }
         // 2) On injecte ce HTML dans la div #content
         updateHtmlContent('#content', response.html);
         // 3) On attache les événements

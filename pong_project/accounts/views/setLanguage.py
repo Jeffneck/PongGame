@@ -4,10 +4,11 @@ from django.utils.translation import activate
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
 import logging
-
+from pong_project.decorators import login_required_json
 logger = logging.getLogger(__name__)
 
-@method_decorator(csrf_protect, name='dispatch')
+@method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toutes les méthodes de la classe
+@method_decorator(login_required_json, name='dispatch')  # Restreint l'accès à la vue aux utilisateurs connectés
 class SetLanguageView(View):
     """
     Handle language changes for the user.

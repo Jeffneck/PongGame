@@ -6,6 +6,7 @@ import { handleViewProfile } from './userProfile/index.js';
 import {handleGameMenu} from './game/index.js';
 import { handleFriendProfile } from './friends/index.js';
 import { handleNavbar } from './navbar/loadNavbar.js';
+import { initializeNotFoundView } from './tools/errorPage.js';
 
 // Initialisation du routeur Navigo
 const router = new window.Navigo('/', { hash: false });
@@ -75,7 +76,8 @@ export function initializeRouter() {
         })
         .notFound(() => {
             console.error('Route inconnue : Page non trouvée');
-            // Charger une vue 404 ici si nécessaire
+            initializeNotFoundView(); // Charge la vue 404 sans recharger landing.html
+
         });
 
     // Résolution de la route actuelle

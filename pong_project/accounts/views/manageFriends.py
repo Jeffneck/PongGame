@@ -6,11 +6,11 @@ from django.views import View
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
-from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.views.decorators.csrf import csrf_protect
 from django.core.exceptions import ValidationError
-
+from pong_project.decorators import login_required_json
 # ---- Imports locaux ----
 from accounts.models import FriendRequest
 
@@ -18,12 +18,15 @@ from accounts.models import FriendRequest
 User = get_user_model()
 logger = logging.getLogger(__name__)
 
+
 class FriendValidationError(Exception):
     """
     Custom exception for friend validation errors.
     """
     pass
 
+@method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toutes les méthodes de la classe
+@method_decorator(login_required_json, name='dispatch')  # Restreint l'accès à la vue aux utilisateurs connectés
 class BaseFriendView(View):
     """
     Base class for friend-related views, providing utility methods.
@@ -51,7 +54,8 @@ class BaseFriendView(View):
         """
         return JsonResponse({'status': status, 'message': message}, status=status_code)
 
-@method_decorator(login_required, name='dispatch')
+@method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toutes les méthodes de la classe
+@method_decorator(login_required_json, name='dispatch')  # Restreint l'accès à la vue aux utilisateurs connectés
 class AddFriendView(BaseFriendView):
     """
     Handles sending friend requests.
@@ -83,7 +87,8 @@ class AddFriendView(BaseFriendView):
         logger.info(f"Demande d'ami envoyée de {user.username} à {friend.username}.")
         return self.create_json_response('success', 'Demande d\'ami envoyée.')
 
-@method_decorator(login_required, name='dispatch')
+@method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toutes les méthodes de la classe
+@method_decorator(login_required_json, name='dispatch')  # Restreint l'accès à la vue aux utilisateurs connectés
 class HandleFriendRequestView(View):
     """
     Handles acceptance or rejection of friend requests.
@@ -123,7 +128,8 @@ class HandleFriendRequestView(View):
             logger.error(f"Error handling friend request: {e}")
             return JsonResponse({'status': 'error', 'message': 'Erreur lors de la gestion de la demande d\'ami'}, status=500)
 
-@method_decorator(login_required, name='dispatch')
+@method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toutes les méthodes de la classe
+@method_decorator(login_required_json, name='dispatch')  # Restreint l'accès à la vue aux utilisateurs connectés
 class RemoveFriendView(BaseFriendView):
     """
     Handles the removal of a friend.

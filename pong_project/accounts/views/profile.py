@@ -5,11 +5,16 @@ import logging
 from django.views import View
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
+
+
 from django.views.decorators.csrf import csrf_protect
 from django.template.loader import render_to_string
 from django.db.models import Max
 from django.contrib.auth import get_user_model
 from django.db.models import Q
+from django.contrib.auth.decorators import login_required
+from pong_project.decorators import login_required_json
+
 from game.models import GameResult  # Import du modèle mis à jour
 
 # ---- Configuration ----
@@ -17,6 +22,7 @@ logger = logging.getLogger(__name__)
 User = get_user_model()
 
 @method_decorator(csrf_protect, name='dispatch')
+@method_decorator(login_required_json, name='dispatch')
 class ProfileView(View):
     def get(self, request):
         logger.debug("Entering ProfileView.get()")

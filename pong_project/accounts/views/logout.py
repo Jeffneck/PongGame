@@ -6,16 +6,15 @@ from django.views import View
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
-from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
 from accounts.models import RefreshToken
-
+from pong_project.decorators import login_required_json
 # ---- Configuration ----
 logger = logging.getLogger(__name__)
 
 
-#@method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toutes les méthodes de la classe
-@method_decorator(login_required, name='dispatch')  # Restreint l'accès à la vue aux utilisateurs connectés
+@method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toutes les méthodes de la classe
+@method_decorator(login_required_json, name='dispatch')  # Restreint l'accès à la vue aux utilisateurs connectés
 class LogoutView(View):
     """
     Class-Based View (CBV) pour gérer la déconnexion utilisateur.

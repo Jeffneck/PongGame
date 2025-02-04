@@ -12,6 +12,9 @@ export async function initializeGameHomeView() {
 
     try {
         const data = await requestGet('game', 'home');
+        if (!data) {
+            return;
+        }
 
         if (data && data.html) {
             updateHtmlContent('#content', data.html);

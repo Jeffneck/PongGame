@@ -7,3 +7,5 @@ export { isTouchDevice, resetScrollPosition } from './utility.js';
 
 // Fonction générique, supprime les tokens et remet à zéro l'interface utilisateur
 export {clearSessionAndUI} from './clearSession.js';
+
+export {initializeNotFoundView} from './errorPage.js';

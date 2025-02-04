@@ -10,7 +10,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
 from django.shortcuts import render
 from django.template.loader import render_to_string
-
+from pong_project.decorators import login_required_json
 
 # ---- Imports locaux ----
 from accounts.models import FriendRequest
@@ -33,6 +33,7 @@ def get_burger_menu_context(user):
         'avatar_url': user.avatar.url if user.avatar else default_avatar,
     }
 
+@method_decorator(login_required_json, name='dispatch')
 class BurgerMenuView(View):
     """
     Handle retrieval of user data for the burger menu.
@@ -52,7 +53,8 @@ class BurgerMenuView(View):
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 
-@method_decorator([csrf_protect, login_required], name='dispatch')
+@method_decorator([csrf_protect], name='dispatch')
+@method_decorator(login_required_json, name='dispatch')
 class UpdateStatusView(View):
     """
     Handle updating the user's online/offline status.

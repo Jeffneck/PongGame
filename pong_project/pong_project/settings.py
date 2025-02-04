@@ -163,6 +163,7 @@ CSRF_TRUSTED_ORIGINS = [
     'https://192.168.1.176:443',
     'https://10.12.6.7:8443',
     'https://10.12.5.6:8443',
+    'https://192.168.1.138:8443',
 
     # 'https://votre-domaine.com',  # Ajoutez votre domaine en production
 ]
@@ -229,3 +230,6 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # 15) Autres
 # ------------------------------------------------------------------
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# utilisé pour redirection pour anonymous user
+LOGIN_URL = '/home/'

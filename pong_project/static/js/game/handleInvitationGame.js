@@ -63,10 +63,13 @@ let cachedOnlineParams = null;
 export async function handleInviteGame(onlineParams) {
     console.log('[handleInviteGame] Paramètres online = ', onlineParams);
 
-    cachedOnlineParams = onlineParams;
-
+    
     try {
-        const response = await requestGet('game', 'invite_game'); 
+        const response = await requestGet('game', 'invite_game');
+        if (!response) {
+            return;
+        }
+        cachedOnlineParams = onlineParams;
         if (response.status === 'error') {
             showStatusMessage(response.message, 'error');
         } else {

@@ -12,12 +12,14 @@ from django.views import View
 from django.template.loader import render_to_string
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_POST
 from django.contrib.auth import get_user_model
 
 from django.contrib.auth import login
 from django.shortcuts import get_object_or_404
 from accounts.utils import generate_jwt_token
+from pong_project.decorators import login_required_json, auth_partial_required
 
 from accounts.forms import TwoFactorLoginForm
 
@@ -45,7 +47,8 @@ class Base2FAView(View):
         
         return qr_code
 # [IMPROVE] le code secret ne doit pas être envoyé au client
-@method_decorator(login_required, name='dispatch')
+@method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toutes les méthodes de la classe
+@method_decorator(login_required_json, name='dispatch')  # Restreint l'accès à la vue aux utilisateurs connectés
 class Enable2FAView(Base2FAView):
     """
     Enable 2FA for the authenticated user.
@@ -75,7 +78,8 @@ class Enable2FAView(Base2FAView):
             'html': html_content
         })
 
-@method_decorator(login_required, name='dispatch')
+@method_decorator(csrf_protect, name='dispatch')
+@method_decorator(login_required_json, name='dispatch')   # Applique la protection CSRF à toutes les méthodes de la classe  # Restreint l'accès à la vue aux utilisateurs connectés
 class Check2FAView(View):
     """
     Verify the TOTP code to enable 2FA.
@@ -102,7 +106,8 @@ class Check2FAView(View):
 
 
 
-
+@method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toutes les méthodes de la classe
+@method_decorator(auth_partial_required, name='dispatch')  # Restreint l'accès à la vue aux utilisateurs connectés
 class Login2faView(View):
     """
     Verify 2FA code during login.
@@ -165,7 +170,8 @@ class Login2faView(View):
         return JsonResponse({'status': 'error', 'message': 'Invalid 2FA code.'}, status=400)
 
 
-@method_decorator(login_required, name='dispatch')
+@method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toutes les méthodes de la classe
+@method_decorator(login_required_json, name='dispatch')  # Restreint l'accès à la vue aux utilisateurs connectés
 class Disable2FAView(View):
     """
     Disable 2FA for the authenticated user.

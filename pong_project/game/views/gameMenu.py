@@ -6,6 +6,7 @@ from django.http import JsonResponse
 from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
+from pong_project.decorators import login_required_json
 
 from game.forms import GameParametersForm
 from game.models import GameSession
@@ -13,6 +14,7 @@ from game.models import GameSession
 logger = logging.getLogger(__name__)
 
 @method_decorator(csrf_protect, name='dispatch')
+@method_decorator(login_required_json, name='dispatch')
 class GameMenuView(View):
 
     def get(self, request):

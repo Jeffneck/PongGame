@@ -1,7 +1,10 @@
+{% load static %}
+{% load i18n %}
+
 <div id="vs1" class="container-fluid d-flex justify-content-center align-items-center" style="height: 100%; width: 100%; ">
    
 	<div class="player d-flex flex-column me-2 avatar1">
-		<img src="svg/kyubi.svg" id="astronaut" alt="Avatar 1" class="avatar">
+		<img src=""  class="avatar">
 		<div class="player-name">JOUEUR 1</div>
 	</div>
 	<div class="eclair d-flex justify-content-center align-items-center ">
@@ -77,7 +80,7 @@
 			</svg>
 	  </div>
 	<div class="player d-flex flex-column avatar2">
-		<img src="svg/eclair_bracket.svg" id="ninja" alt="Avatar 2" class="avatar">
+		<img src="" class="avatar">
 		<div class="player-name">JOUEUR 2</div>
 	</div>
 </div>
@@ -181,49 +184,3 @@ transition: transform 0.3s ease;
 
 
 </style>
-
-<script>
-// Fonction pour changer la viewBox du SVG
-function updateSvgViewBox(mediaQuery) {
-const svg = document.getElementById('eclair-svg');
-
-if (mediaQuery.matches) {
-	// Condition pour le media query
-	svg.setAttribute('viewBox', '150 -50 400 1350'); // Nouvelle viewBox pour petit écran
-} else {
-	// Condition par défaut
-	svg.setAttribute('viewBox', '40 -20 650 1300'); // ViewBox originale
-}
-}
-
-// Fonction pour changer la taille (width et height) du SVG
-function updateSvgSize(mediaQuery) {
-const svg = document.getElementById('eclair-svg');
-
-if (mediaQuery.matches) {
-	// Condition pour le media query
-	svg.setAttribute('width', '30vh'); // Largeur ajustée pour petit écran
-	svg.setAttribute('height', '100vw'); // Hauteur ajustée pour petit écran
-} else {
-	// Condition par défaut
-	svg.setAttribute('width', '30vw'); // Largeur originale
-	svg.setAttribute('height', '90vh'); // Hauteur originale
-}
-}
-
-// Créez une media query
-const mediaQuery = window.matchMedia("(max-aspect-ratio: 3/3)");
-
-// Fonction principale pour mettre à jour le SVG
-function updateSvg(mediaQuery) {
-updateSvgViewBox(mediaQuery); // Mise à jour de la viewBox
-updateSvgSize(mediaQuery);    // Mise à jour des dimensions
-}
-
-// Ajoutez un écouteur d'événements pour les changements de media query
-mediaQuery.addEventListener('change', () => updateSvg(mediaQuery));
-
-// Appelez la fonction pour initialiser la bonne viewBox et taille
-updateSvg(mediaQuery);
-
-</script>

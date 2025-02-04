@@ -1,6 +1,7 @@
 import { requestGet, requestPost } from "../api/index.js";
 import { updateHtmlContent } from "../tools/index.js";
 import { launchLiveGameWithOptions } from './live_game.js';
+import { TournamentNextMatch } from './tournament_utils.js';
 
 // Fonction principale appelée quand on clique sur "Lancer Tournoi" dans le menu
 export async function handleTournament(tournamentParam) {
@@ -75,10 +76,11 @@ async function runTournamentFlow(tournamentId) {
       break;
     }
 
-    
+    console.log(bracketResp);
     updateHtmlContent("#content", bracketResp.html);
+	console.log("BRACKET UPDATED\n");
     updateBracketUI(bracketResp)
-    await delay(4000);  // Pause de 4s (si vraiment nécessaire)
+    await delay(3000);  // Pause de 4s (si vraiment nécessaire)
     
     // TODO : si le backend renvoie un champ indiquant “finished”, sortir de la boucle
     // Exemple si bracketResp renvoie un `tournament_finished: true` ou
@@ -100,6 +102,8 @@ async function runTournamentFlow(tournamentId) {
     }
 
     updateHtmlContent("#content", nextResp.html);
+	updateNextGameUI(bracketResp, nextResp);
+	TournamentNextMatch();
     await delay(3000);
 
     // 3) Créer la gameSession de match (semi1, semi2, finale…) en POST
@@ -117,49 +121,143 @@ async function runTournamentFlow(tournamentId) {
 }
 
 
+function updateNextGameUI(bracketResp, nextResp) {
+	// Récupère le type de match prochain (ex. "semifinal1", "semifinal2" ou "final")
+	const matchType = nextResp.next_match_type;
+	
+	// Variables pour le joueur de gauche (avatar1) et celui de droite (avatar2)
+	let leftPlayerName = "";
+	let rightPlayerName = "";
+	let leftPlayerAvatar = "";
+	let rightPlayerAvatar = "";
+	
+	// Récupère le dictionnaire des avatars envoyé par le serveur
+	const avatars = bracketResp.player_avatars;
+	
+	// Adaptation du switch aux valeurs renvoyées par la vue
+	switch(matchType) {
+	  case "semifinal1":
+		leftPlayerName = bracketResp.player1;
+		rightPlayerName = bracketResp.player2;
+		leftPlayerAvatar = avatars[bracketResp.player1];
+		rightPlayerAvatar = avatars[bracketResp.player2];
+		break;
+	  case "semifinal2":
+		leftPlayerName = bracketResp.player3;
+		rightPlayerName = bracketResp.player4;
+		leftPlayerAvatar = avatars[bracketResp.player3];
+		rightPlayerAvatar = avatars[bracketResp.player4];
+		break;
+	  case "final":
+		// Pour le final, on utilise les gagnants des demi-finales
+		leftPlayerName = bracketResp.winner_semifinal_1;
+		rightPlayerName = bracketResp.winner_semifinal_2;
+		leftPlayerAvatar = avatars[bracketResp.winner_semifinal_1] || "/static/svg/default_avatar.svg";
+		rightPlayerAvatar = avatars[bracketResp.winner_semifinal_2] || "/static/svg/default_avatar.svg";
+		break;
+	  default:
+		console.error("Type de match inconnu :", matchType);
+		return;
+	}
+	
+	// Mise à jour des éléments du DOM :
+	// avatar1 correspond au joueur de gauche et avatar2 au joueur de droite.
+	const leftAvatarImg = document.querySelector(".avatar1 img.avatar");
+	const leftNameElem = document.querySelector(".avatar1 .player-name");
+	const rightAvatarImg = document.querySelector(".avatar2 img.avatar");
+	const rightNameElem = document.querySelector(".avatar2 .player-name");
+	
+	if (leftAvatarImg) {
+	  leftAvatarImg.src = leftPlayerAvatar;
+	}
+	if (leftNameElem) {
+	  leftNameElem.textContent = leftPlayerName;
+	}
+	if (rightAvatarImg) {
+	  rightAvatarImg.src = rightPlayerAvatar;
+	}
+	if (rightNameElem) {
+	  rightNameElem.textContent = rightPlayerName;
+	}
+	
+	console.log("Next match type:", matchType);
+	console.log("Gauche :", leftPlayerName, leftPlayerAvatar);
+	console.log("Droite :", rightPlayerName, rightPlayerAvatar);
+  }
+
+
 
 // Met à jour le bracket en fonction de l'état du tournoi
 // Improve remplacer par des balises django dans le front ??
 function updateBracketUI(bracketResp) {
-  const status = bracketResp.tournament_status;
-  const winnerSemi1 = bracketResp.winner_semifinal_1;
-  const winnerSemi2 = bracketResp.winner_semifinal_2;
-  const winnerFinal = bracketResp.winner_final;
+	const status = bracketResp.tournament_status;
+	const winnerSemi1 = bracketResp.winner_semifinal_1;
+	const winnerSemi2 = bracketResp.winner_semifinal_2;
+	const winnerFinal = bracketResp.winner_final;
 
-  document.querySelectorAll('.tournament-title p').forEach(p => p.classList.add('d-none'));
-
-  if (status === "semifinal1_in_progress") {
-    document.querySelector('.tournament-title p:nth-child(2)').classList.remove('d-none'); 
-    document.querySelector('.eclair.match-1').classList.remove('d-none');
-  } else if (status === "semifinal2_in_progress") {
-    document.querySelector('.tournament-title p:nth-child(3)').classList.remove('d-none');
-    document.querySelector('.eclair.match-2').classList.remove('d-none');
-  } else if (status === "final_in_progress") {
-    document.querySelector('.tournament-title p:nth-child(4)').classList.remove('d-none');
-    document.querySelector('.eclair.match-3').classList.remove('d-none');
-  } else if (status === "finished") {
-    document.querySelector('.tournament-title p:nth-child(5)').classList.remove('d-none');
+	console.log("updateBracketUI status:", status, "winnerSemi1:", winnerSemi1, "winnerSemi2:", winnerSemi2, "winnerFinal:", winnerFinal);
+  
+	// Récupère le dictionnaire des avatars depuis le JSON
+	const playerAvatars = bracketResp.player_avatars;
+	
+	// Masque tous les paragraphes d'état
+	document.querySelectorAll('.tournament-title p').forEach(p => p.classList.add('d-none'));
+	
+	// Mise à jour des avatars et noms pour chaque joueur
+	document.querySelector('[data-player-id="1"] .avatar').src = playerAvatars[bracketResp.player1];
+	document.querySelector('[data-player-id="2"] .avatar').src = playerAvatars[bracketResp.player2];
+	document.querySelector('[data-player-id="3"] .avatar').src = playerAvatars[bracketResp.player3];
+	document.querySelector('[data-player-id="4"] .avatar').src = playerAvatars[bracketResp.player4];
+	
+	document.querySelector('[data-player-id="1"] .player-name').textContent = bracketResp.player1;
+	document.querySelector('[data-player-id="2"] .player-name').textContent = bracketResp.player2;
+	document.querySelector('[data-player-id="3"] .player-name').textContent = bracketResp.player3;
+	document.querySelector('[data-player-id="4"] .player-name').textContent = bracketResp.player4;
+	
+	// Affichage contextuel selon l'état du tournoi
+	if (status === "semifinal1_in_progress") {
+	  document.querySelector('.tournament-title p:nth-child(2)').classList.remove('d-none'); 
+	  document.querySelector('.eclair.match-1').classList.remove('d-none');
+	} else if (status === "semifinal2_in_progress") {
+	  document.querySelector('.tournament-title p:nth-child(3)').classList.remove('d-none');
+	  document.querySelector('.eclair.match-2').classList.remove('d-none');
+	} else if (status === "final_in_progress") {
+	  document.querySelector('.tournament-title p:nth-child(4)').classList.remove('d-none');
+	  document.querySelector('.eclair.match-3').classList.remove('d-none');
+	} else if (status === "finished") {
+	  document.querySelector('.tournament-title p:nth-child(5)').classList.remove('d-none');
+	}
+	
+	// Affichage des gagnants des demi-finales
+	if (winnerSemi1) {
+	  document.querySelector(".winner1").classList.remove("d-none");
+	  document.querySelector(".winner1 .avatar").src = playerAvatars[winnerSemi1];
+	  document.querySelector(".winner1 .player-name").textContent = winnerSemi1;
+	}
+	
+	if (winnerSemi2) {
+	  document.querySelector(".winner2").classList.remove("d-none");
+	  document.querySelector(".winner2 .avatar").src = playerAvatars[winnerSemi2];
+	  document.querySelector(".winner2 .player-name").textContent = winnerSemi2;
+	}
+	
+	// Affichage du final
+	if (winnerFinal) {
+	  const finalWinnerElem = document.querySelector(".winner3");
+	  finalWinnerElem.classList.remove("d-none");
+  
+	  let finalAvatar = playerAvatars[winnerFinal];
+	  if (!finalAvatar) {
+		console.error("Avatar introuvable pour le final winner:", winnerFinal);
+		finalAvatar = "/static/svg/default_avatar.svg"; // Avatar par défaut
+	  } else {
+		console.log("Final winner:", winnerFinal, "Avatar URL:", finalAvatar);
+	  }
+	  
+	  document.querySelector(".winner3 .avatar").src = finalAvatar;
+	  document.querySelector(".winner3 .winner-name").textContent = winnerFinal;
+	}
   }
-
-  if (winnerSemi1) {
-    document.querySelector(".winner1").classList.remove("d-none");
-    document.querySelector(".winner1 .avatar").src = `svg/${winnerSemi1}.svg`;
-    document.querySelector(".winner1 .player-name").textContent = winnerSemi1;
-  }
-
-  if (winnerSemi2) {
-    document.querySelector(".winner2").classList.remove("d-none");
-    document.querySelector(".winner2 .avatar").src = `svg/${winnerSemi2}.svg`;
-    document.querySelector(".winner2 .player-name").textContent = winnerSemi2;
-  }
-
-  if (winnerFinal) {
-    document.querySelector(".winner3").classList.remove("d-none");
-    document.querySelector(".winner3 .avatar").src = `svg/${winnerFinal}.svg`;
-    document.querySelector(".winner3 .winner-name").textContent = winnerFinal;
-  }
-}
-
 // Création de la session (POST vers /game/create_tournament_game_session/<tournament_id>)
 async function createTournamentGameSession(tournamentId, nextMatchType) {
   try {

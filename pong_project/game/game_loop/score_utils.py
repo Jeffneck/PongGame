@@ -104,6 +104,7 @@ async def finish_game(game_id):
             tournament = await get_LocalTournament(game_id, "final")
             if tournament:
                 tournament.status = 'finished'
+                tournament.winner_final = winner
                 await sync_to_async(tournament.save)()
             else:
                 print(f"[finish_game] No tournament found for game_id={game_id}")

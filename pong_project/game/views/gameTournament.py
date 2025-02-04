@@ -7,6 +7,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
 from django.template.loader import render_to_string
 from django.shortcuts import get_object_or_404
+from django.templatetags.static import static  
 
 from game.forms import TournamentParametersForm
 from game.models import (
@@ -63,6 +64,8 @@ class CreateTournamentView(View):
             'message': f"Tournoi {tournament.name} créé avec succès.",
         }, status=201)
 
+
+
 @method_decorator(csrf_protect, name='dispatch')
 class TournamentBracketView(View):
     """
@@ -72,29 +75,39 @@ class TournamentBracketView(View):
     def get(self, request, tournament_id):
         tournament = get_object_or_404(LocalTournament, id=tournament_id)
 
-        # Ex. "pending", "semifinal1_in_progress", "finished", etc.
-        # À vous de définir la logique de votre model LocalTournament
+        # Par exemple, status peut être "pending", "semifinal1_in_progress", "finished", etc.
         status = tournament.status
-        
-        # Contexte minimal pour afficher un bracket 
-        # (les gagnants, le status, etc.)
+
+        # Construction du dictionnaire des avatars avec des URLs statiques résolues
+        player_avatars = {
+            tournament.player1: static('svg/astronaut_gang.svg'),
+            tournament.player2: static('svg/shark_dumbble.svg'),
+            tournament.player3: static('svg/monkey_money.svg'),
+            tournament.player4: static('svg/death_bath.svg'),
+        }
+
+        # Contexte minimal pour afficher le bracket (les gagnants, le status, etc.)
         tournament_context = {
             'tournament_status': status,
         }
 
-        # On injecte ce contexte dans un template ex: "tournament_bracket.html"
-        rendered_html = render_to_string(
-            'game/tournament/tournament_bracket.html'
-        )
+        # Injection du contexte dans le template (ici, par exemple, "tournament_bracket.html")
+        rendered_html = render_to_string('game/tournament/tournament_bracket.html')
 
         return JsonResponse({
             'status': 'success',
             'html': rendered_html,
             'tournament_status': status,
+            'player1': tournament.player1,
+            'player2': tournament.player2,
+            'player3': tournament.player3,
+            'player4': tournament.player4,
             'winner_semifinal_1': tournament.winner_semifinal_1,
             'winner_semifinal_2': tournament.winner_semifinal_2,
             'winner_final': tournament.winner_final,
+            'player_avatars': player_avatars,  # Envoi des URLs résolues
         }, status=200)
+
 
 @method_decorator(csrf_protect, name='dispatch')
 class TournamentNextGameView(View):

@@ -144,9 +144,10 @@ CSRF_TRUSTED_ORIGINS = [
     'http://192.168.1.138:8080',
     'http://192.168.1.138:443',
     'https://192.168.1.176:443',
-    # 'https://10.12.6.7:8443',
+    'https://10.12.6.7:8443',
 	'https://10.12.6.5:8443',
 	'https://10.12.6.5:8443',
+	'https://10.13.9.2:8443',
     # 'https://votre-domaine.com',  # Ajoutez votre domaine en production
 ]
 CSRF_COOKIE_SAMESITE = 'Lax'

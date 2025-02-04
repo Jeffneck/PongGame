@@ -102,8 +102,9 @@ async function runTournamentFlow(tournamentId) {
     }
 
     updateHtmlContent("#content", nextResp.html);
+	updateNextGameUI(bracketResp, nextResp);
 	TournamentNextMatch();
-    await delay(1000);
+    await delay(3000);
 
     // 3) Créer la gameSession de match (semi1, semi2, finale…) en POST
     const gameId = await createTournamentGameSession(tournamentId, nextResp.next_match_type);
@@ -118,6 +119,71 @@ async function runTournamentFlow(tournamentId) {
 
   console.log("Fin du flux tournoi");
 }
+
+
+function updateNextGameUI(bracketResp, nextResp) {
+	// Récupère le type de match prochain (ex. "semifinal1", "semifinal2" ou "final")
+	const matchType = nextResp.next_match_type;
+	
+	// Variables pour le joueur de gauche (avatar1) et celui de droite (avatar2)
+	let leftPlayerName = "";
+	let rightPlayerName = "";
+	let leftPlayerAvatar = "";
+	let rightPlayerAvatar = "";
+	
+	// Récupère le dictionnaire des avatars envoyé par le serveur
+	const avatars = bracketResp.player_avatars;
+	
+	// Adaptation du switch aux valeurs renvoyées par la vue
+	switch(matchType) {
+	  case "semifinal1":
+		leftPlayerName = bracketResp.player1;
+		rightPlayerName = bracketResp.player2;
+		leftPlayerAvatar = avatars[bracketResp.player1];
+		rightPlayerAvatar = avatars[bracketResp.player2];
+		break;
+	  case "semifinal2":
+		leftPlayerName = bracketResp.player3;
+		rightPlayerName = bracketResp.player4;
+		leftPlayerAvatar = avatars[bracketResp.player3];
+		rightPlayerAvatar = avatars[bracketResp.player4];
+		break;
+	  case "final":
+		// Pour le final, on utilise les gagnants des demi-finales
+		leftPlayerName = bracketResp.winner_semifinal_1;
+		rightPlayerName = bracketResp.winner_semifinal_2;
+		leftPlayerAvatar = avatars[bracketResp.winner_semifinal_1] || "/static/svg/default_avatar.svg";
+		rightPlayerAvatar = avatars[bracketResp.winner_semifinal_2] || "/static/svg/default_avatar.svg";
+		break;
+	  default:
+		console.error("Type de match inconnu :", matchType);
+		return;
+	}
+	
+	// Mise à jour des éléments du DOM :
+	// avatar1 correspond au joueur de gauche et avatar2 au joueur de droite.
+	const leftAvatarImg = document.querySelector(".avatar1 img.avatar");
+	const leftNameElem = document.querySelector(".avatar1 .player-name");
+	const rightAvatarImg = document.querySelector(".avatar2 img.avatar");
+	const rightNameElem = document.querySelector(".avatar2 .player-name");
+	
+	if (leftAvatarImg) {
+	  leftAvatarImg.src = leftPlayerAvatar;
+	}
+	if (leftNameElem) {
+	  leftNameElem.textContent = leftPlayerName;
+	}
+	if (rightAvatarImg) {
+	  rightAvatarImg.src = rightPlayerAvatar;
+	}
+	if (rightNameElem) {
+	  rightNameElem.textContent = rightPlayerName;
+	}
+	
+	console.log("Next match type:", matchType);
+	console.log("Gauche :", leftPlayerName, leftPlayerAvatar);
+	console.log("Droite :", rightPlayerName, rightPlayerAvatar);
+  }
 
 
 

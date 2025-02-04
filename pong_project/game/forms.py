@@ -1,6 +1,7 @@
 # game/forms.py
 
 from django import forms
+from django.core.exceptions import ValidationError
 from .models import GameParameters, LocalTournament, TournamentParameters
 
 class GameParametersForm(forms.ModelForm):
@@ -21,11 +22,6 @@ class GameParametersForm(forms.ModelForm):
         }
 
 class TournamentParametersForm(forms.ModelForm):
-    """
-    Formulaire combiné pour :
-      - le nom du tournoi + 4 joueurs
-      - les paramètres du tournoi
-    """
     # Champs relatifs aux paramètres
     BALL_SPEED_CHOICES = [(1, 'Slow'), (2, 'Medium'), (3, 'Fast')]
     PADDLE_SIZE_CHOICES = [(1, 'Small'), (2, 'Medium'), (3, 'Large')]
@@ -46,8 +42,26 @@ class TournamentParametersForm(forms.ModelForm):
             'player4': 'Joueur 4',
         }
 
+    def clean(self):
+        cleaned_data = super().clean()
+        player1 = cleaned_data.get('player1')
+        player2 = cleaned_data.get('player2')
+        player3 = cleaned_data.get('player3')
+        player4 = cleaned_data.get('player4')
+
+        if (
+            player1 == player2 or
+            player1 == player3 or
+            player1 == player4 or
+            player2 == player3 or
+            player2 == player4 or
+            player3 == player4
+        ):
+            raise ValidationError("Les noms des joueurs doivent être uniques.")
+
+        return cleaned_data
+
     def save(self, commit=True):
-        # 1) Crée le LocalTournament
         tournament = super().save(commit=commit)
 
         # 2) Crée le TournamentParameters associé

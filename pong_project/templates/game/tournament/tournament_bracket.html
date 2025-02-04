@@ -5,17 +5,17 @@
 	<!-- Lignes de connexion pour le tournoi -->
 	<div id="bracket_tournament"  class="bracket d-flex flex-column align-items-center justify-content-center">
 		<div class="tournament-title text-center text-uppercase" style="font-family: 'Jersey 10'">
-			<h2 class="text-light fw-bold">Pong Championship: The Final 4</h2>
-			<p class="text-secondary ">Le Premier match va commencer ..</p> <!-- classe d-none a retirer pour presentation avant match 1-->
-			<p class="text-secondary d-none">Le Deuxième match va commencer ..</p> <!-- classe d-none a retirer pour presentation avant match 2-->
-			<p class="text-secondary d-none">Place à la Finale ..</p> <!-- classe d-none a retirer pour presentation avant finale (match 3)-->
-			<p class="text-secondary d-none">Le grand vainqueur est : </p> <!-- classe d-none a retirer pour presentation apres resultat finale -->
+			<h2 class="text-light fw-bold">{%trans 'Pong Championship' %} : <span class="title-choosen"></span></h2>
+			<p class="text-secondary d-none">{%trans 'Le Premier match va commencer ' %}..</p> <!-- classe d-none a retirer pour presentation avant match 1-->
+			<p class="text-secondary d-none">{%trans 'Le Deuxième match va commencer' %} ..</p> <!-- classe d-none a retirer pour presentation avant match 2-->
+			<p class="text-secondary d-none">{%trans 'Place à la Finale' %} ..</p> <!-- classe d-none a retirer pour presentation avant finale (match 3)-->
+			<p class="text-secondary d-none">{%trans 'Le grand vainqueur est' %} : </p> <!-- classe d-none a retirer pour presentation apres resultat finale -->
 		</div>
 		<div class="lines d-flex flex-column ">
 			<div class=" victory d-flex justify-content-center  align-items-end position-relative">
 				<div class="vertical d-flex justify-content-around align-items-end">
 					<line class="win vertical-line"></line>
-					<img src="png/eclair.png" class="eclair justify-content-center align-items-center position-absolute match-3 d-none"> <!-- classe d-none a retirer pour presentation avant finale (match 3)-->
+					<img src="{% static 'png/eclair.png' %}" class="eclair justify-content-center align-items-center position-absolute match-3 d-none"> <!-- classe d-none a retirer pour presentation avant finale (match 3)-->
 					
 					
 					<div class="winner3 d-flex flex-column align-items-center position-absolute d-none"> <!-- classe d-none a retirer pour presentation apres resultat finale -->
@@ -37,8 +37,8 @@
 			</div>
 			<div class="lines-semi-final d-flex flex-column justify-content-start">
 				<div class="horizontale d-flex justify-content-around align-items-start position-relative">
-					<img src="png/eclair.png" class="eclair position-absolute match-1  d-none"> <!-- classe d-none a retirer pour presentation avant match 1 puis remettre le d-none pour les autre etapes-->
-					<img src="png/eclair.png" class="eclair position-absolute match-2  d-none"> <!-- classe d-none a retirer pour presentation avant match 2 puis remettre le d-none pour les autre etapes-->
+					<img src="{% static 'png/eclair.png' %}" class="eclair position-absolute match-1  d-none"> <!-- classe d-none a retirer pour presentation avant match 1 puis remettre le d-none pour les autre etapes-->
+					<img src="{% static 'png/eclair.png' %}" class="eclair position-absolute match-2  d-none"> <!-- classe d-none a retirer pour presentation avant match 2 puis remettre le d-none pour les autre etapes-->
 					
 					
 					<div class="winner1 d-flex flex-column align-items-center position-absolute  d-none"> <!-- classe d-none a retirer pour presentation apres resultat match 1 puis laisser jusqu'à la fin-->

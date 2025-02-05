@@ -191,15 +191,19 @@ function updateNextGameUI(bracketResp, nextResp) {
 // Improve remplacer par des balises django dans le front ??
 function updateBracketUI(bracketResp) {
 	const status = bracketResp.tournament_status;
+	const name = bracketResp.tournament_name;
 	const winnerSemi1 = bracketResp.winner_semifinal_1;
 	const winnerSemi2 = bracketResp.winner_semifinal_2;
 	const winnerFinal = bracketResp.winner_final;
 
 	console.log("updateBracketUI status:", status, "winnerSemi1:", winnerSemi1, "winnerSemi2:", winnerSemi2, "winnerFinal:", winnerFinal);
-  
+	console.log("updateBracketUI status: eclair ? ",document.querySelector('.eclair.match-1'));
 	// Récupère le dictionnaire des avatars depuis le JSON
 	const playerAvatars = bracketResp.player_avatars;
 	
+	// Mettez à jour le titre avec le nom du tournoi
+    document.querySelector('.title-choosen').textContent = name
+
 	// Masque tous les paragraphes d'état
 	document.querySelectorAll('.tournament-title p').forEach(p => p.classList.add('d-none'));
 	
@@ -215,13 +219,13 @@ function updateBracketUI(bracketResp) {
 	document.querySelector('[data-player-id="4"] .player-name').textContent = bracketResp.player4;
 	
 	// Affichage contextuel selon l'état du tournoi
-	if (status === "semifinal1_in_progress") {
+	if (status === "pending") {
 	  document.querySelector('.tournament-title p:nth-child(2)').classList.remove('d-none'); 
 	  document.querySelector('.eclair.match-1').classList.remove('d-none');
-	} else if (status === "semifinal2_in_progress") {
+	} else if (status === "semifinal1_done") {
 	  document.querySelector('.tournament-title p:nth-child(3)').classList.remove('d-none');
 	  document.querySelector('.eclair.match-2').classList.remove('d-none');
-	} else if (status === "final_in_progress") {
+	} else if (status === "semifinal2_done") {
 	  document.querySelector('.tournament-title p:nth-child(4)').classList.remove('d-none');
 	  document.querySelector('.eclair.match-3').classList.remove('d-none');
 	} else if (status === "finished") {

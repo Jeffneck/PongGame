@@ -98,6 +98,7 @@ class TournamentBracketView(View):
             'status': 'success',
             'html': rendered_html,
             'tournament_status': status,
+            'tournament_name': tournament.name,
             'player1': tournament.player1,
             'player2': tournament.player2,
             'player3': tournament.player3,

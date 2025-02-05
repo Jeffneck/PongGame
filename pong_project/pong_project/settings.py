@@ -150,6 +150,7 @@ CSRF_TRUSTED_ORIGINS = [
 	'https://10.13.9.2:8443',
 	'http://10.13.9.4:8080',
 	'https://10.13.9.4:8443',
+	'https://10.12.8.8:8443',
     # 'https://votre-domaine.com',  # Ajoutez votre domaine en production
 ]
 CSRF_COOKIE_SAMESITE = 'Lax'

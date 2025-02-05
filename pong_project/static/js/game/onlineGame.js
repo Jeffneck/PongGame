@@ -5,6 +5,8 @@ import { isTouchDevice } from "../tools/index.js";
 import { initializeGameControls } from "./controls.js";
 import { launchLiveGameWithOptions } from "./live_game.js";
 import { HTTPError } from "../api/index.js";
+import { showResults } from "./gameResults.js";
+
 
 export async function createGameOnline(onlineParams) {
     console.log('[createGameOnline] Paramètres online = ', onlineParams);
@@ -175,7 +177,9 @@ async function joinOnlineGameAsLeft(game_id){
             updateHtmlContent('#content', response.html);
             // afficher le front du jeu au joueur left & transmettre les inputs du joueur left au jeu
             // le button startGame de live_online_game_as_left.html permettra de lancer l'algo du jeu en back depuis le js de liveOnlineGameLeft()
-            await launchLiveGameWithOptions(response.game_id, 'left', `start_online_game/${game_id}`);
+            await launchLiveGameWithOptions(game_id, 'left', `start_online_game/${game_id}`);
+            await showResults(game_id);
+            
             //IMPROVE afficher une page présentant le winner et looser une fois la game terminee
         } else {
             showStatusMessage(response.message, 'error');
@@ -238,7 +242,8 @@ async function joinOnlineGameAsRight(sessionId) {
         updateHtmlContent('#content', response.html);
         // lancer la game pour le joueur RIGHT, il a null car pas de startButton de son côté
         await launchLiveGameWithOptions(response.game_id, 'right', null);
-        //IMPROVE afficher une page présentant le winner et looser une fois la game terminee
+        await showResults(response.game_id);
+
 
     } catch (error) {
         console.error('Erreur réseau lors de la connexion au jeu en tant que joueur Right:', error);

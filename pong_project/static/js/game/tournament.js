@@ -2,6 +2,8 @@ import { requestGet, requestPost } from "../api/index.js";
 import { updateHtmlContent } from "../tools/index.js";
 import { launchLiveGameWithOptions } from './live_game.js';
 import { TournamentNextMatch } from './tournament_utils.js';
+import { showResults } from "./gameResults.js";
+
 
 // Fonction principale appelée quand on clique sur "Lancer Tournoi" dans le menu
 export async function handleTournament(tournamentParam) {

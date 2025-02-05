@@ -6,10 +6,28 @@ import { initializeGameControls } from "./controls.js";
 import { launchLiveGameWithOptions } from "./live_game.js";
 import { HTTPError } from "../api/index.js";
 import { showResults } from "./gameResults.js";
+import { navigateTo } from "../router.js";
 
-
-export async function createGameOnline(onlineParams) {
-    console.log('[createGameOnline] Paramètres online = ', onlineParams);
+export async function createGameOnline() {
+    
+    console.log('createGameOnline');
+    if (typeof localStorage !== "undefined" && !localStorage.getItem('access_token')) {
+		navigateTo('/');
+		return;
+	}
+    let onlineParams = sessionStorage.getItem('params');
+	if (onlineParams === null)
+	{
+		showStatusMessage("Paramètres online invalides.", 'error');
+		navigateTo('/game-options');
+		return;
+	}
+	try {
+		onlineParams = JSON.parse(onlineParams);
+	} catch (e) {
+		showStatusMessage("Erreur lors de la recuperation des Paramètres.", 'error'); //[IMPROVE]
+		return;
+	}
 
     const formData = new FormData();
     if (onlineParams) {
@@ -114,19 +132,17 @@ async function checkGameInvitationStatus(response) {
                             break;
 
                         case 'rejected':
-                        case 'expired':
-                            console.log("Invitation refusée ou expirée.");
-                            // 1) Arrêter le polling
                             clearInterval(pollInterval);
-
-                            // 2) Afficher un message d'erreur / rediriger
-                            alert("Votre invitation a été refusée ou a expiré.");
-                            // updateHtmlContent(...) 
+                            showStatusMessage('Invitation refusée.', 'error');
+                            createGameOnline();
                             break;
-
+                        case 'expired':
+                            clearInterval(pollInterval);
+                            showStatusMessage('Invitation expirée.', 'error');
+                            createGameOnline();
+                            break;
                         default:
                             console.warn("Statut inconnu :", data.invitation_status);
-                            // Au cas où...
                             break;
                     }
                 } else {
@@ -250,13 +266,14 @@ async function joinOnlineGameAsRight(sessionId) {
     }
 }
 
-async function declineGameInvitation(invitationId) {
+export async function declineGameInvitation(invitationId) {
     try {
         const formData = new FormData();
         formData.append('invitation_id', invitationId);
         formData.append('action', 'decline');
 
-        const response = await requestPost('game', 'respond_to_invitation', formData);
+        const url = `reject_game_invitation/${invitationId}`;
+        const response = await requestPost('game', url, formData);
 
         if (response.status === 'success') {
             console.log('Invitation refusée :', response);

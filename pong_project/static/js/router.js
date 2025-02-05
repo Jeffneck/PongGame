@@ -8,7 +8,7 @@ import { handleFriendProfile } from './friends/index.js';
 import { handleNavbar } from './navbar/loadNavbar.js';
 import { initializeNotFoundView } from './tools/errorPage.js';
 import { handleTournament } from './game/tournament.js'
-
+import { createGameOnline } from './game/index.js';
 // Initialisation du routeur Navigo
 const router = new window.Navigo('/', { hash: false });
 
@@ -59,21 +59,18 @@ export function initializeRouter() {
             console.log('Route: game-options');
             handleGameMenu();
         })
-        .on('/game-online', () => {
-            console.log('Route: game-options');
-            handleInviteGame();
+        .on('/online', () => {
+            console.log('Route: online');
+            createGameOnline();
         })
         .on('/tournament', () => {
             console.log('Route: tournament');
             handleTournament();
-            router.resolve();
         })
-        .on('/game-loading', () => {
-            console.log('Route: game-options');
-            startLoading();
-        })
-
-
+        // .on('/game-loading', () => {
+        //     console.log('Route: game-options');
+        //     startLoading();
+        // })
         .on('/profile/:friendUsername', ({ data }) => {
             const friendUsername = data.friendUsername; // Utilisez `data` pour extraire le paramètre
             console.log(`Route: Profile for ${friendUsername}`);

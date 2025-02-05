@@ -244,9 +244,9 @@ class RejectGameInvitationView(View):
             status='pending'
         )
 
-        if invitation.session and invitation.session.status == 'waiting':
+        #f invitation.session and invitation.session.status == 'waiting':
             # Soit on supprime la session
-            invitation.session.delete()
+            #invitation.session.delete()
             # ou on la marque 'cancelled'
             # invitation.session.status = 'cancelled'
             # invitation.session.save()

@@ -12,6 +12,7 @@ import { handleStatusChange } from './index.js';
 import { handleLogout } from '../auth/index.js';
 import { navigateTo } from '../router.js';
 import { acceptGameInvitation } from '../game/index.js';
+import { declineGameInvitation } from '../game/onlineGame.js';
 
 /**
  * Gestionnaire principal des événements pour le menu burger via event delegation.
@@ -112,8 +113,11 @@ function handleBurgerMenuClick(e) {
     if (gameInvitationButton) {
         const invitationId = gameInvitationButton.getAttribute('data-invitation-id');
         const action = gameInvitationButton.getAttribute('data-action');
-        if (invitationId && action) {
+        if (invitationId && action === 'accept') {
             acceptGameInvitation(invitationId, action);
+        }
+        else {
+            declineGameInvitation(invitationId);
         }
         return;
     }

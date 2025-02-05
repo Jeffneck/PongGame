@@ -14,7 +14,7 @@ export async function handleTournament() {
 		return;
 	}
 
-	let tournamentParam = sessionStorage.getItem('tournamentparams');
+	let tournamentParam = sessionStorage.getItem('params');
 	if (tournamentParam === null)
 	{
 		showStatusMessage("Paramètres de tournoi invalides.", 'error');

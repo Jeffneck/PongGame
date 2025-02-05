@@ -89,11 +89,12 @@ function attachGameMenuEvents() {
                         bonus_enabled: bonusCheckbox?.checked ?? false,
                         obstacles_enabled: obstacleCheckbox?.checked ?? false,
                     };
+                    sessionStorage.setItem('params', JSON.stringify(onlineParams));
                     console.log('Paramètres de la partie online:', onlineParams);
 
                     // Maintenant on va charger la page "invite_game.html"
                     // et injecter le HTML dans #content (ou autre conteneur).
-                    await createGameOnline(onlineParams);
+                    navigateTo('/online');
 
                 } catch (err) {
                     console.error('Erreur lors de la phase d\'invitation :', err);
@@ -126,17 +127,8 @@ function attachGameMenuEvents() {
                     obstacles_enabled: obstacleCheckbox?.checked ?? false,
                 };
 
-                sessionStorage.setItem('tournamentparams', JSON.stringify(tournamentparams));
+                sessionStorage.setItem('params', JSON.stringify(tournamentparams));
                 navigateTo(`/tournament`);
-                
-                //await handleTournament(onlineParams);
-                
-                console.log(`Vitesse de balle (${section}):`, ballSpeedElement.value);
-                console.log(`Taille de raquette (${section}):`, paddleSizeElement.value);
-                console.log(`Bonus activé (${section}):`, bonusCheckbox?.checked);
-                console.log(`Obstacles activés (${section}):`, obstacleCheckbox?.checked);
-                
-
             });
         }
     });

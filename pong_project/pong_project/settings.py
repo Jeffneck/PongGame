@@ -140,7 +140,7 @@ SECURE_HSTS_PRELOAD = True
 # ------------------------------------------------------------------
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:8080',
-    'http://localhost:8443',
+    'https://localhost:8443',
     'http://192.168.1.138:8080',
     'http://192.168.1.138:443',
     'https://192.168.1.176:443',

@@ -23,8 +23,8 @@ class GameSession(models.Model):
     player_right = models.ForeignKey(User, related_name='game_sessions_as_player_right', on_delete=models.CASCADE, null=True, blank=True)
 
     # Si la partie est locale, on utilise des champs de texte (par exemple, les noms des joueurs)
-    player_left_name = models.CharField(max_length=50, null=True, blank=True)
-    player_right_name = models.CharField(max_length=50, null=True, blank=True)
+    player_left_local = models.CharField(max_length=50, null=True, blank=True)
+    player_right_local = models.CharField(max_length=50, null=True, blank=True)
 
     def __str__(self):
         return f"GameSession {self.id} (status={self.status})"
@@ -65,9 +65,12 @@ class GameResult(models.Model):
     """
     Enregistre le score final d'une partie terminée.
     """
-    game = models.ForeignKey("game.GameSession", on_delete=models.CASCADE)
-    winner = models.ForeignKey(User, related_name='games_won', on_delete=models.CASCADE)
-    looser = models.ForeignKey(User, related_name='games_lost', on_delete=models.CASCADE)  
+    # game = models.ForeignKey("game.GameSession", on_delete=models.CASCADE)
+    game = models.OneToOneField("game.GameSession", on_delete=models.CASCADE)
+    winner = models.ForeignKey(User, related_name='games_won', on_delete=models.CASCADE, null=True, blank=True)
+    looser = models.ForeignKey(User, related_name='games_lost', on_delete=models.CASCADE, null=True, blank=True)  
+    winner_local = models.CharField(max_length=50, null=True, blank=True)
+    looser_local = models.CharField(max_length=50, null=True, blank=True)
     score_left = models.IntegerField()
     score_right = models.IntegerField()
     ended_at = models.DateTimeField(auto_now_add=True)

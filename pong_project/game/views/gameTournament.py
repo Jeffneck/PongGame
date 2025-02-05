@@ -202,18 +202,18 @@ class CreateTournamentGameSessionView(View):
 
         # On choisit quels joueurs se retrouvent en left / right
         if next_match_type == 'semifinal1':
-            player_left_name = tournament.player1
-            player_right_name = tournament.player2
+            player_left_local = tournament.player1
+            player_right_local = tournament.player2
             tournament.status = 'semifinal1_in_progress'
         elif next_match_type == 'semifinal2':
-            player_left_name = tournament.player3
-            player_right_name = tournament.player4
+            player_left_local = tournament.player3
+            player_right_local = tournament.player4
             tournament.status = 'semifinal2_in_progress'
         elif next_match_type == 'final':
             # On suppose que winner_semifinal_1 / _2 sont déjà set
-            player_left_name = tournament.winner_semifinal_1
-            player_right_name = tournament.winner_semifinal_2
-            if not player_left_name or not player_right_name:
+            player_left_local = tournament.winner_semifinal_1
+            player_right_local = tournament.winner_semifinal_2
+            if not player_left_local or not player_right_local:
                 return JsonResponse({
                     'status': 'error',
                     'message': "Impossible de créer la finale: gagnants des demi-finales non définis.",
@@ -229,8 +229,8 @@ class CreateTournamentGameSessionView(View):
         game_session = GameSession.objects.create(
             status='waiting',
             is_online=False,
-            player_left_name=player_left_name,
-            player_right_name=player_right_name,
+            player_left_local=player_left_local,
+            player_right_local=player_right_local,
             tournament_id=str(tournament.id)  # On stocke l'id du tournoi
         )
 

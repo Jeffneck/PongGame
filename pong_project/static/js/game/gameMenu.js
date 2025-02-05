@@ -1,7 +1,8 @@
 import { requestGet, requestPost } from '../api/index.js'; 
 import { updateHtmlContent } from '../tools/index.js'; 
 // import { handleInviteGame } from './handleInvitationGame.js'; // Suppose qu'on gère l'invitation en ligne ici
-import { launchLiveGameWithOptions } from './live_game.js';
+// import { launchLiveGameWithOptions } from './live_game.js';
+import { handleLocalGame } from './localGame.js'
 import { createGameOnline } from './onlineGame.js'
 import { handleTournament } from './tournament.js'
 
@@ -37,8 +38,8 @@ function attachGameMenuEvents() {
         // Définir un comportement différent selon le bouton
         if (startGameButton && section === 'local') {
             startGameButton.addEventListener('click', async () => {
-                const formData = new FormData();
-                formData.append('game_type', section);
+                const parametersForm = new FormData();
+                parametersForm.append('game_type', section);
 
                 // Récupérer les éléments
                 const ballSpeedElement = document.getElementById(`ballSpeed${section}`);
@@ -57,29 +58,12 @@ function attachGameMenuEvents() {
                 console.log(`Bonus activé (${section}):`, bonusCheckbox?.checked);
                 console.log(`Obstacles activés (${section}):`, obstacleCheckbox?.checked);
                 // Lire les valeurs
-                formData.append('ball_speed', ballSpeedElement.value);
-                formData.append('paddle_size', paddleSizeElement.value);
-                formData.append('bonus_enabled', bonusCheckbox?.checked ?? false);
-                formData.append('obstacles_enabled', obstacleCheckbox?.checked ?? false);
+                parametersForm.append('ball_speed', ballSpeedElement.value);
+                parametersForm.append('paddle_size', paddleSizeElement.value);
+                parametersForm.append('bonus_enabled', bonusCheckbox?.checked ?? false);
+                parametersForm.append('obstacles_enabled', obstacleCheckbox?.checked ?? false);
 
-                // Poster vers ton endpoint
-                try {
-                    const response = await requestPost('game', 'create_local_game', formData);
-                    if (response.status === 'success')
-                    {
-                        alert(`Partie créée avec succès : ID = ${response.game_id}`);
-                        updateHtmlContent('#content', response.html);
-                        const gameId = response.game_id;
-                        await launchLiveGameWithOptions(gameId, 'both', `start_local_game/${gameId}`);
-                        //IMPROVE afficher une page présentant le winner et looser une fois la game terminee
-                    }
-                    else{
-                        alert(response.message);
-                    }
-                } catch (err) {
-                    console.error('Erreur lors de la création de la partie :', err);
-                    alert('Impossible de créer la partie.');
-                }
+                await handleLocalGame(parametersForm)
             });
         }
 

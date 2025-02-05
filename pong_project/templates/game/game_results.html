@@ -1,0 +1,52 @@
+<div class="card z-index-23333">
+    <h1 class="card-title">Résultats du jeu</h1>
+    
+    <div class="statistics">
+        <p><strong class="stat-title">Winner:</strong> {{ winner }}</p>
+        <p><strong class="stat-title">Looser:</strong> {{ looser }}</p>
+        <p><strong class="stat-title">Score:</strong> {{ score_left }} - {{ score_right }}</p>
+    </div>
+</div>
+
+<style>
+    html, body {
+        overflow: auto;
+        background-color: #101A32;
+        color: white;
+        margin: 0;
+        padding: 0;
+    }
+
+    .card {
+        background-color: #101A32;
+        border: 2px solid rgb(153, 148, 148);
+        min-width: 300px;
+        margin: 20px;
+        padding: 20px;
+        border-radius: 10px;
+        position: relative; /* Ajout de position pour permettre le z-index */
+        z-index: 23333; /* Assurez-vous que le z-index soit appliqué */
+    }
+
+    .card-title {
+        color: #2DB4F3;
+        margin-bottom: 10px;
+    }
+
+    .statistics {
+        background-color: #101A32;
+        border: 2px solid rgb(153, 148, 148);
+        padding: 20px;
+        border-radius: 10px;
+        min-width: 300px;
+    }
+
+    .stat-title {
+        color: #2DB4F3; /* Assurez-vous que la couleur du titre est visible */
+    }
+
+    p, .stat-title {
+        color: #F1F1F1; /* Ajout d'une couleur plus claire pour le texte */
+        margin: 10px 0;
+    }
+</style>

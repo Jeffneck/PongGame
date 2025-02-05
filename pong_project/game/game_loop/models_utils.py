@@ -69,7 +69,7 @@ async def get_LocalTournament(game_id, phase):
 #     except GameSession.DoesNotExist:
 #         print(f"[create_gameResults] GameSession {game_id} does not exist.")
 
-async def create_gameResults(game_id, endgame_infos):
+async def create_gameResults(game_id, gameSession_isOnline, endgame_infos):
     """Crée un GameResult après la fin d'un match."""
     GameSession = apps.get_model('game', 'GameSession')
     GameResult = apps.get_model('game', 'GameResult')
@@ -81,10 +81,13 @@ async def create_gameResults(game_id, endgame_infos):
 
         # ✅ Regrouper la création de GameResult dans une fonction synchrone
         def save_game_result():
+            print(f"[create_gameResults] GameResult CREATED")
             GameResult.objects.create(
                 game=session,
                 winner=endgame_infos['winner'],
                 looser=endgame_infos['looser'],
+                winner_local=endgame_infos['winner_local'],
+                looser_local=endgame_infos['looser_local'],
                 score_left=endgame_infos['score_left'],
                 score_right=endgame_infos['score_right']
             )

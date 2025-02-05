@@ -486,7 +486,7 @@ function initLiveGame(config) {
 		}
 		else if (data.type === 'game_over') {
         console.log("[live_game_utils] Game over detected");
-        alert("Game Over! Winner = " + data.winner);
+        // alert("Game Over! Winner = " + data.winner);
         socket.close();
         resolve();  // 🔹 Signale à `runTournamentFlow()` que la partie est terminée
       }

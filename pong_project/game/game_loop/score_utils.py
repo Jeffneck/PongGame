@@ -62,30 +62,27 @@ async def finish_game(game_id):
     # Ici, ils ont été chargés grâce au select_related dans set_gameSession_status.
 
     # Si la GameSession est Online, créer un enregistrement des gameResults
-    gameSession_isOnline = await is_gameSession_Online(game_id)
-    if gameSession_isOnline:
-        if score_left > score_right:
-            winner = gameSession.player_left
-            looser = gameSession.player_right
-        else:
-            winner = gameSession.player_right
-            looser = gameSession.player_left
-
-        endgame_infos = {
-            'winner': winner,
-            'looser': looser,
-            'score_left': score_left,
-            'score_right': score_right,
-        }
-        await create_gameResults(game_id, endgame_infos)
+    if score_left > score_right:
+        winner = gameSession.player_left
+        winner_local = gameSession.player_left_local
+        looser = gameSession.player_right
+        looser_local = gameSession.player_right_local
     else:
-        # Pour une session locale
-        if score_left > score_right:
-            winner = gameSession.player_left_name
-            looser = gameSession.player_right_name
-        else:
-            winner = gameSession.player_right_name
-            looser = gameSession.player_left_name
+        winner = gameSession.player_right
+        winner_local  = gameSession.player_right_local
+        looser = gameSession.player_left
+        looser_local = gameSession.player_left_local
+
+    endgame_infos = {
+        'winner': winner,
+        'looser': looser,
+        'winner_local': winner_local,
+        'looser_local': looser_local,
+        'score_left': score_left,
+        'score_right': score_right,
+    }
+    gameSession_isOnline = await is_gameSession_Online(game_id)
+    await create_gameResults(game_id, gameSession_isOnline, endgame_infos)
 
     # Gestion du tournoi (inchangé)
     tournament = await get_LocalTournament(game_id, "semifinal1")
@@ -111,6 +108,10 @@ async def finish_game(game_id):
 
     tournament_id = gameSession.tournament_id
     print(f"[finish_game] tournament_id={tournament_id}")
-    await notify_game_finished(game_id, tournament_id, winner, looser)
+    if gameSession_isOnline:
+        await notify_game_finished(game_id, tournament_id, winner, looser)
+    else :
+        await notify_game_finished(game_id, tournament_id, winner_local, looser_local)
+
     scan_and_delete_keys(game_id)
     print(f"[loop.py] Redis keys deleted for game_id={game_id}")

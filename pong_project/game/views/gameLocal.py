@@ -5,8 +5,10 @@ from django.views import View
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
+from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 from game.models import GameSession
+# import uuid
 from game.forms import GameParametersForm
 
 from game.manager import schedule_game  # Assurez-vous que vous avez un task qui gère le démarrage du jeu en background
@@ -32,14 +34,14 @@ class CreateGameLocalView(View):
         session = GameSession.objects.create(status='waiting', is_online=False)
         logger.debug(session)
         # Assignation des noms des joueurs pour la partie locale (voir lacalGameForm dans form.py pour utiliser un formulaire plutot que des valeurs par defaut)
-        player_left_name = "p1_left" # IMPROVE on pourrait utiliser un formulaire pour recuperer cette information
-        player_right_name = "p2_right" # IMPROVE on pourrait utiliser un formulaire pour recuperer cette information
+        player_left_local = "p1_left" # IMPROVE on pourrait utiliser un formulaire pour recuperer cette information
+        player_right_local = "p2_right" # IMPROVE on pourrait utiliser un formulaire pour recuperer cette information
 
         # Vérifier si les noms des joueurs sont fournis
-        if player_left_name:
-            session.player_left_name = player_left_name
-        if player_right_name:
-            session.player_right_name = player_right_name
+        if player_left_local:
+            session.player_left_local = player_left_local
+        if player_right_local:
+            session.player_right_local = player_right_local
         
         session.save()
 
@@ -49,7 +51,7 @@ class CreateGameLocalView(View):
         parameters.save()
 
         # Log de la création de la session de jeu
-        logger.debug(f"[create_game] GameSession {session.id} créée pour {player_left_name} et {player_right_name} avec paramètres personnalisés.")
+        logger.debug(f"[create_game] GameSession {session.id} créée pour {player_left_local} et {player_right_local} avec paramètres personnalisés.")
         # Retourner l'ID de la session et un message de succès dans la réponse JSON
         
         rendered_html = render_to_string('game/local_game/live_local_game.html')

@@ -19,6 +19,7 @@ async def handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right,
     
     # 1) Vérifier si la balle sort à gauche => point pour la droite
     if ball.x - ball.size <= paddle_left.x + paddle_left.width:
+    # if ball.x - ball.size  <= paddle_left.x:
         # Soit on a collision, soit c'est un but
         if paddle_left.y <= ball.y <= paddle_left.y + paddle_left.height:
             # Collision raquette gauche
@@ -42,7 +43,8 @@ async def handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right,
             return 'score_right'
 
     # 2) Vérifier si la balle sort à droite => point pour la gauche
-    if ball.x + ball.size >= paddle_right.x:
+    if ball.x + ball.size >= paddle_right.x - paddle_right.width :
+    # if ball.x  >= paddle_right.x:
         if paddle_right.y <= ball.y <= paddle_right.y + paddle_right.height:
             # Collision raquette droite
             is_sticky = bool(get_key(game_id, "paddle_right_sticky") or 0)

@@ -7,7 +7,7 @@ import math
 import random
 
 MAX_ACTIVE_POWERUPS = 2
-SPAWN_INTERVAL_POWERUPS = 5
+SPAWN_INTERVAL_POWERUPS = 7
 DURATION_EFFECT_POWERUPS = 5
 
 # -------------- POWER UP --------------------

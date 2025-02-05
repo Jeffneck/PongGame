@@ -49,6 +49,11 @@ async def countdown_before_game(game_id):
         await notify_countdown(game_id, countdown_nb)
         await asyncio.sleep(1)
 
+# async def countdown_between_goals(game_id):
+#     for countdown_nb in range(3, 0, -1):
+#         await notify_countdown(game_id, countdown_nb)
+#         await asyncio.sleep(1)
+
 async def game_loop(game_id):
     """
     Boucle principale pour UNE partie identifiée par game_id.
@@ -66,7 +71,7 @@ async def game_loop(game_id):
 
         # Construire les objets (raquettes, balle, powerups, bumpers)
         paddle_left, paddle_right, ball, powerup_orbs, bumpers = initialize_game_objects(game_id, parameters)
-        initialize_redis(game_id, paddle_left, paddle_right, ball)
+        initialize_redis(game_id, paddle_left, paddle_right, ball, parameters)
         print(f"[game_loop] Game objects initialisés pour game_id={game_id}")
 
         

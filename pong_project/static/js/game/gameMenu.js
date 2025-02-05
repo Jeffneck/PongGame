@@ -4,7 +4,8 @@ import { updateHtmlContent } from '../tools/index.js';
 // import { launchLiveGameWithOptions } from './live_game.js';
 import { handleLocalGame } from './localGame.js'
 import { createGameOnline } from './onlineGame.js'
-import { handleTournament } from './tournament.js'
+
+import { navigateTo } from '../router.js';
 
 function attachGameMenuEvents() {
     const sections = ['local', 'online', 'tournament'];
@@ -118,14 +119,17 @@ function attachGameMenuEvents() {
                 }
 
                  // Stockage en mémoire JS
-                const onlineParams = {
+                const tournamentparams = {
                     ball_speed: ballSpeedElement.value,
                     paddle_size: paddleSizeElement.value,
                     bonus_enabled: bonusCheckbox?.checked ?? false,
                     obstacles_enabled: obstacleCheckbox?.checked ?? false,
                 };
 
-                await handleTournament(onlineParams);
+                sessionStorage.setItem('tournamentparams', JSON.stringify(tournamentparams));
+                navigateTo(`/tournament`);
+                
+                //await handleTournament(onlineParams);
                 
                 console.log(`Vitesse de balle (${section}):`, ballSpeedElement.value);
                 console.log(`Taille de raquette (${section}):`, paddleSizeElement.value);

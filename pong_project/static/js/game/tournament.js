@@ -1,14 +1,31 @@
 import { requestGet, requestPost } from "../api/index.js";
-import { updateHtmlContent } from "../tools/index.js";
+import { showStatusMessage, updateHtmlContent } from "../tools/index.js";
 import { launchLiveGameWithOptions } from './live_game.js';
 import { TournamentNextMatch } from './tournament_utils.js';
 import { showResults } from "./gameResults.js";
+import { navigateTo } from "../router.js";
 
 
 // Fonction principale appelée quand on clique sur "Lancer Tournoi" dans le menu
-export async function handleTournament(tournamentParam) {
-  // 1) Récupère le formulaire (GET)
+export async function handleTournament() {
+
+if (!window.isAuthenticated)
+	return navigateTo('/');
+
+let tournamentParam = sessionStorage.getItem('tournamentparams');
+if (tournamentParam) {
+	try {
+		tournamentParam = JSON.parse(tournamentParam);
+	} catch (e) {
+		showStatusMessage("Paramètres de tournoi invalides.", 'error');
+		navigateTo('/game-options');
+	}
+}
+    console.log("Tournament param est égale a :", tournamentParam);
+	// 1) Récupère le formulaire (GET)
   const formHtml = await getTournamentForm();
+  if (!formHtml)
+	return;
   updateHtmlContent('#content', formHtml);
 
   // 2) Sélection du form dans le DOM
@@ -54,11 +71,14 @@ export async function handleTournament(tournamentParam) {
 
 async function getTournamentForm() {
   const responseGet = await requestGet('game', 'create_tournament');
+  if (!responseGet)
+	  return false;
   if (responseGet.status === 'success') {
     return responseGet.html;
-  } else {
-    console.error("Impossible de récupérer le formulaire du tournoi");
-    return "<p>Erreur chargement formulaire</p>";
+  } 
+  else if (responseGet.status === 'error') {
+	showStatusMessage("Erreur lors de la récupération du formulaire du tournoi :", 'error');
+	navigateTo('/game-options');
   }
 }
 
@@ -119,6 +139,7 @@ async function runTournamentFlow(tournamentId) {
     await launchLiveGameWithOptions(gameId, 'both', `start_tournament_game_session/${gameId}`);
   }
 
+  sessionStorage.removeItem('tournamentparams');
   console.log("Fin du flux tournoi");
 }
 

@@ -60,9 +60,9 @@ class CreateGameLocalView(View):
         
 
         context = {
-                    'player_left_name': player_left_local ,# default player 1
-                    'player_right_name': player_right_local # defaut player 2,
-                }
+            'player_left_name': player_left_local ,# default player 1
+            'player_right_name': player_right_local # defaut player 2,
+        }
 
         rendered_html = render_to_string('game/live_game.html', context)
         return JsonResponse({

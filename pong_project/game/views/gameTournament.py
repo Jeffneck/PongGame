@@ -263,10 +263,13 @@ class CreateTournamentGameSessionView(View):
         logger.debug(f"[CreateTournamentGameSessionView] Crée GameSession {game_session.id} pour {next_match_type}.")
 
         # Optionnel: un snippet HTML à injecter (par ex. un canvas de jeu, etc.)
+        context = {
+            'player_left_name': player_left_local ,# default player 1
+            'player_right_name': player_right_local # defaut player 2,
+        }
         rendered_html = render_to_string(
             'game/live_game.html',
-            {'game_id': game_session.id},
-            request=request
+            context
         )
 
         return JsonResponse({

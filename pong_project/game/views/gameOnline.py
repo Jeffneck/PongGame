@@ -90,7 +90,7 @@ class CreateGameOnlineView(View):
 
 @method_decorator(csrf_protect, name='dispatch')
 @method_decorator(login_required_json, name='dispatch')
-class SendGameSessionInvitationView(LoginRequiredMixin, View):
+class SendGameSessionInvitationView(View):
     """
     Le joueur (request.user) envoie une invitation à friend_username
     pour la session (session_id) déjà créée en ligne.
@@ -316,7 +316,7 @@ class CheckGameInvitationStatusView(View):
 @method_decorator(csrf_protect, name='dispatch')
 @method_decorator(login_required_json, name='dispatch')
 # class StartOnlineGameView(LoginRequiredMixin, View):
-class JoinOnlineGameAsLeftView(LoginRequiredMixin, View):
+class JoinOnlineGameAsLeftView(View):
     def get(self, request, game_id):
         try:
             session = GameSession.objects.get(id=game_id)
@@ -347,10 +347,14 @@ class JoinOnlineGameAsLeftView(LoginRequiredMixin, View):
                 'message': "La partie est déjà lancée ou terminée."
             }, status=400)
 
-        # Injecter le HTML de la page de jeu
-        rendered_html = render_to_string('game/live_game.html', {
-            'game_id': session.id,
-        }, request=request)
+        context = {
+            'player_left_name': session.player_left.get_username() ,# default player 1
+            'player_right_name': session.player_right.get_username() # defaut player 2,
+        }
+        rendered_html = render_to_string(
+            'game/live_game.html',
+            context
+        )
 
         return JsonResponse({
             'status': 'success',
@@ -362,7 +366,7 @@ class JoinOnlineGameAsLeftView(LoginRequiredMixin, View):
 # lancee par le front du player RIGHT au moment de l'acceptation de l'invitation par le player right
 @method_decorator(csrf_protect, name='dispatch')
 @method_decorator(login_required_json, name='dispatch')
-class JoinOnlineGameAsRightView(LoginRequiredMixin, View):
+class JoinOnlineGameAsRightView(View):
     """
     Démarre la partie en ligne.
     """
@@ -387,8 +391,14 @@ class JoinOnlineGameAsRightView(LoginRequiredMixin, View):
                 'message': "Vous n'êtes pas autorisé à accéder à cette partie."
             }, status=403)
         
-        # On peut injecter le HTML de la page de jeu
-        rendered_html = render_to_string('game/live_game.html')
+        context = {
+            'player_left_name': session.player_left.get_username() ,# default player 1
+            'player_right_name': session.player_right.get_username() # defaut player 2,
+        }
+        rendered_html = render_to_string(
+            'game/live_game.html',
+            context
+        )
 
         return JsonResponse({
             'status': 'success',

@@ -15,7 +15,7 @@ def user_not_authenticated(view_func):
 
 
 def login_required_json(view_func):
-    logger.debug("Entering login_required_json()")
+    # logger.debug("Entering login_required_json()")
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
         if not request.user.is_authenticated:

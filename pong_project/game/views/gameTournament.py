@@ -264,7 +264,7 @@ class CreateTournamentGameSessionView(View):
 
         # Optionnel: un snippet HTML à injecter (par ex. un canvas de jeu, etc.)
         rendered_html = render_to_string(
-            'game/tournament/live_tournament_game.html',
+            'game/live_game.html',
             {'game_id': game_session.id},
             request=request
         )

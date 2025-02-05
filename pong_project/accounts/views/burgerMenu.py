@@ -67,7 +67,7 @@ class UpdateStatusView(View):
         user = request.user
         status = request.POST.get('status')
 
-        logger.info(f"--Requête de mise à jour du statut pour {user.username}: {status}")
+        # logger.info(f"--Requête de mise à jour du statut pour {user.username}: {status}")
 
         if status not in ['online', 'offline']:
             return JsonResponse({'status': 'error', 'message': 'Statut non valide'}, status=400)

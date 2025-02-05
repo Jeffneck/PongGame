@@ -38,8 +38,8 @@ class CreateGameLocalView(View):
         session = GameSession.objects.create(status='waiting', is_online=False)
         logger.debug(session)
         # Assignation des noms des joueurs pour la partie locale (voir lacalGameForm dans form.py pour utiliser un formulaire plutot que des valeurs par defaut)
-        player_left_local = "PLAYER 1"
-        player_right_local = "PLAYER 2" 
+        player_left_local = "PLAYER1"
+        player_right_local = "PLAYER2" 
 
         # Vérifier si les noms des joueurs sont fournis
         if player_left_local:
@@ -100,15 +100,16 @@ class StartLocalGameView(View):
                     'message': f"La partie {game_id} est déjà terminée et ne peut pas être relancée."
                 })
 
-            # Si la session est valide, lancez la boucle de jeu
-            # print(f"[start_game] Démarrage de la partie {game_id}.")
-            schedule_game(game_id)  # Cette fonction démarre la boucle de jeu, non-bloquante
 
             # Mettre la session en état "running"
             session.status = 'running'
+            # le bouton a ete appuye ce qui signifie que les 2 joueurs sont prets (en local)
+            session.ready_left = True
+            session.ready_right = True
             session.save()
 
-            # print(f"[DEBUG] StartLocalGameView success")  # Debug
+            schedule_game(game_id) 
+
             return JsonResponse({
                 'status': 'success',
                 'message': f"Partie {game_id} lancée avec succès."

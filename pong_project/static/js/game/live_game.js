@@ -20,7 +20,7 @@ export async function launchLiveGameWithOptions(gameId, userRole, urlStartButton
   let startGameSelector = null;
   let onStartGame = null;
   
-
+  console.log(`userRole = ${userRole}`);
   if (urlStartButton) {
     // Sélectionner l'élément DOM correspondant au bouton de démarrage
     startGameSelector = document.querySelector("#startGameBtn");
@@ -37,6 +37,7 @@ export async function launchLiveGameWithOptions(gameId, userRole, urlStartButton
       const url = urlStartButton;
       const formData = new FormData();
       formData.append('game_id', gameId);
+      formData.append('userRole', userRole);
   
       const response = await requestPost('game', url, formData);
       if (response.status !== 'success') {

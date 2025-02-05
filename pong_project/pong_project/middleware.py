@@ -18,7 +18,7 @@ class JWTAuthenticationMiddleware:
 
             #logger.debug(f"Auth_header = : {auth_header}")
             try:
-                logger.debug("Validation du jeton JWT")
+                # logger.debug("Validation du jeton JWT")
 
                 # Extrait le jeton
                 token = auth_header.split(' ')[1]
@@ -28,7 +28,7 @@ class JWTAuthenticationMiddleware:
                 # Décode le jeton
                 payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
                 user_id = payload.get('user_id')
-                logger.debug(payload)
+                # logger.debug(payload)
 
                 if not user_id:
                     raise jwt.DecodeError("Le payload ne contient pas d'ID utilisateur")
@@ -40,7 +40,7 @@ class JWTAuthenticationMiddleware:
                     logger.debug(f"Utilisateur introuvable avec l'ID : {user_id}")
                     request.user = AnonymousUser()
                 else:
-                    logger.debug(f"Utilisateur authentifié : {user.username}")
+                    # logger.debug(f"Utilisateur authentifié : {user.username}")
                     request.user = user
 
             except jwt.ExpiredSignatureError:

@@ -4,7 +4,7 @@ from channels.layers import get_channel_layer
 from asgiref.sync import sync_to_async
 from .broadcast import notify_game_finished
 from .redis_utils import set_key, get_key, scan_and_delete_keys
-from .models_utils import is_gameSession_Online, set_gameSession_status, create_gameResults, get_LocalTournament
+from .models_utils import is_online_gameSession, set_gameSession_status, create_gameResults, get_LocalTournament
 
 # transformer en parametre ajustable GameParameters?
 WIN_SCORE = 5 
@@ -81,7 +81,7 @@ async def finish_game(game_id):
         'score_left': score_left,
         'score_right': score_right,
     }
-    gameSession_isOnline = await is_gameSession_Online(game_id)
+    gameSession_isOnline = await is_online_gameSession(game_id)
     await create_gameResults(game_id, gameSession_isOnline, endgame_infos)
 
     # Gestion du tournoi (inchangé)

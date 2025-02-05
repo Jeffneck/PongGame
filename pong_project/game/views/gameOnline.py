@@ -169,6 +169,7 @@ class AcceptGameInvitationView(View):
     Le second joueur accepte l'invitation.
     Au lieu de créer la session ici, on récupère 
     celle créée en amont par le 1er joueur.
+    La partie est lancee en coroutine dans cette vue
     """
     def post(self, request, invitation_id):
         user = request.user
@@ -204,17 +205,18 @@ class AcceptGameInvitationView(View):
         invitation.status = 'accepted'
         invitation.save()
 
-        # Marquer l'autre joueur
+        # le joueur invite devient le player_right sur la session
         session.player_right = user
-        # eventuellement on modifie le status => 'ready'
-        session.status = 'ready'
         session.save()
 
+        #on lance le jeu au moment de l' acceptation de l' invitation
+        schedule_game(session.id)
+
         # Expirer les autres invitations "pending" pour cette session, si besoin
-        # GameInvitation.objects.filter(
-        #     session=session,
-        #     status='pending'
-        # ).exclude(id=invitation.id).update(status='expired')
+        GameInvitation.objects.filter(
+            session=session,
+            status='pending'
+        ).exclude(id=invitation.id).update(status='expired')
 
         return JsonResponse({
             'status': 'success',
@@ -346,7 +348,7 @@ class JoinOnlineGameAsLeftView(LoginRequiredMixin, View):
             }, status=400)
 
         # Injecter le HTML de la page de jeu
-        rendered_html = render_to_string('game/online_game/live_online_game_left.html', {
+        rendered_html = render_to_string('game/live_game.html', {
             'game_id': session.id,
         }, request=request)
 
@@ -386,7 +388,7 @@ class JoinOnlineGameAsRightView(LoginRequiredMixin, View):
             }, status=403)
         
         # On peut injecter le HTML de la page de jeu
-        rendered_html = render_to_string('game/online_game/live_online_game_right.html')
+        rendered_html = render_to_string('game/live_game.html')
 
         return JsonResponse({
             'status': 'success',
@@ -398,54 +400,60 @@ class JoinOnlineGameAsRightView(LoginRequiredMixin, View):
    
 
 
-# lancee par l'appui sur le bouton Lancer la partie, uniquement cliquable par le joueur left
-# Cree la game-loop avec schedule_game et passe le statut de la partie a running
+# lancee par l'appui sur le bouton PLAY, marque le joueur comme pr^et dans la game session
+#la gameLoop attend pendant 20 secondes que les 2 joueurs aiet indique qu' ils sont prets
 @method_decorator(csrf_protect, name='dispatch')
-@method_decorator(login_required_json, name='dispatch')
 class StartOnlineGameView(View):
     """
-    Démarre la partie locale en exécutant la logique du jeu.
+    Démarre la partie online en exécutant la logique du jeu.
     """
     def post(self, request, game_id):
+        # Récupérer le rôle de l'utilisateur depuis les données POST
+        user_role = request.POST.get('userRole')
+        if user_role not in ['left', 'right']:
+            return JsonResponse({
+                'status': 'error',
+                'message': "Rôle utilisateur invalide. Attendu 'left' ou 'right'."
+            }, status=400)
+        
         try:
             # Récupérer la session de jeu par son ID
             session = GameSession.objects.get(id=game_id)
-            print(f"[DEBUG] StartOnlineGameView gameSession {session}")  # Debug
-
-            # Vérifier que la session est une partie locale
-            if session.is_online == False:
-                return JsonResponse({
-                    'status': 'error',
-                    'message': "La partie locale ne peut pas être lancée avec cette API. Cette API sert à lancer une partie online."
-                })
-
-            # Vérifier que la partie n'est pas déjà terminée
-            if session.status == 'finished':
-                return JsonResponse({
-                    'status': 'error',
-                    'message': f"La partie {game_id} est déjà terminée et ne peut pas être relancée."
-                })
-
-            # Si la session est valide, lancez la boucle de jeu
-            # print(f"[start_game] Démarrage de la partie {game_id}.")
-            schedule_game(game_id)  # Cette fonction démarre la boucle de jeu, non-bloquante
-
-            # Faire passer la session de l'état :
-            # ready(joueur right ayant accepté l'invitation)
-            # à l'état running => le joueur left a appuyé sur le bouton démarrer la partie
-            session.status = 'running'
-            session.save()
-
-            # print(f"[DEBUG] StartLocalGameView success")  # Debug
-            return JsonResponse({
-                'status': 'success',
-                'message': f"Partie {game_id} lancée avec succès."
-            })
-
         except GameSession.DoesNotExist:
-            # print(f"[DEBUG] StartLocalGameView la gameSession n'existe pas")  # Debug
             return JsonResponse({
                 'status': 'error',
                 'message': "La session de jeu spécifiée n'existe pas."
-            })
+            }, status=404)
 
+        # Debug : Afficher la session récupérée
+        print(f"[DEBUG] StartOnlineGameView gameSession: {session}")
+
+        # Vérifier que la session correspond bien à une partie online
+        if not session.is_online:
+            return JsonResponse({
+                'status': 'error',
+                'message': "La partie locale ne peut pas être lancée avec cette API. Cette API sert à lancer une partie online."
+            }, status=400)
+
+        # Vérifier que la partie n'est pas déjà terminée
+        if session.status == 'finished':
+            return JsonResponse({
+                'status': 'error',
+                'message': f"La partie {game_id} est déjà terminée et ne peut pas être relancée."
+            }, status=400)
+
+        # Mise à jour du statut en fonction du rôle utilisateur
+        if user_role == "right":
+            session.ready_right = True
+        elif user_role == "left":
+            session.ready_left = True
+        if (session.ready_right and session.ready_left) :
+            session.status = 'running'
+
+        session.save()
+        print(f"[DEBUG] StartOnlineGameView ready :  {session.ready_left}-{session.ready_right}")
+
+        return JsonResponse({
+            'status': 'success',
+            'message': f"Partie {game_id} prête pour le joueur {user_role}."
+        })

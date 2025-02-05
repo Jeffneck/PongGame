@@ -4,10 +4,10 @@ import asyncio
 import time
 from django.conf import settings
 from channels.layers import get_channel_layer
-from asgiref.sync import sync_to_async
+# from asgiref.sync import sync_to_async
 
 from .redis_utils import get_key
-from .models_utils import get_gameSession_status, set_gameSession_status, get_gameSession_parameters
+from .models_utils import get_gameSession_status, get_gameSession, is_online_gameSession, get_gameSession_parameters, set_gameSession_status
 from .initialize_game import initialize_game_objects, initialize_redis
 from .paddles_utils import move_paddles
 from .ball_utils import move_ball, move_ball_sticky, reset_ball
@@ -23,52 +23,54 @@ from .bumpers_utils import handle_bumpers_spawn, handle_bumper_expiration
 from .powerups_utils import handle_powerups_spawn, handle_powerup_expiration
 from .broadcast import broadcast_game_state, notify_countdown
 
+class WaitForPlayersTimeout(Exception):
+    """Exception levée lorsqu'un délai d'attente est dépassé avant que les joueurs ne soient prêts."""
+    pass
+
+async def wait_for_players(game_id):
+    print(f"[game_loop.py] wait_for_players {game_id}.")
+    timeout = 30  # Durée maximale d'attente en secondes.
+    start_time = time.time()
+    
+    # Boucle d'attente pour vérifier si les joueurs sont prêts
+    while time.time() - start_time < timeout:
+        gs = await get_gameSession(game_id)
+        if gs.ready_left and gs.ready_right:
+            print(f"[game_loop.py] wait_for_players Everyone is READY {game_id}.")
+            return True
+        await asyncio.sleep(0.1)  # Petite pause pour éviter une boucle trop chargée
+    
+    # Si le timeout est dépassé, on lève une exception
+    raise WaitForPlayersTimeout(f"Délai d'attente de {timeout} secondes dépassé pour game_id {game_id}.")
+
+
+async def countdown_before_game(game_id):
+    for countdown_nb in range(3, 0, -1):
+        await notify_countdown(game_id, countdown_nb)
+        await asyncio.sleep(1)
+
 async def game_loop(game_id):
     """
     Boucle principale pour UNE partie identifiée par game_id.
-    Tourne ~60 fois/s tant que la partie n'est pas 'finished'.
+    Tourne ~90 fois/s tant que la partie n'est pas 'finished'.
     """
     channel_layer = get_channel_layer()
     dt = 1/90
     print(f"[game_loop.py] Starting loop for game_id={game_id}.")
-
     try:
+        await wait_for_players(game_id)
+        await countdown_before_game(game_id)
         # Récupérer/charger les paramètres
         parameters = await get_gameSession_parameters(game_id)
-        if not parameters:
-            print(f"[game_loop] Pas de paramètres pour le game_id={game_id}, on quitte.")
-            return
+
 
         # Construire les objets (raquettes, balle, powerups, bumpers)
         paddle_left, paddle_right, ball, powerup_orbs, bumpers = initialize_game_objects(game_id, parameters)
         initialize_redis(game_id, paddle_left, paddle_right, ball)
         print(f"[game_loop] Game objects initialisés pour game_id={game_id}")
 
-        timeout = 60
-        start_time = time.time()
-
-        # 1) Attendre que le statut devienne 'running' (durée max 60s) IMPROVE : que se passe t'il si on dépasse les 60 sec
-        while True:
-            session_status = await get_gameSession_status(game_id)
-            print(f"[game_loop] game_id={game_id} en attente du statut 'running'. Actuel={session_status}")
-
-            if session_status == 'running':
-                print(f"[game_loop] game_id={game_id} => statut 'running' détecté. On lance le jeu.")
-                break
-
-            if time.time() - start_time > timeout:
-                print(f"[game_loop] Timeout: la partie {game_id} n'est jamais passée en 'running' après {timeout}s.")
-                return  # On abandonne
-
-            await asyncio.sleep(1)
-
-        # fais moi uner boucle qui lance la fonction notifStartCountdown et lance un countdown de 3 secondes ici 
         
-        # Lancer le compte à rebours de 3 secondes
-        for countdown_nb in range(3, 0, -1):
-            await notify_countdown(game_id, countdown_nb)
-            await asyncio.sleep(1)
-        
+        await set_gameSession_status(game_id, "running")
         
         # 2) Lancer la boucle ~90fps 
         while True:

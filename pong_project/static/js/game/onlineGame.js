@@ -240,8 +240,7 @@ async function joinOnlineGameAsRight(sessionId) {
         }
         // Si succès, afficher la page de jeu 
         updateHtmlContent('#content', response.html);
-        // lancer la game pour le joueur RIGHT, il a null car pas de startButton de son côté
-        await launchLiveGameWithOptions(response.game_id, 'right', null);
+        await launchLiveGameWithOptions(response.game_id, 'right', `start_online_game/${response.game_id}`);
         await showResults(response.game_id);
 
 

@@ -9,62 +9,69 @@ import { navigateTo } from "../router.js";
 // Fonction principale appelée quand on clique sur "Lancer Tournoi" dans le menu
 export async function handleTournament() {
 
-if (!window.isAuthenticated)
-	return navigateTo('/');
+	if (typeof localStorage !== "undefined" && !localStorage.getItem('access_token')) {
+		navigateTo('/');
+		return;
+	}
 
-let tournamentParam = sessionStorage.getItem('tournamentparams');
-if (tournamentParam) {
+	let tournamentParam = sessionStorage.getItem('tournamentparams');
+	if (tournamentParam === null)
+	{
+		showStatusMessage("Paramètres de tournoi invalides.", 'error');
+		navigateTo('/game-options');
+		return;
+	}
 	try {
 		tournamentParam = JSON.parse(tournamentParam);
 	} catch (e) {
-		showStatusMessage("Paramètres de tournoi invalides.", 'error');
-		navigateTo('/game-options');
+		showStatusMessage("Erreur lors de la recuperation des Paramètres.", 'error'); //[IMPROVE]
+		return;
 	}
-}
-    console.log("Tournament param est égale a :", tournamentParam);
-	// 1) Récupère le formulaire (GET)
-  const formHtml = await getTournamentForm();
-  if (!formHtml)
-	return;
-  updateHtmlContent('#content', formHtml);
+	
+		console.log("Tournament param est égale a :", tournamentParam);
+		// 1) Récupère le formulaire (GET)
+	const formHtml = await getTournamentForm();
+	if (!formHtml)
+		return;
+	updateHtmlContent('#content', formHtml);
 
-  // 2) Sélection du form dans le DOM
-  const form = document.querySelector('#content form');
-  if (!form) {
-    console.error("Formulaire introuvable dans le HTML injecté.");
-    return;
-  }
+	// 2) Sélection du form dans le DOM
+	const form = document.querySelector('#content form');
+	if (!form) {
+		console.error("Formulaire introuvable dans le HTML injecté.");
+		return;
+	}
 
-  // 3) Au submit => POST de création du tournoi
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
+	// 3) Au submit => POST de création du tournoi
+	form.addEventListener("submit", async (event) => {
+		event.preventDefault();
 
-    // Récupération des champs du form
-    const formData = new FormData(form);
+		// Récupération des champs du form
+		const formData = new FormData(form);
 
-    // Si vous avez d’autres paramètres passés depuis un menu (tournamentParam),
-    // on peut forcer/écraser ici dans le formData :
-    if (tournamentParam) {
-      formData.set('ball_speed', tournamentParam.ball_speed);
-      formData.set('paddle_size', tournamentParam.paddle_size);
-      formData.set('bonus_enabled', tournamentParam.bonus_enabled);
-      formData.set('obstacles_enabled', tournamentParam.obstacles_enabled);
-    }
+		// Si vous avez d’autres paramètres passés depuis un menu (tournamentParam),
+		// on peut forcer/écraser ici dans le formData :
+		if (tournamentParam) {
+		formData.set('ball_speed', tournamentParam.ball_speed);
+		formData.set('paddle_size', tournamentParam.paddle_size);
+		formData.set('bonus_enabled', tournamentParam.bonus_enabled);
+		formData.set('obstacles_enabled', tournamentParam.obstacles_enabled);
+		}
 
-    try {
-      const response = await createTournament(formData);
-      if (response.status === 'success') {
-        alert(`Tournoi créé : ID = ${response.tournament_id}`);
-        // Lance la suite (loop + affichage bracket + next match etc.)
-        await runTournamentFlow(response.tournament_id);
-      } else {
-        alert("Erreur : " + response.message);
-      }
-    } catch (error) {
-      console.error("Erreur lors de la création du tournoi :", error);
-      alert("Une erreur est survenue lors de la création du tournoi.");
-    }
-  });
+		try {
+		const response = await createTournament(formData);
+		if (response.status === 'success') {
+			alert(`Tournoi créé : ID = ${response.tournament_id}`);
+			// Lance la suite (loop + affichage bracket + next match etc.)
+			await runTournamentFlow(response.tournament_id);
+		} else {
+			alert("Erreur : " + response.message);
+		}
+		} catch (error) {
+		console.error("Erreur lors de la création du tournoi :", error);
+		alert("Une erreur est survenue lors de la création du tournoi.");
+		}
+	});
 }
 
 // -- Petites fonctions factorielles pour clarifier --

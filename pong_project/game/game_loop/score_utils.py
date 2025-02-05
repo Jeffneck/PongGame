@@ -89,19 +89,19 @@ async def finish_game(game_id):
     if tournament:
         print(f"[finish_game] this game was semifinal1 from tournament game_id={game_id}")
         tournament.status = 'semifinal1_done'
-        tournament.winner_semifinal_1 = winner
+        tournament.winner_semifinal_1 = winner_local
         await sync_to_async(tournament.save)()
     else:
         tournament = await get_LocalTournament(game_id, "semifinal2")
         if tournament:
             tournament.status = 'semifinal2_done'
-            tournament.winner_semifinal_2 = winner
+            tournament.winner_semifinal_2 = winner_local
             await sync_to_async(tournament.save)()
         else:
             tournament = await get_LocalTournament(game_id, "final")
             if tournament:
                 tournament.status = 'finished'
-                tournament.winner_final = winner
+                tournament.winner_final = winner_local
                 await sync_to_async(tournament.save)()
             else:
                 print(f"[finish_game] No tournament found for game_id={game_id}")

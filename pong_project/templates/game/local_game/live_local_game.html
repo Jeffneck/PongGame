@@ -1,7 +1,13 @@
 <div id="livegame" class="container-fluid d-flex flex-column align-items-center justify-content-center position-fixed">
 	<!-- Bouton de lancement -->
 	<div class="game-container d-flex justify-content-center align-items-center">
-		<button id="startGameBtn" class="btn starting-btn">PLAY</button>
+		 <!-- Zone de score positionnée en haut du terrain -->
+		 <div id="score-display" class="score-display text-center">
+			<span class="player-name left">{{ player_left_name|default:"Joueur 1" }}</span>
+			<span id="score-nb"> | 0 - 0 | </span>
+			<span class="player-name right">{{ player_right_name|default:"Joueur 2" }}</span>
+		  </div>
+		<button id="startGameBtn" class="btn starting-btn" disabled>PLAY</button>
 		<canvas id="gameCanvas"></canvas>
 	</div>
 </div>
@@ -16,6 +22,7 @@
 	#ground-game, .terrain{
 		display: none;
 	}
+
 
 	#startGameBtn {
 		z-index: 60;
@@ -53,28 +60,6 @@
 		border-radius: 1em;
 		background-color: #101A32;
 	}
-
-	/* .starting-btn {
-        font-family: "Jersey 10";
-        font-size: 15vw; 
-        color: #2DB4F3;
-        background: #101A32;
-        border: none;
-		z-index: 60;
-        animation: blink 2s infinite;
-    }
-
-	@keyframes blink {
-		0%, 100% 
-		{
-			opacity: 1;
-		}
-		50% 
-		{
-			opacity: 0;
-		}
-	} */
-
 
 	.starting-btn {
     font-family: "Jersey 10", sans-serif; /* Garde uniquement la police que tu utilises */
@@ -115,6 +100,18 @@
     animation: blink 2s infinite;
 }
 
+.score-display {
+  position: absolute;
+  transform: translateX(-50%);
+  color: white;
+  font-family:  "Jersey 10", sans-serif;
+  /* font-size: 1.5rem;     Ajustez la taille de la police selon vos besoins */
+  z-index: 60;           /* Au-dessus du canvas et du bouton PLAY */
+}
+
+.player-name.left, .player-name.right{
+		color: rgba(45, 180, 243, 1);  /* Par exemple, rouge pour le joueur de gauche */
+	}
 
   
 </style>

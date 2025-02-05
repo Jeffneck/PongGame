@@ -58,7 +58,13 @@ class CreateGameLocalView(View):
         logger.debug(f"[create_game] GameSession {session.id} créée pour {player_left_local} et {player_right_local} avec paramètres personnalisés.")
         # Retourner l'ID de la session et un message de succès dans la réponse JSON
         
-        rendered_html = render_to_string('game/local_game/live_local_game.html')
+
+        context = {
+                    'player_left_name': player_left_local ,# default player 1
+                    'player_right_name': player_right_local # defaut player 2,
+                }
+
+        rendered_html = render_to_string('game/live_game.html', context)
         return JsonResponse({
             'status': 'success',
             'html' : rendered_html,

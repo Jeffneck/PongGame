@@ -16,6 +16,7 @@ async function handleLoginResponse(response) {
 
             setTimeout(async () => {
                 window.isAuthenticated = true;
+                console.log("handleloginResponse isauthenticated = :", window.isAuthenticated)
                 await handleNavbar();
                 navigateTo('/home');
             }, 500);
@@ -70,6 +71,7 @@ async function initializeLoginForm() {
 }
 
 export async function handleLogin() {
+    
     try {
         console.log('Initialisation de la vue de connexion');
         await initializeLoginForm();

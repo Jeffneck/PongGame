@@ -12,10 +12,14 @@ from game.models import GameSession
 from game.forms import GameParametersForm
 
 from game.manager import schedule_game  # Assurez-vous que vous avez un task qui gère le démarrage du jeu en background
+from pong_project.decorators import login_required_json
 
 # ---- Configuration ----
 logger = logging.getLogger(__name__)
 
+
+@method_decorator(csrf_protect, name='dispatch')
+@method_decorator(login_required_json, name='dispatch')
 class CreateGameLocalView(View):
     """
     Gère la création d'une nouvelle GameSession et des paramètres associés pour une partie locale.
@@ -63,7 +67,8 @@ class CreateGameLocalView(View):
         }, status=201)
 
 # lancee par l'appui sur le bouton Lancer la partie
-@method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toute la classe
+@method_decorator(csrf_protect, name='dispatch')
+@method_decorator(login_required_json, name='dispatch')
 class StartLocalGameView(View):
     """
     Démarre la partie locale en exécutant la logique du jeu.

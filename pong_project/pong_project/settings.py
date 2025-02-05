@@ -36,6 +36,23 @@ ALLOWED_HOSTS = ['*']
 # ------------------------------------------------------------------
 AUTH_USER_MODEL = 'accounts.CustomUser'
 
+
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {
+            'min_length': 8,  # Le mot de passe doit comporter au moins 8 caractères
+        }
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+]
+
+
 # ------------------------------------------------------------------
 # 5) Internationalisation & Localisation
 # ------------------------------------------------------------------
@@ -54,6 +71,7 @@ LOCALE_PATHS = [
 TIME_ZONE = 'UTC'
 
 USE_I18N = True
+USE_L10N = True
 USE_TZ = True
 
 # ------------------------------------------------------------------
@@ -216,3 +234,6 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # 15) Autres
 # ------------------------------------------------------------------
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# utilisé pour redirection pour anonymous user
+LOGIN_URL = '/home/'

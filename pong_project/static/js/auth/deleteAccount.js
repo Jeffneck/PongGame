@@ -71,7 +71,7 @@ async function submitDeleteAccount(form) {
 
         setTimeout(() => {
             clearSessionAndUI();
-        }, 5000);
+        }, 1500);
     } catch (error) {
         console.error('Erreur lors de la soumission de la suppression du compte :', error);
         showStatusMessage('Une erreur est survenue. Veuillez réessayer.', 'error');

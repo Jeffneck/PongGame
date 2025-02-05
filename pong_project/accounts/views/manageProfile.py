@@ -7,6 +7,7 @@ from django.views import View
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
+from pong_project.decorators import login_required_json
 from django.db.models import Max
 from django.contrib.auth import update_session_auth_hash, logout
 from django.contrib.auth import get_user_model
@@ -19,7 +20,8 @@ from accounts.forms import UserNameForm, PasswordChangeForm, AvatarUpdateForm, D
 logger = logging.getLogger(__name__)
 User = get_user_model()
 
-
+@method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toutes les méthodes de la classe
+@method_decorator(login_required_json, name='dispatch')  # Restreint l'accès à la vue aux utilisateurs connectés
 class ManageProfileView(View):
     """
     Display and manage profile-related forms.
@@ -45,22 +47,25 @@ class ManageProfileView(View):
             'html': rendered_html
         })
 
-
-class UpdateProfileView(View):
-    """
-    Handle updates to user profile information.
-    """
-
+@method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toutes les méthodes de la classe
+@method_decorator(login_required_json, name='dispatch')  # Restreint l'accès à la vue aux utilisateurs connectés
+class ChangeUsernameView(View):
     def post(self, request):
         user = request.user
-        form = UserNameForm(request.POST, request.FILES, instance=user)
+        form = UserNameForm(request.POST, instance=user)
         if form.is_valid():
             form.save()
-            return JsonResponse({'status': 'success', 'message': 'Profil mis à jour avec succès.'})
+            return JsonResponse({'status': 'success', 'message': "Nom d'utilisateur mis à jour avec succès."})
         else:
-            return JsonResponse({'status': 'error', 'errors': form.errors})
+            error_messages = []
+            for field, errors in form.errors.items():
+                for error in errors:
+                    error_messages.append(error)
+            error_message = " ".join(error_messages)
+            return JsonResponse({'status': 'error', 'message': error_message})
 
-
+@method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toutes les méthodes de la classe
+@method_decorator(login_required_json, name='dispatch')  # Restreint l'accès à la vue aux utilisateurs connectés
 class DeleteAccountView(View):
     """
     Handle account deletion.
@@ -74,8 +79,15 @@ class DeleteAccountView(View):
             user.delete()
             return JsonResponse({'status': 'success', 'message': 'Votre compte a été supprimé avec succès.'})
         else:
-            return JsonResponse({'status': 'error', 'message': form.errors['password'][0]}, status=400)
+            error_messages = []
+            for field, errors in form.errors.items():
+                for error in errors:
+                    error_messages.append(error)
+            error_message = " ".join(error_messages)
+            return JsonResponse({'status': 'error', 'message': error_message})
 
+@method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toutes les méthodes de la classe
+@method_decorator(login_required_json, name='dispatch')  # Restreint l'accès à la vue aux utilisateurs connectés
 class ChangePasswordView(View):
     """
     Handle password changes using Django's built-in functions.
@@ -90,11 +102,17 @@ class ChangePasswordView(View):
             form.save()
             update_session_auth_hash(request, user)  # Maintient la session active après la mise à jour
             return JsonResponse({'status': 'success', 'message': 'Mot de passe mis à jour avec succès.'})
+        
+        else:
+            error_messages = []
+            for field, errors in form.errors.items():
+                for error in errors:
+                    error_messages.append(error)
+            error_message = " ".join(error_messages)
+            return JsonResponse({'status': 'error', 'message': error_message})
 
-        # Retourner les erreurs si le formulaire est invalide
-        return JsonResponse({'status': 'error', 'errors': form.errors})
-
-
+@method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toutes les méthodes de la classe
+@method_decorator(login_required_json, name='dispatch')  # Restreint l'accès à la vue aux utilisateurs connectés
 class UpdateAvatarView(View):
     """
     Handle avatar updates.
@@ -104,5 +122,22 @@ class UpdateAvatarView(View):
         form = AvatarUpdateForm(request.POST, request.FILES, instance=user)
         if form.is_valid():
             form.save()
-            return JsonResponse({'status': 'success', 'message': 'Avatar mis à jour avec succès.'})
-        return JsonResponse({'status': 'error', 'errors': form.errors})
+            return JsonResponse({
+                'status': 'success', 
+                'message': 'Avatar mis à jour avec succès.'
+            })
+        else:
+            logger.error(form.errors)
+            # Récupérer les messages d'erreur de façon plus lisible
+            error_messages = []
+            for field, errors in form.errors.items():
+                # Chaque "errors" est une liste de messages pour le champ "field"
+                for error in errors:
+                    error_messages.append(error)
+            # On peut joindre les messages avec un séparateur, par exemple une virgule ou un saut de ligne
+            error_message = " ".join(error_messages)
+            
+            return JsonResponse({
+                'status': 'error', 
+                'message': error_message
+            })

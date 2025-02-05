@@ -7,7 +7,10 @@ async function FriendProfile(friendName) {
         console.log(`Chargement du profil de l'ami : ${friendName}`);
         const response = await requestGet('accounts', `friend/${friendName}`);
 
-        if (!response || response.status !== 'success') {
+        if (!response) {
+            return;
+        }
+        if (response.status !== 'success') {
             const errorMessage = response?.message || 'Erreur lors de la récupération du profil.';
             console.error('Erreur dans FriendProfile :', errorMessage);
             throw new Error(errorMessage);
@@ -26,6 +29,9 @@ export async function handleFriendProfile(friendName) {
 
     try {
         const response = await FriendProfile(friendName);
+        if (!response) {
+            return;
+        }
         showStatusMessage(response || 'Profil de l\'ami chargé avec succès.', 'success');
     } catch (error) {
         const errorMessage = error?.message || 'Erreur lors de la récupération du profil.';

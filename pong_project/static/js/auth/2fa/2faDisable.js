@@ -9,6 +9,9 @@ async function loadDisable2FAView() {
     console.log('Chargement de la vue de désactivation de la 2FA...');
     try {
         const response = await requestGet('accounts', '2fa/disable');
+        if (!response) {
+            return false;
+        }
         if (response.status === 'success' && response.html) {
             updateHtmlContent('#content', response.html);
             attachDisable2FAEvent(); // Attache l'événement de soumission
@@ -67,11 +70,15 @@ async function submitDisable2FA(form) {
 // Gestionnaire principal pour désactiver la 2FA
 export async function handleDisable2FA() {
     console.log('Désactivation de la 2FA...');
+    let disable2fa;
     try {
         // Charge la vue de désactivation de la 2FA
-        await loadDisable2FAView();
+        disable2fa = await loadDisable2FAView();
     } catch (error) {
         console.error('Erreur dans handleDisable2FA:', error);
         showStatusMessage('Erreur lors de la désactivation de la 2FA.', 'error');
+    }
+    if (!disable2fa) {
+        return;
     }
 }

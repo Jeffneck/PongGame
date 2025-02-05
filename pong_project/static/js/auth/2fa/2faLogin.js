@@ -30,8 +30,12 @@ async function submitLogin2FA(form) {
 
 // Initialisation de la vue de connexion 2FA
 export async function initializeLogin2FAView() {
+
     try {
         const data = await requestGet('accounts', '2fa/login2fa');
+        if (!data) {
+            return;
+        }
         updateHtmlContent('#content', data.html);
     } catch (error) {
         console.error('Erreur lors de la requête API initializeLogin2FAView:', error);

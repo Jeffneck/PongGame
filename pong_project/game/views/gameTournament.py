@@ -8,6 +8,7 @@ from django.views.decorators.csrf import csrf_protect
 from django.template.loader import render_to_string
 from django.shortcuts import get_object_or_404
 from django.templatetags.static import static  
+from pong_project.decorators import login_required_json
 
 from game.forms import TournamentParametersForm
 from game.models import (
@@ -20,6 +21,7 @@ from game.manager import schedule_game
 logger = logging.getLogger(__name__)
 
 @method_decorator(csrf_protect, name='dispatch')
+@method_decorator(login_required_json, name='dispatch')
 class CreateTournamentView(View):
     """
     Gère l'affichage (GET) du formulaire de création de tournoi,
@@ -67,6 +69,7 @@ class CreateTournamentView(View):
 
 
 @method_decorator(csrf_protect, name='dispatch')
+@method_decorator(login_required_json, name='dispatch')
 class TournamentBracketView(View):
     """
     Récupère l'état (status) du tournoi + le bracket (HTML).
@@ -111,6 +114,7 @@ class TournamentBracketView(View):
 
 
 @method_decorator(csrf_protect, name='dispatch')
+@method_decorator(login_required_json, name='dispatch')
 class TournamentNextGameView(View):
     """
     Renvoie (en GET) le prochain match à jouer: ex. "semifinal1", "semifinal2", "final", ou "finished".
@@ -183,6 +187,7 @@ class TournamentNextGameView(View):
         }, status=200)
 
 @method_decorator(csrf_protect, name='dispatch')
+@method_decorator(login_required_json, name='dispatch')
 class CreateTournamentGameSessionView(View):
     """
     Crée une GameSession (semifinal1, semifinal2 ou final) pour le tournoi <tournament_id>.
@@ -273,6 +278,7 @@ class CreateTournamentGameSessionView(View):
         }, status=201)
 
 @method_decorator(csrf_protect, name='dispatch')
+@method_decorator(login_required_json, name='dispatch')
 class StartTournamentGameSessionView(View):
     """
     Lance la GameSession (status=running) et appelle schedule_game pour la boucle.

@@ -227,9 +227,7 @@ msgid "Supprimer mon compte"
 msgstr ""
 
 #: templates/accounts/gestion_profil.html:120
-msgid ""
-"Pour des raisons de sécurité, veuillez entrer votre mot de passe pour "
-"confirmer la suppression de votre compte."
+msgid "Pour des raisons de sécurité, veuillez entrer votre mot de passe pour confirmer la suppression de votre compte."
 msgstr ""
 
 #: templates/accounts/gestion_profil.html:124
@@ -261,9 +259,7 @@ msgid "Entrez Code 2FA"
 msgstr ""
 
 #: templates/accounts/login2fa.html:9
-msgid ""
-"Pour vous connecter, veuillez saisir le code 2FA depuis votre application "
-"d'authentification"
+msgid "Pour vous connecter, veuillez saisir le code 2FA depuis votre application d'authentification"
 msgstr ""
 
 #: templates/accounts/profile.html:5

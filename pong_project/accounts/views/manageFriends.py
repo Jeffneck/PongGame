@@ -6,11 +6,11 @@ from django.views import View
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
-from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.views.decorators.csrf import csrf_protect
 from django.core.exceptions import ValidationError
-
+from pong_project.decorators import login_required_json
 # ---- Imports locaux ----
 from accounts.models import FriendRequest
 
@@ -18,12 +18,15 @@ from accounts.models import FriendRequest
 User = get_user_model()
 logger = logging.getLogger(__name__)
 
+
 class FriendValidationError(Exception):
     """
     Custom exception for friend validation errors.
     """
     pass
 
+@method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toutes les méthodes de la classe
+@method_decorator(login_required_json, name='dispatch')  # Restreint l'accès à la vue aux utilisateurs connectés
 class BaseFriendView(View):
     """
     Base class for friend-related views, providing utility methods.
@@ -33,12 +36,15 @@ class BaseFriendView(View):
         Validates the friend username and returns the friend user instance.
         """
         if not friend_username:
-            raise FriendValidationError('Nom d\'utilisateur de l\'ami manquant')
-
-        friend = get_object_or_404(User, username=friend_username)
+            raise FriendValidationError("Nom d'utilisateur de l'ami manquant")
+        
+        try:
+            friend = User.objects.get(username=friend_username)
+        except User.DoesNotExist:
+            raise FriendValidationError("Ami introuvable")
 
         if friend == user:
-            raise FriendValidationError('Vous ne pouvez pas vous envoyer une demande d\'ami à vous-même.')
+            raise FriendValidationError("Vous ne pouvez pas vous envoyer une demande d'ami à vous-même.")
 
         return friend
 
@@ -48,7 +54,8 @@ class BaseFriendView(View):
         """
         return JsonResponse({'status': status, 'message': message}, status=status_code)
 
-@method_decorator(login_required, name='dispatch')
+@method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toutes les méthodes de la classe
+@method_decorator(login_required_json, name='dispatch')  # Restreint l'accès à la vue aux utilisateurs connectés
 class AddFriendView(BaseFriendView):
     """
     Handles sending friend requests.
@@ -62,25 +69,26 @@ class AddFriendView(BaseFriendView):
             friend = self.validate_friend(user, friend_username)
         except FriendValidationError as e:
             logger.error(f"Error adding friend: {e}")
-            return self.create_json_response('error', str(e), 400)
+            return self.create_json_response('error', str(e))
 
         if friend in user.friends.all():
             logger.error(f"Error adding friend: {user.username} is already friends with {friend.username}")
-            return self.create_json_response('error', 'Vous êtes déjà ami avec cet utilisateur.', 400)
+            return self.create_json_response('error', 'Vous êtes déjà ami avec cet utilisateur.')
 
         if FriendRequest.objects.filter(from_user=user, to_user=friend).exists():
             logger.error(f"Error adding friend: Friend request already sent from {user.username} to {friend.username}")
-            return self.create_json_response('error', 'Demande d\'ami déjà envoyée.', 400)
+            return self.create_json_response('error', 'Demande d\'ami déjà envoyée.')
 
         if FriendRequest.objects.filter(from_user=friend, to_user=user).exists():
             logger.error(f"Error adding friend: Friend request already received from {friend.username} to {user.username}")
-            return self.create_json_response('error', 'Cet utilisateur vous a déjà envoyé une demande d\'ami.', 400)
+            return self.create_json_response('error', 'Cet utilisateur vous a déjà envoyé une demande d\'ami.')
 
         FriendRequest.objects.create(from_user=user, to_user=friend)
         logger.info(f"Demande d'ami envoyée de {user.username} à {friend.username}.")
         return self.create_json_response('success', 'Demande d\'ami envoyée.')
 
-@method_decorator(login_required, name='dispatch')
+@method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toutes les méthodes de la classe
+@method_decorator(login_required_json, name='dispatch')  # Restreint l'accès à la vue aux utilisateurs connectés
 class HandleFriendRequestView(View):
     """
     Handles acceptance or rejection of friend requests.
@@ -120,7 +128,8 @@ class HandleFriendRequestView(View):
             logger.error(f"Error handling friend request: {e}")
             return JsonResponse({'status': 'error', 'message': 'Erreur lors de la gestion de la demande d\'ami'}, status=500)
 
-@method_decorator(login_required, name='dispatch')
+@method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toutes les méthodes de la classe
+@method_decorator(login_required_json, name='dispatch')  # Restreint l'accès à la vue aux utilisateurs connectés
 class RemoveFriendView(BaseFriendView):
     """
     Handles the removal of a friend.

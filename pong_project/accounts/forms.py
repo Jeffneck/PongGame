@@ -1,5 +1,7 @@
 # accounts/forms.py
-
+# ---- Imports standard ----
+import logging
+import re 
 # ---- Imports tiers ----
 from django import forms
 from django.contrib.auth import get_user_model
@@ -9,11 +11,12 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth import authenticate
 from django.forms.widgets import ClearableFileInput
 from django.utils.translation import gettext_lazy as _
-
+from PIL import Image
 
 
 # ---- Configuration ----
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 class RegistrationForm(UserCreationForm):
     class Meta:
@@ -36,15 +39,29 @@ class TwoFactorLoginForm(forms.Form):
 class UserNameForm(forms.ModelForm):
     class Meta:
         model = User
-        fields = ['username']  # Retirer 'avatar'
+        fields = ['username']
         widgets = {
-            'username': forms.TextInput(attrs={'class': 'form-control', 'placeholder': "Nom d'utilisateur"}),
+            'username': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': "Nom d'utilisateur"
+            }),
         }
 
     def clean_username(self):
         username = self.cleaned_data.get('username')
-        if User.objects.exclude(id=self.instance.id).filter(username=username).exists():
-            raise forms.ValidationError("Ce nom d'utilisateur est déjà pris.")
+        if username:
+            username = username.strip()
+            # Vérifier si le nouveau nom d'utilisateur est identique à l'actuel (insensible à la casse)
+            if username.lower() == self.instance.username.lower():
+                raise ValidationError(_("Le nouveau nom d'utilisateur doit être différent de l'actuel."))
+            # Vérifier que le nom d'utilisateur ne contient que des lettres, chiffres et underscores
+            if not re.match(r'^[a-zA-Z0-9_]+$', username):
+                raise ValidationError(_("Le nom d'utilisateur ne doit contenir que des lettres, chiffres et underscores."))
+            # Vérifier l'unicité du nom d'utilisateur (insensible à la casse)
+            if User.objects.exclude(id=self.instance.id).filter(username__iexact=username).exists():
+                raise ValidationError(_("Ce nom d'utilisateur est déjà pris."))
+        else:
+            raise ValidationError(_("Le nom d'utilisateur ne peut pas être vide."))
         return username
 
 class PasswordChangeForm(DjangoPasswordChangeForm):
@@ -67,12 +84,30 @@ class AvatarUpdateForm(forms.ModelForm):
         }
 
     def clean_avatar(self):
-        avatar = self.cleaned_data.get('avatar', False)
-        if avatar:
-            if avatar.size > 4 * 1024 * 1024:
-                raise forms.ValidationError(_("L'image ne doit pas dépasser 4 Mo."))
-            if avatar.content_type not in ["image/jpeg", "image/png", "image/gif"]:
-                raise forms.ValidationError(_("Seules les images JPEG, PNG et GIF sont autorisées."))
+        avatar = self.cleaned_data.get('avatar', None)
+        if not avatar:
+            raise ValidationError(_("Aucun fichier n'a été téléchargé."))
+            
+        max_size = 4 * 1024 * 1024  # 4 Mo
+        if avatar.size > max_size:
+            raise ValidationError(_("L'image ne doit pas dépasser 4 Mo."))
+            
+        allowed_content_types = ["image/jpeg", "image/jpg", "image/png", "image/gif"]
+        if avatar.content_type not in allowed_content_types:
+            raise ValidationError(_("Seules les images JPEG, JPG, PNG et GIF sont autorisées."))
+        
+        try:
+            # Assurer que le curseur est au début du fichier
+            avatar.seek(0)
+            image = Image.open(avatar)
+            # Charger l'image entièrement pour s'assurer qu'elle est valide
+            image.load()
+        except Exception as e:
+            logger.error("Erreur lors de la vérification de l'image: %s", e)
+            raise ValidationError(_("Fichier image invalide ou corrompu."))
+        
+        # Réinitialiser le curseur pour que Django puisse enregistrer le fichier
+        avatar.seek(0)
         return avatar
 
 class DeleteAccountForm(forms.Form):

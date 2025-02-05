@@ -11,6 +11,20 @@ from accounts.views.burgerMenu import get_burger_menu_context
 
 logger = logging.getLogger(__name__)
 
+
+
+def not_found_view(request):
+    """
+    Retourne la page 404 sous forme de JSON avec son contenu HTML.
+    """
+    logger.debug("Entre dans not_found_view")
+    not_found_html = render_to_string('core/404.html')  # Assurez-vous que le template se trouve dans le bon dossier
+    return JsonResponse({
+        'status': 'success',
+        'html': not_found_html
+    })
+
+
 def get_navbar(request):
     """
     Génère et retourne le contenu de la barre de navigation sous forme de JSON.

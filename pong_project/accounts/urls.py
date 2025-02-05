@@ -7,7 +7,7 @@ from django.urls import path
 # ---- Imports locaux ----
 from .views.register import RegisterView
 from .views.manageProfile import (
-    ManageProfileView, UpdateProfileView, DeleteAccountView,
+    ManageProfileView, ChangeUsernameView, DeleteAccountView,
     ChangePasswordView, UpdateAvatarView
 )
 from .views.profile import ProfileView
@@ -33,7 +33,7 @@ app_name = 'accounts'
 urlpatterns = [
     # ---- Manage Profile ----
     path('gestion_profil/', ManageProfileView.as_view(), name='manage_profile'),
-    path('profile/update/', UpdateProfileView.as_view(), name='update_profile'),
+    path('profile/update/', ChangeUsernameView.as_view(), name='update_profile'),
     path('profile/delete_account/', DeleteAccountView.as_view(), name='delete_account'),
     path('profile/change_password/', ChangePasswordView.as_view(), name='change_password'),
     path('profile/update_avatar/', UpdateAvatarView.as_view(), name='update_avatar'),

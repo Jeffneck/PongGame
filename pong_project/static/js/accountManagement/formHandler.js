@@ -1,12 +1,12 @@
 import { requestPost } from '../api/index.js';
 import { navigateTo } from '../router.js';
-import { displayErrorMessage } from '../tools/index.js';
+import { showStatusMessage } from '../tools/displayInfo.js';
 import { attachProfileEvents } from './events.js';
 import { handleNavbar } from '../navbar/index.js';
 import { handleLogout } from '../auth/index.js';
 
 // Fonction pour gérer la soumission des formulaires
-async function handleFormSubmit(form, app, view, successMessage, successSelector, errorSelector) {
+async function handleFormSubmit(form, app, view, successMessage, successSelector) {
     const formData = new FormData(form);
     try {
         const response = await requestPost(app, view, formData);
@@ -21,15 +21,17 @@ async function handleFormSubmit(form, app, view, successMessage, successSelector
             if (successSelector === '#change-avatar-success') {
                 await handleNavbar(); 
             }
+            else if (successSelector === '#change-username-success') {
+                await handleLogout();
+            }
             navigateTo('/account')
            
         } else {
-            const errors = response.errors || response.error || 'Une erreur est survenue.';
-            displayErrorMessage(errorSelector, errors);
+            showStatusMessage(response.message, "error");
         }
     } catch (error) {
         console.error(`Erreur lors de la requête vers ${app}/${view}:`, error);
-        displayErrorMessage(errorSelector, 'Erreur réseau ou serveur.');
+        showStatusMessage(response.message, "error");
     }
 }
 
@@ -42,14 +44,15 @@ export function initializeaccountsManagementFormHandlers() {
 
                 switch (form.id) {
                     case 'change-username-form':
-                        await handleFormSubmit(form, 'accounts', 'profile/update', 'Pseudo mis à jour!', '#change-username-success', '#change-username-error');
-                        await handleLogout();
+                        await handleFormSubmit(form, 'accounts', 'profile/update', 'Pseudo mis à jour!', '#change-username-success');
                         break;
                     case 'change-password-form':
-                        await handleFormSubmit(form, 'accounts', 'profile/change_password', 'Mot de passe mis à jour!', '#change-password-success', '#change-password-error');
+                        await handleFormSubmit(form, 'accounts', 'profile/change_password', 'Mot de passe mis à jour!', '#change-password-success');
                         break;
                     case 'change-avatar-form':
-                        await handleFormSubmit(form, 'accounts', 'profile/update_avatar', 'Avatar mis à jour!', '#change-avatar-success', '#change-avatar-error');
+                        await handleFormSubmit(form, 'accounts', 'profile/update_avatar', 'Avatar mis à jour!', '#change-avatar-success');
+                        break;
+                    case 'delete-account-form':
                         break;
                     default:
                         console.warn('Formulaire non reconnu:', form.id);

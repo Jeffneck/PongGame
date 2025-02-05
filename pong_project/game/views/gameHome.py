@@ -8,11 +8,13 @@ from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_http_methods
+from pong_project.decorators import login_required_json
 
 # ---- Configuration ----
 logger = logging.getLogger(__name__)
 
-@method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toute la classe
+@method_decorator(csrf_protect, name='dispatch')
+@method_decorator(login_required_json, name='dispatch')
 class GameHomeView(View):
     """
     Class-Based View (CBV) pour gérer la vue de jeu.

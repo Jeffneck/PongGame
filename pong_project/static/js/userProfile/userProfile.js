@@ -7,6 +7,11 @@ async function viewUserProfile() {
     try {
         const response = await requestGet('accounts', 'userProfile');
 
+        // Si la réponse est undefined, cela signifie que la redirection a déjà été déclenchée
+        if (!response) {
+            return false;
+        }
+
         if (response.status === 'success' && response.html) {
             console.log('Profil utilisateur chargé avec succès.');
             updateHtmlContent('#content', response.html);
@@ -51,12 +56,18 @@ async function initializeProfileEvents() {
 export async function handleViewProfile() {
     console.log('Chargement du profil utilisateur...');
 
+    let profileLoaded;
     try {
-        await viewUserProfile(); // Appel de la fonction principale pour charger le profil
+        profileLoaded = await viewUserProfile(); // Appel de la fonction principale pour charger le profil
     } catch (error) {
         console.error('Erreur lors du chargement du profil utilisateur dans viewUserProfile:', error);
         showStatusMessage('Erreur lors du chargement du profil utilisateur.', 'error');
         return; // Arrête l'exécution si le chargement échoue
+    }
+
+    // Si le profil n'a pas été chargé (par exemple, à cause d'une redirection), on arrête ici.
+    if (!profileLoaded) {
+        return;
     }
 
     try {
@@ -66,3 +77,4 @@ export async function handleViewProfile() {
         showStatusMessage('Erreur lors de l\'initialisation des événements du profil.', 'error');
     }
 }
+

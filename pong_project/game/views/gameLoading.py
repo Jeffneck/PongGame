@@ -7,11 +7,14 @@ from django.http import JsonResponse
 from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
+from pong_project.decorators import login_required_json
 
 # ---- Configuration ----
 logger = logging.getLogger(__name__)
 
-@method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toute la classe
+
+@method_decorator(csrf_protect, name='dispatch')
+@method_decorator(login_required_json, name='dispatch')
 class LoadingView(View):
     """
     Class-Based View (CBV) pour gérer l'écran de chargement.

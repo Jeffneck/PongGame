@@ -23,6 +23,8 @@ export function clearSessionAndUI(redirectUrl = '/') {
 
     // Redirection
     navigateTo(redirectUrl);
+    location.reload();
+    
 
     console.log(`Redirection vers ${redirectUrl}`);
 }

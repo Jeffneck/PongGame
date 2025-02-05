@@ -7,6 +7,7 @@ import {handleGameMenu} from './game/index.js';
 import { handleFriendProfile } from './friends/index.js';
 import { handleNavbar } from './navbar/loadNavbar.js';
 import { initializeNotFoundView } from './tools/errorPage.js';
+import { handleTournament } from './game/tournament.js'
 
 // Initialisation du routeur Navigo
 const router = new window.Navigo('/', { hash: false });
@@ -61,7 +62,11 @@ export function initializeRouter() {
         .on('/game-online', () => {
             console.log('Route: game-options');
             handleInviteGame();
-        
+        })
+        .on('/tournament', () => {
+            console.log('Route: tournament');
+            handleTournament();
+            router.resolve();
         })
         .on('/game-loading', () => {
             console.log('Route: game-options');

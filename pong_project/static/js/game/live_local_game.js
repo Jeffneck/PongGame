@@ -333,33 +333,110 @@ export function liveLocalGame(options) {
     }
 }
 
-function handleResize() {
-    const container = document.querySelector('.game-container');
-    if (!container) return;
 
-    const containerWidth = container.clientWidth;
-    const containerHeight = container.clientHeight;
-    const windowHeight = window.innerHeight; // Récupère la hauteur de l'écran
+function handleresizeTactile() {
+	// Dimensions internes du canvas (logique du jeu inchangée)
+	const ORIGINAL_WIDTH = 800;   // Utilisé pour la hauteur du terrain (après rotation)
+	const ORIGINAL_HEIGHT = 400;  // Utilisé pour la largeur du terrain (après rotation)
+	const margin = 20;            // Marge interne dans la game-container
+	const horizontalExtra = 2 * margin; // 40px au total
+	const baseControlHeight = 100; // Hauteur de base des boutons pour s = 1
+	
+	// Pour le calcul vertical total, on tient compte de :
+	// - La hauteur affichée du terrain : ORIGINAL_WIDTH * s + horizontalExtra
+	// - La hauteur du conteneur des boutons : baseControlHeight * s
+	// - Le padding vertical du conteneur principal (#livegame) : 20 top + 20 bottom = 40
+	// - Une marge fixe entre terrain et boutons : 5px
+	// Total vertical = (ORIGINAL_WIDTH * s + horizontalExtra) + (baseControlHeight * s) + 40 + 5 = 800*s + 40 + 100*s + 45 = 900*s + 85
+	const verticalExtra = 85;
+	
+	// Pour le calcul horizontal, nous utilisons la largeur disponible dans la colonne Bootstrap.
+	const parentCol = document.getElementById('game-col');
+	const availableWidth = parentCol ? parentCol.clientWidth : window.innerWidth;
+	
+	// Calcul de l'échelle horizontal : la largeur affichée du terrain sera ORIGINAL_HEIGHT * s + horizontalExtra,
+	// et on veut que cela tienne dans availableWidth.
+	const s_h = (availableWidth - horizontalExtra) / ORIGINAL_HEIGHT;
+	
+	// Calcul de l'échelle vertical : l'espace total requis verticalement est 900*s + 85, qui doit tenir dans window.innerHeight.
+	const s_v = (window.innerHeight - verticalExtra) / 900;
+	
+	// On prend le facteur le plus contraignant
+	const computedS = Math.min(s_h, s_v);
+	
+	// Calcul de l'échelle minimale pour que le terrain ait au moins 100px de largeur et 200px de hauteur.
+	// Largeur du terrain = ORIGINAL_HEIGHT * s + horizontalExtra  →  s_min_width = (100 - horizontalExtra) / ORIGINAL_HEIGHT
+	// Hauteur du terrain = ORIGINAL_WIDTH * s + horizontalExtra   →  s_min_height = (200 - horizontalExtra) / ORIGINAL_WIDTH
+	const sMinWidth = (100 - horizontalExtra) / ORIGINAL_HEIGHT;   // (100 - 40) / 400 = 60/400 = 0.15
+	const sMinHeight = (200 - horizontalExtra) / ORIGINAL_WIDTH;    // (200 - 40) / 800 = 160/800 = 0.2
+	const sMin = Math.max(sMinWidth, sMinHeight); // ici sMin = 0.2
+	
+	// On s'assure que l'échelle ne descend pas en dessous de sMin.
+	const s = Math.max(computedS, sMin);
+	
+	// Mise à jour des dimensions du game-container (terrain)
+	// Largeur affichée = ORIGINAL_HEIGHT * s + horizontalExtra
+	// Hauteur affichée = ORIGINAL_WIDTH * s + horizontalExtra
+	const gameContainer = document.querySelector('.game-container');
+	gameContainer.style.width = (ORIGINAL_HEIGHT * s + horizontalExtra) + "px"; // 400 * s + 40
+	gameContainer.style.height = (ORIGINAL_WIDTH * s + horizontalExtra) + "px";  // 800 * s + 40
+	
+	// Transformation du canvas pour le rendre vertical :
+	// 1. Translation de (margin, margin) pour le centrer dans le game-container.
+	// 2. Translation verticale de (ORIGINAL_WIDTH * s) pour ajuster le rendu après rotation.
+	// 3. Rotation de -90° et scaling par s.
+	const canvas = document.getElementById('gameCanvas');
+	canvas.style.transform =
+	  `translate(${margin}px, ${margin}px) translateY(${ORIGINAL_WIDTH * s}px) rotate(-90deg) scale(${s})`;
+	
+	// Mise à jour de la hauteur du conteneur des boutons (touch-controls) en fonction de l'échelle.
+	const controls = document.getElementById('left_player');
+	const controlHeight = baseControlHeight * s;
+	if (controls) {
+	  controls.style.height = controlHeight + "px";
+	}
+	
+	// Transmet l'échelle aux boutons via la variable CSS --btn-scale pour qu'ils se redimensionnent proportionnellement.
+	document.documentElement.style.setProperty('--btn-scale', s);
+  }
+  
+  window.addEventListener('resize', handleresizeTactile);
+  handleresizeTactile();
+  
+  
+  
 
-    // Calcul du scale basé sur la hauteur de l'écran
-    let scale = Math.min(containerWidth / ORIGINAL_WIDTH, windowHeight * 0.7 / ORIGINAL_HEIGHT);
+  
 
-    // Appliquer le scale sans dépasser la hauteur disponible
-    canvas.style.width = (ORIGINAL_WIDTH * scale) + 'px';
-    canvas.style.height = (ORIGINAL_HEIGHT * scale) + 'px';
 
-    // Garder la résolution nette
-    canvas.width = ORIGINAL_WIDTH;
-    canvas.height = ORIGINAL_HEIGHT;
+
+// function handleResize() {
+//     const container = document.querySelector('.game-container');
+//     if (!container) return;
+
+//     const containerWidth = container.clientWidth;
+//     const containerHeight = container.clientHeight;
+//     const windowHeight = window.innerHeight; // Récupère la hauteur de l'écran
+
+//     // Calcul du scale basé sur la hauteur de l'écran
+//     let scale = Math.min(containerWidth / ORIGINAL_WIDTH, windowHeight * 0.7 / ORIGINAL_HEIGHT);
+
+//     // Appliquer le scale sans dépasser la hauteur disponible
+//     canvas.style.width = (ORIGINAL_WIDTH * scale) + 'px';
+//     canvas.style.height = (ORIGINAL_HEIGHT * scale) + 'px';
+
+//     // Garder la résolution nette
+//     canvas.width = ORIGINAL_WIDTH;
+//     canvas.height = ORIGINAL_HEIGHT;
     
-    // Ajuster dynamiquement la hauteur de .game-container
-    container.style.height = Math.min(windowHeight * 0.8, containerWidth / 2) + 'px';
+//     // Ajuster dynamiquement la hauteur de .game-container
+//     container.style.height = Math.min(windowHeight * 0.8, containerWidth / 2) + 'px';
 
-    ctx.imageSmoothingEnabled = false;
-}
+//     ctx.imageSmoothingEnabled = false;
+// }
 
-window.addEventListener('resize', handleResize);
-handleResize(); // Appel initial
+// window.addEventListener('resize', handleResize);
+// handleResize(); // Appel initial
   
     // -- Configuration WebSocket
     const protocol = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
@@ -927,10 +1004,24 @@ handleResize(); // Appel initial
 
   
       // Scores
-      ctx.fillStyle = 'white';
-      ctx.font = "20px Arial";
-      ctx.fillText(`${gameState.score_left}`, 20, 30);
-      ctx.fillText(`${gameState.score_right}`, canvas.width - 40, 30);
+    //   ctx.fillStyle = 'white';
+    //   ctx.font = "20px Arial";
+    //   ctx.fillText(`${gameState.score_left}`, 20, 30);
+    //   ctx.fillText(`${gameState.score_right}`, canvas.width - 40, 30);
+	// Scores centrés avec noms d'utilisateurs
+	const leftUsername = "{{ username_left }}";   // Django injectera le nom de l'utilisateur gauche
+	const rightUsername = "{{ username_right }}"; // Django injectera le nom de l'utilisateur droit
+	ctx.fillStyle = 'white';
+	ctx.font = "20px Arial";
+	ctx.textAlign = "center";  // Centrage horizontal du texte
+	ctx.fillText(
+		`${leftUsername} ${gameState.score_left} - ${gameState.score_right} ${rightUsername}`,
+		canvas.width / 2,  // Positionné au centre horizontalement
+		30               // Position verticale (vous pouvez ajuster si besoin)
+	);
+	// Remise à zéro de l'alignement si nécessaire pour d'autres textes
+	ctx.textAlign = "left";
+
   
       // Affichage des noms de power-up actifs
       const powerupNames = {

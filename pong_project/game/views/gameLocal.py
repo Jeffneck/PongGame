@@ -38,8 +38,8 @@ class CreateGameLocalView(View):
         session = GameSession.objects.create(status='waiting', is_online=False)
         logger.debug(session)
         # Assignation des noms des joueurs pour la partie locale (voir lacalGameForm dans form.py pour utiliser un formulaire plutot que des valeurs par defaut)
-        player_left_local = "p1_left" # IMPROVE on pourrait utiliser un formulaire pour recuperer cette information
-        player_right_local = "p2_right" # IMPROVE on pourrait utiliser un formulaire pour recuperer cette information
+        player_left_local = "PLAYER 1"
+        player_right_local = "PLAYER 2" 
 
         # Vérifier si les noms des joueurs sont fournis
         if player_left_local:

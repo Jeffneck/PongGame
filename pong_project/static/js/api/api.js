@@ -176,14 +176,17 @@ const Api = {
       return response.json();
     } else if (!response.ok && contentType && contentType.includes('application/json'))
     {
+
         if (response.status === 302) {
             console.warn('Redirection détectée :', response.url);
             navigateTo(response.url);
             return; // On ne retourne pas de donnée
           }
+          console.log("response", response);
         const errorData = await response.json();
         throw new HTTPError(errorData.message || 'Erreur inconnue.', response.status);
     } else {
+      console.log("response", response);
       throw new HTTPError('Réponse inattendue.', response.status);
     }
   },

@@ -18,7 +18,7 @@ from django.utils.timezone import now
 class CustomUser(AbstractUser):
     """Utilisateur personnalisé."""
     is_2fa_enabled = models.BooleanField(default=False)
-    totp_secret = models.CharField(max_length=32, null=True, blank=True)
+    totp_secret = models.CharField(max_length=32, null=True, blank=True) #TODO Attention null=True, blank=True ca veut dire que le champ peut etre vide
     friends = models.ManyToManyField('self', symmetrical=True, blank=True)
     avatar = models.ImageField(
         upload_to='avatars/',

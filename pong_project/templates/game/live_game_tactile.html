@@ -14,9 +14,9 @@
 		  <button id="startGameBtn" class="starting-btn">PLAY</button>
 		</div>
 		<!-- Boutons de contrôle -->
-		<div id="left_player" class="touch-controls">
-		  <button class="control-btn">&#x25C0;</button>  <!-- Flèche gauche -->
-		  <button class="control-btn">&#x25B6;</button>  <!-- Flèche droite -->
+		<div class="touch-controls">
+		  <button id="touch1" class="control-btn" >&#x25C0;</button>  <!-- Flèche gauche -->
+		  <button id="touch2" class="control-btn" >&#x25B6;</button>  <!-- Flèche droite -->
 		</div>
 	  </div>
 	</div>
@@ -164,5 +164,11 @@ body, html {
 .player-name.left, .player-name.right{
 		color: rgba(45, 180, 243, 1);  /* Par exemple, rouge pour le joueur de gauche */
 	}
+
+  .touch-controls button {
+  pointer-events: auto;
+  z-index: 9999;
+  background: red; /* pour voir s'ils s'affichent */
+}
 	
   </style>

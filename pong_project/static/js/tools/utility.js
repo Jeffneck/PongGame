@@ -3,8 +3,13 @@
 
 
 export function isTouchDevice() {
-    return 'ontouchstart' in window || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0;
+  return Boolean(
+    ('ontouchstart' in window) || 
+    (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) || 
+    (navigator.msMaxTouchPoints && navigator.msMaxTouchPoints > 0)
+  );
 }
+  
 
 export function resetScrollPosition() {
     // document.scrollingElement est supporté par la majorité des navigateurs modernes.

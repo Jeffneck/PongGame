@@ -11,60 +11,90 @@ from .broadcast import notify_paddle_collision, notify_border_collision, notify_
 
 MIN_SPEED = 1.0
 
+# async def handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right, ball):
+#     """
+#     Gère le fait qu'on marque un point ou qu'on ait juste un rebond sur la raquette.
+#     Retourne 'score_left', 'score_right' ou None si on continue le jeu.
+#     """
+    
+#     # 1) Vérifier si la balle sort à gauche => point pour la droite
+#     if ball.x - ball.size <= paddle_left.x + paddle_left.width:
+#     # if ball.x - ball.size  <= paddle_left.x:
+#         # Soit on a collision, soit c'est un but
+#         if paddle_left.y <= ball.y <= paddle_left.y + paddle_left.height:
+#             # Collision raquette gauche
+#             # Vérifier sticky
+#             is_sticky = bool(get_key(game_id, "paddle_left_sticky") or 0)
+#             if is_sticky : 
+#                 is_already_stuck = bool(get_key(game_id, "ball_stuck") or 0)
+#                 if not is_already_stuck:
+#                     # On "colle" la balle
+#                     stick_ball_to_paddle(game_id, 'left', paddle_left, ball)
+#                     # set_key(game_id, "paddle_left_already_stuck", 1)
+#                 return None
+#             else:
+
+#                 # Rebond classique
+#                 ball.last_player = 'left'
+#                 await process_paddle_collision(game_id, 'left', paddle_left, ball)
+#                 return None
+#         else:
+#             # Balle sortie côté gauche => score pour la droite
+#             return 'score_right'
+
+#     # 2) Vérifier si la balle sort à droite => point pour la gauche
+#     if ball.x + ball.size >= paddle_right.x - paddle_right.width :
+#     # if ball.x  >= paddle_right.x:
+#         if paddle_right.y <= ball.y <= paddle_right.y + paddle_right.height:
+#             # Collision raquette droite
+#             is_sticky = bool(get_key(game_id, "paddle_right_sticky") or 0)
+#             if is_sticky:
+#                 is_already_stuck = bool(get_key(game_id, "ball_stuck") or 0)
+#                 if not is_already_stuck:
+#                     # On "colle" la balle
+#                     stick_ball_to_paddle(game_id, 'right', paddle_right, ball)
+#                     # set_key(game_id, "paddle_right_already_stuck", 1)
+#                 return None
+#             else:
+#                 ball.last_player = 'right'
+#                 await process_paddle_collision(game_id, 'right', paddle_right, ball)
+#                 return None
+#         else:
+#             return 'score_left'
+
+#     return None
+
 async def handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right, ball):
     """
     Gère le fait qu'on marque un point ou qu'on ait juste un rebond sur la raquette.
     Retourne 'score_left', 'score_right' ou None si on continue le jeu.
     """
+    # 1) Vérifier si la balle est passée suffisamment pour être considérée comme un but
+    # Ici, on utilise le centre de la balle (ball.x) pour déterminer le score.
+    if ball.x + ball.size <= paddle_left.x + paddle_left.width and not (paddle_left.y <= ball.y <= paddle_left.y + paddle_left.height):
+        return 'score_right'
+    if ball.x - ball.size >= paddle_right.x - paddle_right.width and not (paddle_right.y <= ball.y <= paddle_right.y + paddle_right.height):
+        return 'score_left'
     
-    # 1) Vérifier si la balle sort à gauche => point pour la droite
-    if ball.x - ball.size <= paddle_left.x + paddle_left.width:
-    # if ball.x - ball.size  <= paddle_left.x:
-        # Soit on a collision, soit c'est un but
+    # 2) Vérifier la collision avec la raquette gauche
+    # Ici, on détecte la collision dès que le bord gauche de la balle touche la raquette.
+    if ball.speed_x < 0 and (ball.x - ball.size) <= (paddle_left.x + paddle_left.width):
         if paddle_left.y <= ball.y <= paddle_left.y + paddle_left.height:
-            # Collision raquette gauche
-            # Vérifier sticky
-            is_sticky = bool(get_key(game_id, "paddle_left_sticky") or 0)
-            if is_sticky : 
-                is_already_stuck = bool(get_key(game_id, "ball_stuck") or 0)
-                if not is_already_stuck:
-                    # On "colle" la balle
-                    stick_ball_to_paddle(game_id, 'left', paddle_left, ball)
-                    # set_key(game_id, "paddle_left_already_stuck", 1)
-                return None
-            else:
+            # Si la balle touche la raquette, réaligner la balle sur le bord de la raquette
+            ball.x = paddle_left.x + paddle_left.width + ball.size
+            await process_paddle_collision(game_id, 'left', paddle_left, ball)
+            return None
 
-                # Rebond classique
-                ball.last_player = 'left'
-                await process_paddle_collision(game_id, 'left', paddle_left, ball)
-                return None
-        else:
-            # Balle sortie côté gauche => score pour la droite
-            return 'score_right'
-
-    # 2) Vérifier si la balle sort à droite => point pour la gauche
-    if ball.x + ball.size >= paddle_right.x - paddle_right.width :
-    # if ball.x  >= paddle_right.x:
+    # 3) Vérifier la collision avec la raquette droite
+    # Ici, on détecte la collision dès que le bord droit de la balle touche la raquette.
+    if ball.speed_x > 0 and (ball.x + ball.size) >= (paddle_right.x - paddle_right.width):
         if paddle_right.y <= ball.y <= paddle_right.y + paddle_right.height:
-            # Collision raquette droite
-            is_sticky = bool(get_key(game_id, "paddle_right_sticky") or 0)
-            if is_sticky:
-                is_already_stuck = bool(get_key(game_id, "ball_stuck") or 0)
-                if not is_already_stuck:
-                    # On "colle" la balle
-                    stick_ball_to_paddle(game_id, 'right', paddle_right, ball)
-                    # set_key(game_id, "paddle_right_already_stuck", 1)
-                return None
-            else:
-                ball.last_player = 'right'
-                await process_paddle_collision(game_id, 'right', paddle_right, ball)
-                return None
-        else:
-            return 'score_left'
+            # Réaligner la balle sur le bord de la raquette
+            ball.x = paddle_right.x - paddle_right.width - ball.size
+            await process_paddle_collision(game_id, 'right', paddle_right, ball)
+            return None
 
     return None
-
-
 
 #ball
 async def process_paddle_collision(game_id, paddle_side, current_paddle, ball):

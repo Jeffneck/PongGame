@@ -93,5 +93,13 @@ export function initializeRouter() {
  */
 export function navigateTo(route) {
     console.log(`Navigation vers ${route}`);
+
+    //fermer le socket si une session de jeu est en cours 
+    if (window.currentGameSocket && window.currentGameSocket.readyState === WebSocket.OPEN) {
+        console.log('Fermeture de la WebSocket en cours...');
+        window.currentGameSocket.close();
+    }
+    window.currentGameSocket = null;
+
     router.navigate(route);
 }

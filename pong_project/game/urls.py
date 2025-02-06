@@ -34,6 +34,7 @@ from .views.gameMenu import GameMenuView
 from .views.gameLoading import LoadingView
 from .views.gameLocal import StartLocalGameView, CreateGameLocalView
 from .views.gameResults import GameResultsView 
+from .views.gameStatus import GetGameStatusView 
 from .views.gameOnline import CreateGameOnlineView, SendGameSessionInvitationView, AcceptGameInvitationView, RejectGameInvitationView, CleanExpiredInvitationsView, CheckGameInvitationStatusView, StartOnlineGameView, JoinOnlineGameAsLeftView, JoinOnlineGameAsRightView
 from .views.gameTournament import CreateTournamentView, CreateTournamentGameSessionView, StartTournamentGameSessionView, TournamentBracketView, TournamentNextGameView
 import logging
@@ -89,4 +90,5 @@ urlpatterns = [
 
     # See game results
     path('game_results/<uuid:game_id>/', GameResultsView.as_view(), name='get_local_results'),
+    path('get_game_status/<uuid:game_id>/', GetGameStatusView.as_view(), name='get_game_status'),
 ]

@@ -422,12 +422,16 @@ function initLiveGame(config) {
   
     // 4) Initialiser WebSocket
     const socket = new WebSocket(config.wsUrl);
+    // stocker le socket pour pouvoir le disconnect en cas de changement de page dans la spa
+    window.currentGameSocket = socket;
     
     socket.onopen = () => {
       console.log("[live_game_utils] WebSocket connection opened:", config.wsUrl);
     };
     socket.onclose = () => {
-      console.log("[live_game_utils] WebSocket connection closed.");
+      console.log("[live_game_utils] WebSocket closed (maybe user left the page).");
+      // Si ce n’est pas un "game_over", on résout quand même la promesse
+      resolve(); 
     };
   
     // 5) Gérer l'état du jeu local

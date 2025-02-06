@@ -5,6 +5,7 @@ import time
 import math
 import random
 import asyncio
+from game.tasks import register_subtask
 
 BALL_MIN_SPEED = 1
 BALL_MAX_SPEED = 20
@@ -40,14 +41,24 @@ def reset_ball(game_id, ball):
     update_ball_redis(game_id, ball)
     print(f"[game_loop.py] Ball reset to ({ball.x}, {ball.y}) with speed (0, 0)")
     # Lancer une tâche asynchrone qui, après 1 seconde, démarre la balle
-    import asyncio  # S'assurer que asyncio est importé
-    asyncio.create_task(start_ball_after_delay(game_id, ball))
+    # Lancer une tâche asynchrone qui, après 1 seconde, démarre la balle
+    subtask = asyncio.create_task(start_ball_after_delay(game_id, ball))
+    register_subtask(game_id, subtask)  
     
 async def start_ball_after_delay(game_id, ball):
-    await asyncio.sleep(1)  # Attendre 1 seconde
+    """
+    Coroutine asynchrone qui attend 1s avant de démarrer la balle.
+    On gère CancelledError pour sortir proprement si le jeu est stoppé avant.
+    """
+    try:
+        await asyncio.sleep(1)
+    except asyncio.CancelledError:
+        print(f"[start_ball_after_delay] => CANCELLED for game_id={game_id}")
+        return
+
     # Ici, vous pouvez définir les vitesses de départ souhaitées
-    speed_multiplier = float(get_key(game_id, "initial_ball_speed_multiplier"))
-    initial_speed_x = random.choice([-3, 3]) * speed_multiplier  # Base speed * multiplier / modified
+    speed_multiplier = float(get_key(game_id, "initial_ball_speed_multiplier") or 1.0)
+    initial_speed_x = random.choice([-3, 3]) * speed_multiplier
     initial_speed_y = random.choice([-3, 3]) * speed_multiplier
     ball.speed_x = initial_speed_x
     ball.speed_y = initial_speed_y
@@ -143,7 +154,6 @@ def manage_ball_speed_and_angle(game_id, current_paddle, paddle_side, ball):
     ball_already_boosted = get_key(game_id, "ball_speed_already_boosted")
     ball_speed_boosted = get_key(game_id, "ball_speed_boosted")
     if ball_already_boosted and ball_already_boosted.decode('utf-8') == '1':
-        print("SPEED KILL")
         ball.speed_x = float(get_key(game_id, "ball_speed_x_before_boost") or BALL_MIN_SPEED)
         ball.speed_y = float(get_key(game_id, "ball_speed_y_before_boost") or BALL_MIN_SPEED)
         delete_key(game_id, "ball_speed_x_before_boost")
@@ -151,7 +161,6 @@ def manage_ball_speed_and_angle(game_id, current_paddle, paddle_side, ball):
         delete_key(game_id, "ball_speed_already_boosted")
     
     if ball_speed_boosted and ball_speed_boosted.decode('utf-8') == '1':
-        print("SPEED BOOST")
         set_key(game_id, "ball_speed_x_before_boost", ball.speed_x)
         set_key(game_id, "ball_speed_y_before_boost", ball.speed_y)
         set_key(game_id, "ball_speed_already_boosted", 1)
@@ -162,7 +171,6 @@ def manage_ball_speed_and_angle(game_id, current_paddle, paddle_side, ball):
     
     #calculer la vitesse de renvoi de la balle
     new_speed = max(BALL_MIN_SPEED, min(BALL_MAX_SPEED, tmp_speed)) 
-    print(f"ball new speed = {new_speed}")
 
     # calculer l'angle de renvoi de la balle
     relative_y = (ball.y - (current_paddle.y + current_paddle.height / 2)) / (current_paddle.height / 2)

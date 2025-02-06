@@ -5,6 +5,9 @@ import redis
 from django.conf import settings
 from channels.generic.websocket import AsyncWebsocketConsumer
 from uuid import UUID
+# from asgiref.sync import sync_to_async
+from game.tasks import stop_game
+# from game.models import GameSession
 
 # from .game_loop.redis_utils import get_key
 
@@ -23,9 +26,31 @@ class PongConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         print(f"[PongConsumer] WebSocket connected for game_id={self.game_id}")
 
+
+    # async def disconnect(self, close_code):
+    #     await self.channel_layer.group_discard(self.group_name, self.channel_name)
+    #     print(f"[PongConsumer] WebSocket disconnected for game_id={self.game_id}")
     async def disconnect(self, close_code):
+        # Si vous décidez de tout annuler dès la première déconnexion :
+        print(f"[PongConsumer] => disconnect => stop_game({self.game_id})")
+        await stop_game(self.game_id)  # Annule la task asyncio côté server
+
+        # Optionnel: marquer la session en "cancelled" en base
+        # await self.set_session_cancelled(self.game_id)
+
         await self.channel_layer.group_discard(self.group_name, self.channel_name)
-        print(f"[PongConsumer] WebSocket disconnected for game_id={self.game_id}")
+
+
+    # async def set_session_cancelled(self, game_id):
+    #     try:
+    #         session = await sync_to_async(GameSession.objects.get)(pk=game_id)
+    #         # Ne surécrivez le statut que si la partie n’est pas déjà finie
+    #         if session.status not in ('finished','cancelled'):
+    #             session.status = 'cancelled'
+    #             await sync_to_async(session.save)()
+    #     except GameSession.DoesNotExist:
+    #         pass
+    
 
     async def receive(self, text_data=None, bytes_data=None):
         data = json.loads(text_data)

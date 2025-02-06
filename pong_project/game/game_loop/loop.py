@@ -4,7 +4,6 @@ import asyncio
 import time
 from django.conf import settings
 from channels.layers import get_channel_layer
-# from asgiref.sync import sync_to_async
 
 from .redis_utils import get_key
 from .models_utils import get_gameSession_status, get_gameSession, is_online_gameSession, get_gameSession_parameters, set_gameSession_status
@@ -79,61 +78,72 @@ async def game_loop(game_id):
         
         # 2) Lancer la boucle ~90fps 
         while True:
-            # Vérifier si la partie est encore 'running' ou si on l'a terminée
-            session_status = await get_gameSession_status(game_id)
-            if session_status != 'running':
-                print(f"[game_loop] game_id={game_id} => statut={session_status}. Fin de la boucle.")
-                break
-
-            current_time = time.time()
-
-            # 2.1 - Mouvements
-            move_paddles(game_id, paddle_left, paddle_right)
-
-            #creer fonction is_sticky dans powerup utils ou ball utils
-            stuck_flag = get_key(game_id, "ball_stuck")
-            if stuck_flag and stuck_flag.decode('utf-8') == '1':
-                move_ball_sticky(game_id, paddle_left, paddle_right, ball)
-            else :
-                move_ball(game_id, ball)
-            # print(f"1")#debug
-            # 2.2 - Collisions
-            await handle_border_collisions(game_id, ball)
-            await handle_bumper_collision(game_id, ball, bumpers)
-            await handle_powerup_collision(game_id, ball, powerup_orbs)
-            # print(f"2")#debug
-
-            # 2.3 - Paddles / Score
-            scorer = await handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right, ball)
-            if scorer in ['score_left', 'score_right']:
-                handle_score(game_id, scorer)
-
-                # Vérifier si on a un gagnant
-                if winner_detected(game_id):
-                    await finish_game(game_id)
+            
+            try :
+                # Vérifier si la partie est encore 'running' ou si on l'a terminée
+                session_status = await get_gameSession_status(game_id)
+                if session_status != 'running':
+                    print(f"[game_loop] game_id={game_id} => statut={session_status}. Fin de la boucle.")
                     break
-                else:
-                    # Sinon reset de la balle
-                    reset_ball(game_id, ball)
 
-            # print(f"3")#debug
-            # 2.4 - Powerups & Bumpers
-            if parameters.bonus_enabled:
-                await handle_powerups_spawn(game_id, powerup_orbs, current_time)
-                await handle_powerup_expiration(game_id, powerup_orbs)
+                current_time = time.time()
 
-            if parameters.obstacles_enabled:
-                await handle_bumpers_spawn(game_id, bumpers, current_time)
-                await handle_bumper_expiration(game_id, bumpers)
-            # print(f"4")#debug
+                # 2.1 - Mouvements
+                move_paddles(game_id, paddle_left, paddle_right)
 
-            # 2.5 - Broadcast de l'état
-            await broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right, ball, powerup_orbs, bumpers)
+                #creer fonction is_sticky dans powerup utils ou ball utils
+                stuck_flag = get_key(game_id, "ball_stuck")
+                if stuck_flag and stuck_flag.decode('utf-8') == '1':
+                    move_ball_sticky(game_id, paddle_left, paddle_right, ball)
+                else :
+                    move_ball(game_id, ball)
+                # print(f"1")#debug
+                # 2.2 - Collisions
+                await handle_border_collisions(game_id, ball)
+                await handle_bumper_collision(game_id, ball, bumpers)
+                await handle_powerup_collision(game_id, ball, powerup_orbs)
+                # print(f"2")#debug
 
-            # print(f"5")#debug
-            # 2.6 - Attendre ~16ms
-            await asyncio.sleep(dt)
+                # 2.3 - Paddles / Score
+                scorer = await handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right, ball)
+                if scorer in ['score_left', 'score_right']:
+                    handle_score(game_id, scorer)
 
+                    # Vérifier si on a un gagnant
+                    if winner_detected(game_id):
+                        await finish_game(game_id)
+                        break
+                    else:
+                        # Sinon reset de la balle
+                        reset_ball(game_id, ball)
+
+                # print(f"3")#debug
+                # 2.4 - Powerups & Bumpers
+                if parameters.bonus_enabled:
+                    await handle_powerups_spawn(game_id, powerup_orbs, current_time)
+                    await handle_powerup_expiration(game_id, powerup_orbs)
+
+                if parameters.obstacles_enabled:
+                    await handle_bumpers_spawn(game_id, bumpers, current_time)
+                    await handle_bumper_expiration(game_id, bumpers)
+                # print(f"4")#debug
+
+                # 2.5 - Broadcast de l'état
+                await broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right, ball, powerup_orbs, bumpers)
+
+                # print(f"5")#debug
+                # 2.6 - Attendre ~16ms
+                await asyncio.sleep(dt)
+            except asyncio.CancelledError:
+                await set_gameSession_status(game_id, "cancelled")
+                return
+
+    except asyncio.CancelledError:
+        print(f"[game_loop] => CANCELLED => on arrête la game {game_id}")
+        # Vous pouvez forcer le statut "cancelled" si ce n’est pas déjà fait
+        await set_gameSession_status(game_id, "cancelled")
+        return  # On sort de la fonction
+    
     except Exception as e:
         print(f"[game_loop] Exception pour game_id={game_id} : {e}")
 

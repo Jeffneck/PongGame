@@ -5,6 +5,8 @@ from .broadcast import notify_powerup_applied, notify_powerup_spawned, notify_po
 import asyncio
 import math
 import random
+from game.tasks import register_subtask
+
 
 MAX_ACTIVE_POWERUPS = 2
 SPAWN_INTERVAL_POWERUPS = 7
@@ -50,7 +52,8 @@ async def spawn_powerup(game_id, powerup_orb, terrain_rect):
 async def apply_powerup(game_id, player, powerup_orb):
     print(f"[powerups.py] Applying power-up {powerup_orb.effect_type} to {player}")
     # Create task for handling effect duration
-    asyncio.create_task(handle_powerup_duration(game_id, player, powerup_orb))
+    subtask = asyncio.create_task(handle_powerup_duration(game_id, player, powerup_orb))
+    register_subtask(game_id, subtask)
     print(f"[game_loop.py] Creating duration task for {powerup_orb.effect_type}")
     delete_powerup_redis(game_id, powerup_orb)
     await notify_powerup_applied(game_id, player, powerup_orb.effect_type, DURATION_EFFECT_POWERUPS)
@@ -70,7 +73,13 @@ async def handle_powerup_duration(game_id, player, powerup_orb):
     print("handle_powerup_duration")
     if effect_type == 'flash':
         set_key(game_id, f"flash_effect", 1)
-        await asyncio.sleep(0.3) # Flash lasts 300ms
+        try:
+            await asyncio.sleep(0.3)
+        except asyncio.CancelledError:
+            print(f"[flash effect] => CANCELLED for game_id={game_id}")
+            return
+        #await asyncio.sleep(0.3) # Flash lasts 300ms
+
         delete_key(game_id, f"flash_effect")
 
     elif effect_type == 'shrink':
@@ -90,7 +99,10 @@ async def handle_powerup_duration(game_id, player, powerup_orb):
         print(f"[game_loop.py] New height set to: {new_height}")  # Debug log
         
         # Wait for duration
-        await asyncio.sleep(effect_duration)
+        try:
+            await asyncio.sleep(effect_duration)
+        except asyncio.CancelledError:
+            return
     
         # Restore original height
         original_height = float(get_key(game_id, f"paddle_{opponent}_original_height") or 60)
@@ -103,7 +115,10 @@ async def handle_powerup_duration(game_id, player, powerup_orb):
         set_key(game_id, f"paddle_{player}_speed_boost", 1)  # Flag for speed boost
         print(f"[game_loop.py] Speed boost applied to {player} paddle")
         
-        await asyncio.sleep(effect_duration)
+        try:
+            await asyncio.sleep(effect_duration)
+        except asyncio.CancelledError:
+            return
         
         # Remove speed boost
         delete_key(game_id, f"paddle_{player}_speed_boost")
@@ -112,18 +127,27 @@ async def handle_powerup_duration(game_id, player, powerup_orb):
     elif effect_type == 'ice':
         opponent = 'left' if player == 'right' else 'right'
         set_key(game_id, f"paddle_{opponent}_ice_effect", 1)
-        await asyncio.sleep(effect_duration)
+        try:
+            await asyncio.sleep(effect_duration)
+        except asyncio.CancelledError:
+            return
         delete_key(game_id, f"paddle_{opponent}_ice_effect")
 
     elif effect_type == 'sticky':
         set_key(game_id, f"paddle_{player}_sticky", 1)
-        await asyncio.sleep(effect_duration)
+        try:
+            await asyncio.sleep(effect_duration)
+        except asyncio.CancelledError:
+            return
         delete_key(game_id, f"paddle_{player}_sticky")
 
     elif effect_type == 'invert':
         opponent = 'left' if player == 'right' else 'right'
         set_key(game_id, f"paddle_{opponent}_inverted", 1)
-        await asyncio.sleep(effect_duration)
+        try:
+            await asyncio.sleep(effect_duration)
+        except asyncio.CancelledError:
+            return
         delete_key(game_id, f"paddle_{opponent}_inverted")
     print("END handle_powerup_duration")
 

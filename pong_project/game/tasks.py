@@ -65,6 +65,13 @@ def register_subtask(game_id, subtask):
         SUBTASKS[str(game_id)] = set()
     SUBTASKS[str(game_id)].add(subtask)
 
+     # Option : cleanup dès que la tâche est terminée
+    def _on_done(_):
+        if game_id in SUBTASKS:
+            SUBTASKS[str(game_id)].discard(subtask)
+
+    subtask.add_done_callback(_on_done)
+
 async def stop_game(game_id):
     """Annule la tâche principale ET toutes les sous-tâches associées."""
     await set_gameSession_status(game_id, "cancelled")
@@ -72,8 +79,14 @@ async def stop_game(game_id):
     if main_task:
         main_task.cancel()
         print(f"[stop_game] Annulation de la tâche principale pour game_id={game_id}")
-    # Annuler toutes les sous-tâches
-    subtasks = SUBTASKS.get(str(game_id), [])
-    for st in subtasks:
+    # # Annuler toutes les sous-tâches
+    # subtasks = SUBTASKS.get(str(game_id), [])
+    # for st in subtasks:
+    #     st.cancel()
+    # Annule toutes les sous-tâches
+    for st in SUBTASKS.get(str(game_id), []):
         st.cancel()
-    print(f"[stop_game] {len(subtasks)} sous-tâches annulées pour game_id={game_id}")
+
+    SUBTASKS.pop(str(game_id), None)
+    ACTIVE_GAMES.pop(str(game_id), None)
+    #print(f"[stop_game] {len(subtasks)} sous-tâches annulées pour game_id={game_id}")

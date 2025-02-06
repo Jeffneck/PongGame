@@ -67,8 +67,9 @@ export function initializeRouter() {
             console.log('Route: tournament');
             handleTournament();
         })
+        //improve : ne faut il pas changer le nom en game-option ?
         .on('/game-loading', () => {
-            console.log('Route: game-options');
+            console.log('Route: game-loading');
             startLoading();
         })
         .on('/profile/:friendUsername', ({ data }) => {

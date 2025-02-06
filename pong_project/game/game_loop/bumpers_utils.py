@@ -6,8 +6,8 @@ from .dimensions_utils import get_terrain_rect
 from .broadcast import notify_bumper_spawned, notify_bumper_expired
 import random
 
-MAX_ACTIVE_BUMPERS = 3
-SPAWN_INTERVAL_BUMPERS = 7
+MAX_ACTIVE_BUMPERS = 2
+SPAWN_INTERVAL_BUMPERS = 10
 # -------------- BUMPERS --------------------
 async def handle_bumpers_spawn(game_id, bumpers, current_time):
     # Initialisation de last_bumper_spawn_time si elle n'est pas déjà définie

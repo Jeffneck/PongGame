@@ -21,11 +21,33 @@ async function removeFriend(friendName) {
     }
 }
 
+// export async function handleRemoveFriend(friendName) {
+//     console.log(`Gestionnaire: handleRemoveFriend - Suppression de l'ami : ${friendName}`);
+//     try {
+//         const response = await removeFriend(friendName);
+//         document.querySelector(`.friend-btn:contains('${friendName}')`)?.closest('.friend-item')?.remove();
+//         showStatusMessage(response.message || 'Ami supprimé avec succès.', 'success');
+//     } catch (error) {
+//         const errorMessage = error?.message || 'Une erreur est survenue lors de la suppression de l\'ami.';
+//         console.error('Erreur dans handleRemoveFriend:', error);
+//         showStatusMessage(errorMessage, 'error');
+//     }
+// }
 export async function handleRemoveFriend(friendName) {
     console.log(`Gestionnaire: handleRemoveFriend - Suppression de l'ami : ${friendName}`);
     try {
         const response = await removeFriend(friendName);
-        document.querySelector(`.friend-btn:contains('${friendName}')`)?.closest('.friend-item')?.remove();
+        
+        // Select all elements with class '.friend-btn'
+        const friendButtons = document.querySelectorAll('.friend-btn');
+        
+        // Loop through each friend button to find and remove the correct one
+        friendButtons.forEach(button => {
+            if (button.textContent.includes(friendName)) {
+                button.closest('.friend-item').remove();
+            }
+        });
+        
         showStatusMessage(response.message || 'Ami supprimé avec succès.', 'success');
     } catch (error) {
         const errorMessage = error?.message || 'Une erreur est survenue lors de la suppression de l\'ami.';

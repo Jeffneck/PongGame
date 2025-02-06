@@ -1,5 +1,5 @@
 import { requestPost } from '../../api/index.js';
-import {showStatusMessage} from '../../tools/index.js';
+import { showStatusMessage } from '../../tools/index.js';
 
 async function addFriend(friendUsername) {
     console.log('addFriend:', friendUsername);
@@ -25,8 +25,10 @@ export async function handleAddFriend(e) {
     e.preventDefault();
     console.log('Gestionnaire: handleAddFriend - Ajout d\'un ami');
     const friendUsernameInput = document.querySelector('#friend-username');
-    if (!friendUsernameInput) {
-        showStatusMessage('Champ utilisateur introuvable.', 'error');
+    const addFriendButton = document.querySelector('#add-friend-button'); // Sélectionnez le bouton d'ajout d'ami
+
+    if (!friendUsernameInput || !addFriendButton) {
+        showStatusMessage('Champ utilisateur ou bouton introuvable.', 'error');
         return;
     }
 
@@ -40,12 +42,14 @@ export async function handleAddFriend(e) {
     console.log('Gestionnaire: handleAddFriend - Ajout d\'un ami:', friendUsername);
 
     try {
+        addFriendButton.disabled = true; // Désactivez le bouton pendant la soumission
         await addFriend(friendUsername);
         showStatusMessage('Demande d\'ami envoyée avec succès.', 'success');
     } catch (error) {
         const errorMessage = error?.message || 'Une erreur inattendue est survenue.';
         console.error('Erreur dans handleAddFriend:', error);
         showStatusMessage(errorMessage, 'error');
+    } finally {
+        addFriendButton.disabled = false; // Réactivez le bouton après la soumission
     }
 }
-    

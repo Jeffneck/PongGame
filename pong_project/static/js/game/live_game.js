@@ -308,13 +308,13 @@ function initLiveGame(config) {
     const ORIGINAL_HEIGHT = 400;
     let scale = 1;
 
-	    // Const for visual effects on notifications / added
+	    // Const for visual effects on notifications /
 		const collisionEffects = [];
 		const EFFECT_DURATION = 300;
 		const SPAWN_EFFECT_DURATION = 500;
 		const EXPIRE_EFFECT_DURATION = 300;
 	  
-		// spawn visual effect / added
+		// spawn visual effect 
 		function createSpawnEffect(type, x, y, effectType, color) {
 		  const effect = {
 			  type,
@@ -335,7 +335,7 @@ function initLiveGame(config) {
 		  }, type.includes('spawn') ? SPAWN_EFFECT_DURATION : EXPIRE_EFFECT_DURATION);
 	  }
 	
-	  // collision visual effects / added
+	  // collision visual effects
 	  function createCollisionEffect(type, x, y, color) {
 		const effect = {
 			type,

@@ -49,7 +49,7 @@ def initialize_game_objects(game_id, parameters):
 
 
 #------------- INITIALIZE : UPDATE REDIS DATABASE WITH OBJECTS VALUES--------------
-def initialize_redis(game_id, paddle_left, paddle_right, ball):
+def initialize_redis(game_id, paddle_left, paddle_right, ball, parameters):
     # Positions initiales des raquettes
     set_key(game_id, "paddle_left_y", paddle_left.y)
     set_key(game_id, "paddle_right_y", paddle_right.y)
@@ -58,8 +58,18 @@ def initialize_redis(game_id, paddle_left, paddle_right, ball):
     set_key(game_id, "paddle_left_velocity", 0)
     set_key(game_id, "paddle_right_velocity", 0)
 
+    # Store initial paddle heights from parameters / added
+    initial_height = {1: 60, 2: 80, 3: 100}[parameters.paddle_size]
+    set_key(game_id, "initial_paddle_height", initial_height)
+    set_key(game_id, "paddle_left_height", initial_height)
+    set_key(game_id, "paddle_right_height", initial_height)
+
     # Balle
     set_key(game_id, "ball_x", ball.x)
     set_key(game_id, "ball_y", ball.y)
     set_key(game_id, "ball_vx", ball.speed_x)
     set_key(game_id, "ball_vy", ball.speed_y)
+
+    # Store initial ball speed multiplier from parameters / added
+    initial_speed = {1: 1, 2: 1.5, 3: 2}[parameters.ball_speed]
+    set_key(game_id, "initial_ball_speed_multiplier", initial_speed)

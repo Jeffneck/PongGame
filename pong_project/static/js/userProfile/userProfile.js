@@ -21,6 +21,7 @@ async function viewUserProfile() {
             showStatusMessage(message, 'error');
             throw new Error(message);
         }
+        return true;
     } catch (error) {
         console.error('Erreur réseau ou réponse lors du chargement du profil utilisateur:', error);
         showStatusMessage('Une erreur est survenue lors du chargement du profil utilisateur.', 'error');

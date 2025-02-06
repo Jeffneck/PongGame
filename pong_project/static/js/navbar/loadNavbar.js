@@ -1,21 +1,23 @@
+// loadnavbar.js
+
 import { toggleBurgerMenu } from './toggleBurgerMenu.js';
 import { requestGet } from '../api/index.js';
 import { updateHtmlContent, showStatusMessage } from '../tools/index.js';
+import { initBurgerMenuDelegation } from './delegation.js'; // Notre module de délégation
 import { eventsHandlerBurgerMenu } from '../burgerMenu/index.js';
-import { navigateTo } from '../router.js'; // Importer la fonction pour naviguer
+import { navigateTo } from '../router.js'; // Pour naviguer
 
 /**
- * Initialise le burger menu : attache les événements et configure le rechargement périodique.
+ * Initialise le burger menu : attache l'événement sur le bouton de toggle.
  */
-async function initializeBurgerMenu() {
+async function initializeBurgerMenu(flag) {
     const burgerToggle = document.querySelector('#burger-menu-toggle');
     if (burgerToggle && !burgerToggle.dataset.bound) {
-        burgerToggle.addEventListener('click', toggleBurgerMenu);
+        burgerToggle.addEventListener('click', () => toggleBurgerMenu(flag));
         burgerToggle.dataset.bound = true; // Marque comme attaché
         console.log('Événements du burger menu initialisés.');
     }
 }
-
 
 function handleHomeButtonClick(isAuthenticated) {
     if (isAuthenticated) {
@@ -33,20 +35,19 @@ function handleHomeButtonClick(isAuthenticated) {
 async function loadNavbar() {
     console.log('Début de loadNavbar');
     try {
-        // Faire une requête GET pour obtenir les données de la navbar
+        // Récupère les données de la navbar
         const data = await requestGet('core', 'navbar');
 
-        // Vérifie si les données HTML existent
         if (data && data.html) {
             // Met à jour le contenu HTML de la navbar
             updateHtmlContent('#navbar', data.html);
             console.log('Contenu de la navbar mis à jour.');
 
-            // Attache un gestionnaire d'événements au bouton "PONGAME"
+            // Attache l'événement au bouton "home"
             const homeButton = document.querySelector('#home-btn');
             if (homeButton && !homeButton.dataset.bound) {
                 homeButton.addEventListener('click', () => handleHomeButtonClick(data.is_authenticated));
-                homeButton.dataset.bound = true; // Évite d'attacher plusieurs fois
+                homeButton.dataset.bound = true;
             }
 
             return data.is_authenticated;
@@ -65,17 +66,35 @@ async function loadNavbar() {
 }
 
 /**
- * Gestionnaire pour charger et afficher la navbar.
- * Gère les erreurs et affiche des messages appropriés en cas de problème.
+ * Rafraîchit le contenu du burger menu.
  */
-
 export async function refreshBurgerMenu() {
     try {
-        const data = await requestGet('accounts', 'burgerMenu');
+        let menu = document.getElementById('burger-menu');
+        let overlay = document.getElementById('overlay');
 
+        if (!menu || !overlay) return;
+
+        const data = await requestGet('accounts', 'burgerMenu');
         if (data.status === 'success') {
-            // Remplacer le contenu du conteneur burger menu
-            updateHtmlContent('#burger-menu-container', data.html);
+            // Mise à jour du contenu du burger menu selon son état d'affichage
+            if (menu.style.display === 'block') {
+                updateHtmlContent('#burger-menu-container', data.html);
+                menu = document.getElementById('burger-menu');
+                overlay = document.getElementById('overlay');
+                menu.style.display = 'block';
+                overlay.style.display = 'block';
+            } else {
+                updateHtmlContent('#burger-menu-container', data.html);
+                menu = document.getElementById('burger-menu');
+                overlay = document.getElementById('overlay');
+                menu.style.display = 'none';
+                overlay.style.display = 'none';
+            }
+            // Réinitialise le burger menu (pour le bouton de toggle, etc.)
+            initializeBurgerMenu('refresh btn');
+            eventsHandlerBurgerMenu();
+
             console.log('Burger menu mis à jour avec succès.');
         } else {
             console.warn('Burger menu non mis à jour, statut:', data.status);
@@ -85,18 +104,22 @@ export async function refreshBurgerMenu() {
     }
 }
 
-
+/**
+ * Gère le chargement de la navbar et du burger menu.
+ */
 export async function handleNavbar() {
     console.log('Chargement de la navbar...');
     try {
-        const is_authenticated = await loadNavbar(); // Charge le contenu de la navbar et initialise les événements
+        const is_authenticated = await loadNavbar();
 
         if (is_authenticated) {
-            await initializeBurgerMenu();
+            await initializeBurgerMenu(null);
+            // Initialise la délégation d'événements pour le burger menu
+            initBurgerMenuDelegation();
             eventsHandlerBurgerMenu();
             console.log('Navbar et burger menu chargés avec succès.');
-             // ✅ Appeler le refresh périodique si l'user est authentifié
-            setInterval(refreshBurgerMenu, 20000);
+            // Rafraîchissement périodique si l'utilisateur est authentifié
+            setInterval(refreshBurgerMenu, 10000);
         } else {
             console.log('Utilisateur non authentifié ou erreur de chargement.');
         }

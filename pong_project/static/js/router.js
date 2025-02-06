@@ -72,8 +72,6 @@ export function initializeRouter() {
             console.log('Route: game-options');
             startLoading();
         })
-
-
         .on('/profile/:friendUsername', ({ data }) => {
             const friendUsername = data.friendUsername; // Utilisez `data` pour extraire le paramètre
             console.log(`Route: Profile for ${friendUsername}`);

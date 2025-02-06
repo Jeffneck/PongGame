@@ -1,4 +1,5 @@
 import { requestPost } from '../api/index.js';
+import { refreshBurgerMenu } from '../navbar/loadNavbar.js';
 import { showStatusMessage } from '../tools/index.js';
 
 async function updateUserStatus(status) {
@@ -20,6 +21,7 @@ async function updateUserStatus(status) {
     }
 }
 
+// Improve ajouter un refresh burger menu
 export async function handleStatusChange(status) {
     try {
         await updateUserStatus(status);
@@ -29,4 +31,5 @@ export async function handleStatusChange(status) {
         console.error('Erreur lors de la mise à jour du statut :', error);
         showStatusMessage('Impossible de mettre à jour le statut. Veuillez réessayer.', 'error');
     }
+    await refreshBurgerMenu();//added
 }

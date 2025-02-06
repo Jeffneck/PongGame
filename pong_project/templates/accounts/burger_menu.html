@@ -27,7 +27,7 @@
         <form id="add-friend-form" method="POST">
             {% csrf_token %}
             <input type="text" id="friend-username" name="friend_username" class="form-control mb-2" placeholder="Nom d'utilisateur">
-            <button type="submit" class="btn btn-primary w-100">{% trans "Ajouter" %}</button>
+            <button type="submit" id="add-friend-button" class="btn btn-primary w-100">{% trans "Ajouter" %}</button>
         </form>
         <div id="add-friend-error" class="text-danger mt-2"></div>
         <div id="add-friend-success" class="text-success mt-2"></div>

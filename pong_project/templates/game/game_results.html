@@ -1,52 +1,49 @@
-<div class="card z-index-23333">
-    <h1 class="card-title">Résultats du jeu</h1>
+<div id="results-container" class="container d-flex flex-column align-items-center justify-content-center col-12 col-sm-10 col-md-8 col-lg-6 col-xl-4 col-xxl-4">
+    <!-- Titre agrandi et centré -->
+    <h1 id="results-title" class="text-center text-white">Résultats du jeu</h1>
     
-    <div class="statistics">
-        <p><strong class="stat-title">Winner:</strong> {{ winner }}</p>
-        <p><strong class="stat-title">Looser:</strong> {{ looser }}</p>
-        <p><strong class="stat-title">Score:</strong> {{ score_left }} - {{ score_right }}</p>
+    <!-- Bloc des résultats dimensionné en fonction de l'écran -->
+    <div class="statistics d-flex flex-column align-items-center justify-content-center">
+      <p class="d-flex flex-column  text-center"><strong class="stat-title">Winner:</strong> {{ winner }}</p>
+      <p class="d-flex flex-column  text-center"><strong class="stat-title">Looser:</strong> {{ looser }}</p>
+      <p class="d-flex flex-column  text-center"><strong class="stat-title">Score:</strong> {{ score_left }} - {{ score_right }}</p>
     </div>
-</div>
+  </div>
 
-<style>
+  <style>
     html, body {
-        overflow: auto;
-        background-color: #101A32;
-        color: white;
-        margin: 0;
-        padding: 0;
+      background-color: #101A32;
+      color: white;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
     }
-
-    .card {
-        background-color: #101A32;
-        border: 2px solid rgb(153, 148, 148);
-        min-width: 300px;
-        margin: 20px;
-        padding: 20px;
-        border-radius: 10px;
-        position: relative; /* Ajout de position pour permettre le z-index */
-        z-index: 23333; /* Assurez-vous que le z-index soit appliqué */
+    /* Conteneur principal qui prend toute la hauteur de la page */
+    #results-container {
+		z-index: 30;
+      min-height: 100vh;
+      padding-top: 20px;
     }
-
-    .card-title {
-        color: #2DB4F3;
-        margin-bottom: 10px;
+    /* Style du titre agrandi et centré */
+    #results-title {
+      font-size: 3.5em;
+      margin-bottom: 1.5em;
+      font-family: "Jersey 10", sans-serif;
     }
-
+    /* Bloc des résultats */
     .statistics {
-        background-color: #101A32;
-        border: 2px solid rgb(153, 148, 148);
-        padding: 20px;
-        border-radius: 10px;
-        min-width: 300px;
+      background-color: #101A32;
+      border: 2px solid rgb(153, 148, 148);
+      padding: 30px;
+      border-radius: 10px;
+      width: 100%;
     }
-
+    .statistics p {
+      margin: 15px 0;
+      font-size: xx-large;
+    }
     .stat-title {
-        color: #2DB4F3; /* Assurez-vous que la couleur du titre est visible */
+      color: #2DB4F3;
+	  font-size: xxx-large;
     }
-
-    p, .stat-title {
-        color: #F1F1F1; /* Ajout d'une couleur plus claire pour le texte */
-        margin: 10px 0;
-    }
-</style>
+  </style>

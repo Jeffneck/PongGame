@@ -14,6 +14,7 @@ async function loadAccountsManagement() {
         else {
             throw new Error(response.message || 'Erreur lors du chargement de la vue de gestion de profil.');
         }
+        return true;
     } catch (error) {
         console.error('Erreur chargement gestion profil:', error);
         showStatusMessage(error.message || 'Erreur lors du chargement de la vue de gestion de profil.', 'errors');

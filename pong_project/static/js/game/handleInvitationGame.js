@@ -120,20 +120,22 @@ async function sendInvitation(button) {
 
     // On inclut les params récupérés en "cachedOnlineParams"
     if (cachedOnlineParams) {
-        formData.append('ball_speed',               cachedOnlineParams.ball_speed);
-        formData.append('paddle_size',             cachedOnlineParams.paddle_size);
-        formData.append('bonus_enabled',  cachedOnlineParams.bonus_enabled);
-        formData.append('obstacles_enabled',      cachedOnlineParams.obstacles_enabled);
+        formData.append('ball_speed', cachedOnlineParams.ball_speed);
+        formData.append('paddle_size', cachedOnlineParams.paddle_size);
+        formData.append('bonus_enabled', cachedOnlineParams.bonus_enabled);
+        formData.append('obstacles_enabled', cachedOnlineParams.obstacles_enabled);
     } else {
         console.warn('Aucun paramètre en cache.');
     }
 
     try {
+        // Désactiver le bouton pendant l'envoi
+        button.disabled = true;
+
         const response = await requestPost('game', 'send_invitation', formData);
         if (response.status === 'success') {
             button.innerHTML = 'Envoyé <span class="cancel-icon">&times;</span>';
             button.classList.add('sent');
-            button.disabled = false;
         } else {
             throw new Error(response.message || 'Erreur inconnue');
         }
@@ -145,6 +147,9 @@ async function sendInvitation(button) {
             button.innerHTML = 'Inviter <span class="cancel-icon d-none">&times;</span>';
             button.classList.remove('error');
         }, 3000);
+    } finally {
+        // Réactiver le bouton après la requête
+        button.disabled = false;
     }
 }
 

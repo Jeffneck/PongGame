@@ -308,13 +308,13 @@ function initLiveGame(config) {
     const ORIGINAL_HEIGHT = 400;
     let scale = 1;
 
-	    // Const for visual effects on notifications /
+	    // Const for visual effects on notifications / added
 		const collisionEffects = [];
 		const EFFECT_DURATION = 300;
 		const SPAWN_EFFECT_DURATION = 500;
 		const EXPIRE_EFFECT_DURATION = 300;
 	  
-		// spawn visual effect 
+		// spawn visual effect / added
 		function createSpawnEffect(type, x, y, effectType, color) {
 		  const effect = {
 			  type,
@@ -335,7 +335,7 @@ function initLiveGame(config) {
 		  }, type.includes('spawn') ? SPAWN_EFFECT_DURATION : EXPIRE_EFFECT_DURATION);
 	  }
 	
-	  // collision visual effects
+	  // collision visual effects / added
 	  function createCollisionEffect(type, x, y, color) {
 		const effect = {
 			type,
@@ -562,7 +562,7 @@ function initLiveGame(config) {
       // userRole = 'both' => local => on écoute W/S + flèches
       // userRole = 'left' => seulement W/S
       // userRole = 'right' => seulement flèches ↑/↓
-      if (config.userRole === 'both' || config.userRole === 'left') {
+      if (config.userRole === 'both') {
         switch(evt.key) {
           case 'w':
           case 'W':
@@ -574,16 +574,36 @@ function initLiveGame(config) {
             player = 'left';
             direction = 'down';
             break;
-        }
-      }
-      if ((config.userRole === 'both' || config.userRole === 'right') && !player) {
-        switch(evt.key) {
           case 'ArrowUp':
             player = 'right';
             direction = 'up';
             break;
           case 'ArrowDown':
             player = 'right';
+            direction = 'down';
+            break;
+        }
+      }
+	  else if (config.userRole === 'right') {
+        switch(evt.key) {
+			case 'ArrowUp':
+			  player = 'right';
+			  direction = 'up';
+			  break;
+			case 'ArrowDown':
+			  player = 'right';
+			  direction = 'down';
+			  break;
+		  }
+      }
+      else if (config.userRole === 'left') {
+        switch(evt.key) {
+          case 'ArrowUp':
+            player = 'left';
+            direction = 'up';
+            break;
+          case 'ArrowDown':
+            player = 'left';
             direction = 'down';
             break;
         }
@@ -603,15 +623,18 @@ function initLiveGame(config) {
       let player = null;
   
       // userRole=both/left => check W,S
-      if (config.userRole === 'both' || config.userRole === 'left') {
+      if (config.userRole === 'both') {
         if (['w','W','s','S'].includes(evt.key)) {
           player = 'left';
         }
       }
       // userRole=both/right => check ArrowUp, ArrowDown
-      if ((config.userRole === 'both' || config.userRole === 'right') && !player) {
+      if ((config.userRole === 'both' || config.userRole === 'right' || config.userRole === 'left') && !player) {
         if (['ArrowUp','ArrowDown'].includes(evt.key)) {
-          player = 'right';
+          if(config.userRole === 'both' || config.userRole === 'right')
+		  	player = 'right';
+		  else if(config.userRole === 'left')
+			player = 'left';
         }
       }
   

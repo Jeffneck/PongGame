@@ -194,6 +194,15 @@ async function joinOnlineGameAsLeft(game_id){
             // afficher le front du jeu au joueur left & transmettre les inputs du joueur left au jeu
             // le button startGame de live_online_game_as_left.html permettra de lancer l'algo du jeu en back depuis le js de liveOnlineGameLeft()
             await launchLiveGameWithOptions(game_id, 'left', `start_online_game/${game_id}`);
+            const statusResponse = await requestGet('game', `get_game_status/${gameId}`);
+            if (statusResponse.status === 'success' && statusResponse.session_status === 'cancelled') {
+                showStatusMessage('Un des joueurs s\'est deconnecte, partie annulee ...', 'error');
+                return
+            }
+            if (statusResponse.status === 'error' ) {
+                showStatusMessage('Vous avez ete deconnecte de la partie en ligne', 'error');
+                return
+            }
             await showResults(game_id);
             
             //IMPROVE afficher une page présentant le winner et looser une fois la game terminee
@@ -257,6 +266,16 @@ async function joinOnlineGameAsRight(sessionId) {
         // Si succès, afficher la page de jeu 
         updateHtmlContent('#content', response.html);
         await launchLiveGameWithOptions(response.game_id, 'right', `start_online_game/${response.game_id}`);
+        // on vérifie le status côté serveur avant de continuer la loop
+        const statusResponse = await requestGet('game', `get_game_status/${gameId}`);
+        if (statusResponse.status === 'success' && statusResponse.session_status === 'cancelled') {
+            showStatusMessage('Un des joueurs s\'est deconnecte, partie annulee ...', 'error');
+            return
+        }
+        if (statusResponse.status === 'error' ) {
+            showStatusMessage('Vous avez ete deconnecte de la partie en ligne', 'error');
+            return
+        }
         await showResults(response.game_id);
 
 

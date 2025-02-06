@@ -38,8 +38,6 @@ export async function handleLocalGame(parametersForm) {
 			updateHtmlContent('#content', response.html);
             const gameId = response.game_id;
             await launchLiveGameWithOptions(gameId, 'both', `start_local_game/${gameId}`);
-
-            console.log('Juste après la fin du liveGame') 
             // on vérifie le status côté serveur avant d'afficher le scoreboard:
             const statusResponse = await requestGet('game', `get_game_status/${gameId}`);
             if (statusResponse.status === 'success' && statusResponse.session_status === 'finished') {
@@ -48,7 +46,6 @@ export async function handleLocalGame(parametersForm) {
                 return;
             }
             else if (statusResponse.status === 'success' && statusResponse.session_status === 'cancelled') {
-                //Improve rediriger vers l' accueil
                 showStatusMessage('Un des joueurs s\'est deconnecte, partie annulee ...', 'error');
             }
         } else {

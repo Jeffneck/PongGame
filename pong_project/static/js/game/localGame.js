@@ -32,6 +32,7 @@ import { showResults } from "./gameResults.js";
 
 export async function handleLocalGame(parametersForm) {
     try {
+
         const response = await requestPost('game', 'create_local_game', parametersForm);
         if (response.status === 'success') {
             showStatusMessage(`Partie créée avec succès : ID = ${response.game_id}`, 'success');
@@ -53,6 +54,6 @@ export async function handleLocalGame(parametersForm) {
         }
     } catch (err) {
         console.error('Error local game', err);
-        showStatusMessage('Error local game', 'error');
+        showStatusMessage(err.message, 'error');
     }
 }

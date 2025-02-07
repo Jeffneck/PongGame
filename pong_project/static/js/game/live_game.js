@@ -11,6 +11,7 @@
 
 import { requestPost } from '../api/index.js';
 import { createPowerupSVG, createBumperSVG } from './live_game_svg.js';
+import { isTouchDevice } from '../tools/utility.js';
 
 
 export async function launchLiveGameWithOptions(gameId, userRole, urlStartButton) {

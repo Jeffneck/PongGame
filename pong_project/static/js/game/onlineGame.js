@@ -10,7 +10,6 @@ import { navigateTo } from "../router.js";
 
 export async function createGameOnline() {
     
-    console.log('createGameOnline');
     if (typeof localStorage !== "undefined" && !localStorage.getItem('access_token')) {
 		navigateTo('/');
 		return;
@@ -36,7 +35,7 @@ export async function createGameOnline() {
         formData.append('bonus_enabled',  onlineParams.bonus_enabled);
         formData.append('obstacles_enabled',      onlineParams.obstacles_enabled);
     } else {
-        console.warn('Aucun paramètre.');
+       showStatusMessage('Paramètres de jeu manquants.', 'error');
     }
     try {
         console.log('Avant le try');
@@ -181,18 +180,23 @@ function initializeFriendInvitationBtn(game_id) {
     });
 }
 
-
-// cette fonction est lancée par la fonction checkGameInvitation status quand le joueur right a accepté l'invitation
-// elle redirige le joueur left (celui qui a envoyé l'invitation) vers la page de jeu
-// sur la page de jeu le joueur pourra cliquer sur un bouton qui lancera le jeu en arrière plan (cf.live_online_game_left.js)
 async function joinOnlineGameAsLeft(game_id){
     try {
-        const response = await requestPost('game', `join_online_game_as_left/${game_id}`, null); 
+        const tactile = isTouchDevice();
+        console.log('tactile :', tactile);
+        
+        // Créez un FormData et ajoutez le paramètre is_touch
+        const formData = new FormData();
+        formData.append('is_touch', tactile);
+
+        // Construit l'URL sans query string
+        const url = `join_online_game_as_left/${game_id}`;
+
+        const response = await requestPost('game', url, formData);
         if (response.status === 'success') {
-            // afficher le html de la page de jeu
+
             updateHtmlContent('#content', response.html);
-            // afficher le front du jeu au joueur left & transmettre les inputs du joueur left au jeu
-            // le button startGame de live_online_game_as_left.html permettra de lancer l'algo du jeu en back depuis le js de liveOnlineGameLeft()
+            
             await launchLiveGameWithOptions(game_id, 'left', `start_online_game/${game_id}`);
             const statusResponse = await requestGet('game', `get_game_status/${game_id}`);
             if (statusResponse.status === 'success' && statusResponse.session_status === 'cancelled') {
@@ -254,8 +258,16 @@ export async function acceptGameInvitation(invitationId, action) {
 // rediriger le joueur ayant accepté l'invitation vers la page de jeu
 async function joinOnlineGameAsRight(gameId) {
     try {
+        const tactile = isTouchDevice();
+        console.log('tactile :', tactile);
+        
+        // Créez un FormData et ajoutez le paramètre is_touch
+        const formData = new FormData();
+        formData.append('is_touch', tactile);
+        const url = `join_online_game_as_left/${sessionId}`;  // Assurez-vous d'avoir le slash final si nécessaire
+
         // Récupérer les données pour rejoindre la partie
-        const response = await requestPost('game', `join_online_game_as_right/${gameId}`, null);
+        const response = await requestPost('game', url, formData);
 
         // Gestion des erreurs renvoyées par le serveur
         if (response.status === 'error') {

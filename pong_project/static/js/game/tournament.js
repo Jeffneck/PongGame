@@ -1,5 +1,5 @@
 import { requestGet, requestPost } from "../api/index.js";
-import { showStatusMessage, updateHtmlContent } from "../tools/index.js";
+import { isTouchDevice, showStatusMessage, updateHtmlContent } from "../tools/index.js";
 import { launchLiveGameWithOptions } from './live_game.js';
 import { TournamentNextMatch } from './tournament_utils.js';
 import { showResults } from "./gameResults.js";
@@ -58,6 +58,7 @@ export async function handleTournament() {
 		formData.set('obstacles_enabled', tournamentParam.obstacles_enabled);
 		}
 
+		formData.append('is_touch', isTouchDevice());
 		try {
       const response = await createTournament(formData);
       if (response.status === 'success') {

@@ -1,5 +1,5 @@
 import { requestGet, requestPost } from '../api/index.js'; 
-import { updateHtmlContent } from '../tools/index.js'; 
+import { isTouchDevice, showStatusMessage, updateHtmlContent } from '../tools/index.js'; 
 // import { handleInviteGame } from './handleInvitationGame.js'; // Suppose qu'on gère l'invitation en ligne ici
 // import { launchLiveGameWithOptions } from './live_game.js';
 import { handleLocalGame } from './localGame.js'
@@ -30,14 +30,23 @@ function attachGameMenuEvents() {
             console.log(`Vitesse de balle (${section}):`, event.target.value);
         });
 
+    
+
         // Bouton principal (Lancer Partie, Inviter un ami, Lancer Tournoi)
         const startGameButton = document.getElementById(`start-game-btn-${section}`);
-        const inviteGameButton = document.getElementById(`invite-game-btn-${section}`);
-        const inviteTournamentButton = document.getElementById(`invite-tournament-btn-${section}`);
-        const test = document.getElementById(`${section}-game-btn`); 
+        const device = isTouchDevice();
+        console.log('device:', device);
 
-        // Définir un comportement différent selon le bouton
+    
+        
         if (startGameButton && section === 'local') {
+
+            if (device === true)
+            {
+                showStatusMessage('Vous ne pouvez pas jouer en tournoi sur un appareil tactile.', 'error');
+                return ;
+            }
+            
             startGameButton.addEventListener('click', async () => {
                 const parametersForm = new FormData();
                 parametersForm.append('game_type', section);
@@ -54,16 +63,12 @@ function attachGameMenuEvents() {
                     return;
                 }
                     
-                console.log(`Vitesse de balle (${section}):`, ballSpeedElement.value);
-                console.log(`Taille de raquette (${section}):`, paddleSizeElement.value);
-                console.log(`Bonus activé (${section}):`, bonusCheckbox?.checked);
-                console.log(`Obstacles activés (${section}):`, obstacleCheckbox?.checked);
                 // Lire les valeurs
                 parametersForm.append('ball_speed', ballSpeedElement.value);
                 parametersForm.append('paddle_size', paddleSizeElement.value);
                 parametersForm.append('bonus_enabled', bonusCheckbox?.checked ?? false);
                 parametersForm.append('obstacles_enabled', obstacleCheckbox?.checked ?? false);
-
+                parametersForm.append('is_touch', isTouchDevice());
                 await handleLocalGame(parametersForm)
             });
         }
@@ -103,8 +108,16 @@ function attachGameMenuEvents() {
             });
         }
 
+      
+
         if (startGameButton && section === 'tournament') {
             startGameButton.addEventListener('click', async () => {
+
+                if (device === true)
+                {
+                    showStatusMessage('Vous ne pouvez pas jouer en tournoi sur un appareil tactile.', 'error');
+                    return ;
+                }
                 
 
                 // Récupérer les éléments

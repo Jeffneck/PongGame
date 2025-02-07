@@ -356,7 +356,10 @@ class CreateTournamentView(View):
     """
     def get(self, request):
         try:
+
             form = TournamentParametersForm()
+            if request.POST.get('is_touch', 'false') == "true":
+                return JsonResponse({'status': 'error', 'message': 'Mode non disponible pour le tactile'}, status=403)
             rendered_html = render_to_string('game/tournament/select_players.html', {'form': form}, request=request)
             return JsonResponse({'status': 'success', 'html': rendered_html}, status=200)
         except Exception as e:

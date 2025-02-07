@@ -151,6 +151,10 @@ class CreateGameLocalView(View):
     def post(self, request):
         try:
             form = GameParametersForm(request.POST)
+            if request.POST.get('is_touch', 'false') == "true":
+                return JsonResponse({'status': 'error', 'message': 'Mode non disponible pour le tactile'}, status=403)
+
+
             logger.debug("Entering CreateGameLocalView")
             if not form.is_valid():
                 logger.warning("Invalid game parameters: %s", form.errors)

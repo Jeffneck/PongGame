@@ -13,11 +13,10 @@ import { requestPost } from '../api/index.js';
 import { createPowerupSVG, createBumperSVG } from './live_game_svg.js';
 import { isTouchDevice } from "../tools/index.js";
 
-
 export async function launchLiveGameWithOptions(gameId, userRole, urlStartButton) {
   const protocol = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
   const wsUrl = `${protocol}//${window.location.host}/ws/pong/${gameId}/`;
-
+  
   let startGameSelector = null;
   let onStartGame = null;
   
@@ -58,23 +57,23 @@ export async function launchLiveGameWithOptions(gameId, userRole, urlStartButton
 }
 
 
-  // ========== initPowerupImages ==========
-  
-  function initPowerupImages(powerupImages) {
-    // Initialise la map de type => Image()
-    Object.keys(powerupImages).forEach(type => {
-      powerupImages[type].src = createPowerupSVG(type);
-    });
-  }
-  
-  // ========== applyFlashEffect ==========
-  
-  function applyFlashEffect(gameState, duration = 300) {
-    gameState.flash_effect = true;
-    setTimeout(() => {
-      gameState.flash_effect = false;
-    }, duration);
-  }
+// ========== initPowerupImages ==========
+
+function initPowerupImages(powerupImages) {
+  // Initialise la map de type => Image()
+  Object.keys(powerupImages).forEach(type => {
+    powerupImages[type].src = createPowerupSVG(type);
+  });
+}
+
+// ========== applyFlashEffect ==========
+
+function applyFlashEffect(gameState, duration = 300) {
+  gameState.flash_effect = true;
+  setTimeout(() => {
+    gameState.flash_effect = false;
+  }, duration);
+}
 
 
 
@@ -89,9 +88,10 @@ export async function launchLiveGameWithOptions(gameId, userRole, urlStartButton
  *    config.startGameSelector?: ID du bouton (ex: "#startGameBtn")
  *    config.onStartGame?: Function de callback pour lancer la partie 
  *                         (ex: faire un POST sur /start_online_game/ ou /start_local_game/)
-   */
+*/
 function initLiveGame(config) {
   return new Promise((resolve) => {
+    let gameEnded = false;
     // 1) Préparer les éléments HTML
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
@@ -103,9 +103,9 @@ function initLiveGame(config) {
     if (startGameBtn && config.onStartGame) {
       // Débloquer le bouton après 3s (optionnel)
   //     setTimeout(() => { 
-	// 	startGameBtn.style.opacity = "0.7";
-  //       startGameBtn.disabled = false;
-	    startGameBtn.classList.add("active");
+    // 	startGameBtn.style.opacity = "0.7";
+    //       startGameBtn.disabled = false;
+    startGameBtn.classList.add("active");
 	
 	// }, 3000);
   
@@ -613,8 +613,12 @@ function adjustGlobalRotator() {
     };
     socket.onclose = () => {
       console.log("[live_game_utils] WebSocket closed (maybe user left the page).");
-      // Si ce n’est pas un "game_over", on résout quand même la promesse
-      resolve(); 
+      if (!gameEnded) {
+        gameEnded = true;
+        console.log("[live_game_utils] WebSocket closed (maybe user left the page).");
+        resolve();
+      }
+     
     };
   
     // 5) Gérer l'état du jeu local
@@ -709,11 +713,14 @@ function adjustGlobalRotator() {
 			}
 		}
 		else if (data.type === 'game_over') {
+      if (!gameEnded) {
+        gameEnded = true;
         console.log("[live_game_utils] Game over detected");
-        // alert("Game Over! Winner = " + data.winner);
+        // Vous pouvez afficher un message ou réaliser d'autres actions ici
         socket.close();
-        resolve();  // 🔹 Signale à `runTournamentFlow()` que la partie est terminée
+        resolve();  // Signale que la partie est terminée
       }
+    }
       else if (data.type === 'powerup_applied') {
         // console.log(`[live_game_utils] Power-up applied to ${data.player}: ${data.effect}`);
         if (data.effect === 'flash') {

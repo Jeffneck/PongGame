@@ -48,9 +48,13 @@ const Api = {
           showStatusMessage(data.message, "error");
           navigateTo(data.redirect);
           return;
-        } else {
-          // Sinon, on tente de rafraîchir le token
+        }
+        else if  (data.error_code === "token-error"){
           response = await this.handleUnauthorized(url, method, formData, customHeaders);
+          
+        }else {
+          showStatusMessage(data.message, "error");
+          return;
         }
       } else if (response.status === 403) {
         const data = await response.json();

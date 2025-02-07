@@ -165,31 +165,29 @@ async function joinOnlineGameAsLeft(game_id){
         }
         console.error('Erreur joinOnlineGameAsLeft :', error);
     }
-    if (!btn.classList.contains('sent')) {
-      await sendInvitation(btn, game_id);
-    }
-  });
-}
+  };
 
-async function joinOnlineGameAsLeft(game_id) {
-  try {
-    const tactile = isTouchDevice();
-    const formData = new FormData();
-    formData.append('is_touch', tactile);
-    const url = `join_online_game_as_left/${game_id}`;
-    const response = await requestPost('game', url, formData);
-    if (response.status === 'success') {
-      updateHtmlContent('#content', response.html);
-      await launchLiveGameWithOptions(game_id, 'left', `start_online_game/${game_id}`);
-      await showResults(game_id);
-    } else {
-      showStatusMessage(response.message, 'error');
-    }
-  } catch (error) {
-    console.error('Erreur dans joinOnlineGameAsLeft :', error);
-    showStatusMessage(error.message || 'Erreur réseau.', 'error');
-  }
-}
+
+
+// async function joinOnlineGameAsLeft(game_id) {
+//   try {
+//     const tactile = isTouchDevice();
+//     const formData = new FormData();
+//     formData.append('is_touch', tactile);
+//     const url = `join_online_game_as_left/${game_id}`;
+//     const response = await requestPost('game', url, formData);
+//     if (response.status === 'success') {
+//       updateHtmlContent('#content', response.html);
+//       await launchLiveGameWithOptions(game_id, 'left', `start_online_game/${game_id}`);
+//       await showResults(game_id);
+//     } else {
+//       showStatusMessage(response.message, 'error');
+//     }
+//   } catch (error) {
+//     console.error('Erreur dans joinOnlineGameAsLeft :', error);
+//     showStatusMessage(error.message || 'Erreur réseau.', 'error');
+//   }
+// }
 
 export async function acceptGameInvitation(invitationId, action) {
   try {
@@ -241,11 +239,8 @@ async function joinOnlineGameAsRight(sessionId) {
         console.error('Erreur réseau lors de la connexion au jeu en tant que joueur Right:', error);
         showStatusMessage('Une erreur réseau est survenue. Veuillez réessayer.', 'error');
     }
-  } catch (error) {
-    console.error('Erreur dans joinOnlineGameAsRight:', error);
-    showStatusMessage('Erreur réseau. Veuillez réessayer.', 'error');
-  }
-}
+  };
+
 
 export async function declineGameInvitation(invitationId) {
   try {

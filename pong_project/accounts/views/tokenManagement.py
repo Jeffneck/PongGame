@@ -43,7 +43,7 @@ class RefreshJwtView(View):
             token_obj = RefreshToken.objects.filter(token=hashed_token).first()
             if not token_obj or not token_obj.is_valid():
                 logger.warning("Invalid or expired refresh token")
-                return JsonResponse({'error': 'Invalid or expired refresh token'}, status=401)
+                return JsonResponse({'error': 'Invalid or expired refresh token', 'error_code': 'token-error'}, status=401)
 
             # Invalider le refresh token après usage pour éviter sa réutilisation
             token_obj.is_blacklisted = True
@@ -63,10 +63,10 @@ class RefreshJwtView(View):
 
         except ExpiredSignatureError:
             logger.warning("Refresh token expired")
-            return JsonResponse({'error': 'Refresh token expired'}, status=401)
+            return JsonResponse({'error': 'Refresh token expired', 'error_code': 'token-error'}, status=401)
         except InvalidTokenError:
             logger.warning("Invalid refresh token")
-            return JsonResponse({'error': 'Invalid refresh token'}, status=401)
+            return JsonResponse({'error': 'Invalid refresh token', 'error_code': 'token-error'}, status=401)
         except Exception as e:
             logger.error(f"Unexpected error during token refresh: {str(e)}")
             return JsonResponse({'error': 'An unexpected error occurred'}, status=500)

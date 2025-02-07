@@ -1,11 +1,8 @@
-// game/index.js
-// contient uniquement les fonctions que l'on souhaite appeler depuis d'autres fichiers
-
-export { handleInviteGame, handleGameInvitationBurgerMenu } from './handleInvitationGame.js';
-//export { startLoading } from './loading.js';
+"use strict";
 export { displayGame, displayTournamentBracket } from './display.js';
 export { initializeGameControls } from './controls.js';
 export { initializeGameHomeView } from './home.js';
 export { handleGameMenu } from './gameMenu.js';
 export { startLoading } from './loading.js';
-export { acceptGameInvitation, createGameOnline } from './onlineGame.js'
+export { acceptGameInvitation, createGameOnline } from './onlineGame.js';
+export { handleTournament } from './tournament.js';

@@ -1,11 +1,6 @@
-
-// Fonctions génériques pour l'affichages d'informations
+"use strict";
 export { displayErrorMessage, displaySuccessMessage, clearMessage, displayInfoMessage, showStatusMessage } from './displayInfo.js';
-
-export { updateTextContent, updateAttribute , updateHtmlContent} from './domHandler.js';
+export { updateTextContent, updateAttribute, updateHtmlContent } from './domHandler.js';
 export { isTouchDevice, resetScrollPosition } from './utility.js';
-
-// Fonction générique, supprime les tokens et remet à zéro l'interface utilisateur
-export {clearSessionAndUI} from './clearSession.js';
-
-export {initializeNotFoundView} from './errorPage.js';
+export { clearSessionAndUI } from './clearSession.js';
+export { initializeNotFoundView } from './errorPage.js';

@@ -1,12 +1,12 @@
 <div id="results-container" class="container d-flex flex-column align-items-center justify-content-center col-12 col-sm-10 col-md-8 col-lg-6 col-xl-4 col-xxl-4">
     <!-- Titre agrandi et centré -->
-    <h1 id="results-title" class="text-center text-white mb-4">Résultats du jeu</h1>
+    <h1 id="results-title" class="text-center text-white mb-4">{% trans "Résultats du jeu" %}</h1>
     
     <!-- Bloc des résultats dimensionné en fonction de l'écran -->
     <div class="statistics d-flex flex-column align-items-center justify-content-center">
-      <p class="d-flex flex-column  text-center"><strong class="stat-title">Winner</strong> {{ winner }}</p>
-      <p class="d-flex flex-column  text-center"><strong class="stat-title">Looser</strong> {{ looser }}</p>
-      <p class="d-flex flex-column  text-center"><strong class="stat-title">Score</strong> {{ score_left }} - {{ score_right }}</p>
+      <p class="d-flex flex-column  text-center"><strong class="stat-title">{% trans "Winner" %}</strong> {{ winner }}</p>
+      <p class="d-flex flex-column  text-center"><strong class="stat-title">{% trans "Looser" %}</strong> {{ looser }}</p>
+      <p class="d-flex flex-column  text-center"><strong class="stat-title">{% trans "Score" %}</strong> {{ score_left }} - {{ score_right }}</p>
     </div>
   </div>
 

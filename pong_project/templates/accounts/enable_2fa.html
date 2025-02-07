@@ -15,11 +15,6 @@
 										<div style="color: red;">{% trans "QR Code non disponible" %}</div>
 									{% endif %}
 								</div>
-								
-								<!-- <p style="color: white; font-family: 'Jersey 10'; margin: 20px 0;">
-									{% trans "Code secret" %}: <strong>{{ secret|default:"N/A" }}</strong>
-								</p> -->
-								
 								<form id="verify-2fa-form" method="POST">
 									{% csrf_token %}
 									<div class="d-flex flex-column form-group w-100;">

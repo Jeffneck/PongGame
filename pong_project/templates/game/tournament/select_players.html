@@ -1,7 +1,7 @@
 {% load i18n %}
 {% load static %}
 <div class="container-fluid py-4">
-  <h1 class="text-center mb-4" style="font-size: 2em;">Sélectionner les joueurs</h1>
+  <h1 class="text-center mb-4" style="font-size: 2em;">{% trans "Sélectionner les joueurs" %}</h1>
 
   <!-- Formulaire de sélection des joueurs -->
   <div class="card bg-secondary">
@@ -12,29 +12,29 @@
       -->
       <form id="tournament-form">
         <div class="mb-3">
-          <label for="tournament-name" class="form-label">Nom du Tournoi</label>
+          <label for="tournament-name" class="form-label">{% trans "Nom du Tournoi" %}</label>
           <input type="text" id="tournament-name" name="name" class="form-control" placeholder="Nom du Tournoi" required>
         </div>
 
         <div class="mb-3">
-          <label for="player1" class="form-label">Nom du Joueur 1</label>
+          <label for="player1" class="form-label">{% trans "Nom du Joueur 1" %}</label>
           <input type="text" id="player1" name="player1" class="form-control" placeholder="Joueur 1" required>
         </div>
         <div class="mb-3">
-          <label for="player2" class="form-label">Nom du Joueur 2</label>
+          <label for="player2" class="form-label">{% trans "Nom du Joueur 2" %}</label>
           <input type="text" id="player2" name="player2" class="form-control" placeholder="Joueur 2" required>
         </div>
         <div class="mb-3">
-          <label for="player3" class="form-label">Nom du Joueur 3</label>
+          <label for="player3" class="form-label">{% trans "Nom du Joueur 3" %}</label>
           <input type="text" id="player3" name="player3" class="form-control" placeholder="Joueur 3" required>
         </div>
         <div class="mb-3">
-          <label for="player4" class="form-label">Nom du Joueur 4</label>
+          <label for="player4" class="form-label">{% trans "Nom du Joueur 4" %}</label>
           <input type="text" id="player4" name="player4" class="form-control" placeholder="Joueur 4" required>
         </div>
 
         <!-- Bouton de soumission -->
-        <button type="submit" class="btn btn-primary mt-3 w-100">Lancer le tournoi</button>
+        <button type="submit" class="btn btn-primary mt-3 w-100">{% trans "Lancer le tournoi" %}</button>
       </form>
     </div>
   </div>

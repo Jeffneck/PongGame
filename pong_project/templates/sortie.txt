@@ -1,0 +1,3013 @@
+===== ./accounts/burger_menu.html =====
+{% load i18n %}
+<div id="burger-menu" class="position-fixed">
+    <!-- Section de profil avec avatar et pastille de statut -->
+    <div class="profile-section text-center mt-4 position-relative">
+        <div class="position-relative d-inline-block">
+            <img id="profile-avatar" src="{{ user.avatar.url|default:'/media/avatars/default_avatar.png' }}" alt="Avatar" class="rounded-circle mb-2" style="width: 80px; height: 80px;">
+            <span id="status-indicator" class="status-indicator {% if user.is_online %}online{% else %}offline{% endif %}"></span>
+        </div>
+        <h5 id="profile-username" class="mb-0">{{ user.username }}</h5>
+    </div>
+
+    <!-- Sélecteur pour changer le statut -->
+    <div class="status-selector text-center p-3 border-bottom">
+        <button class="btn btn-success btn-sm mt-1 me-1" style="width: 100px;" data-status="online">{% trans "En ligne" %}</button>
+        <button class="btn btn-danger btn-sm mt-1 me-1" style="width: 100px;" data-status="offline">{% trans "Hors ligne" %}</button>
+        <button id="profile-btn" class="btn btn-primary mt-3 mb-2" style="width: 80%;">{% trans "Voir le profil" %}</button>
+    </div>
+
+    <div class="nav flex-column border-bottom p-2">
+        <button class="nav-link d-flex justify-content-start" style="color: rgb(153, 148, 148)" id="play-btn">{% trans "Jouer" %}</button>
+        <button class="nav-link d-flex justify-content-start" style="color: rgb(153, 148, 148)" id="settings-link">{% trans "Gestion du compte" %}</button>
+    </div>
+
+    <!-- Formulaire pour ajouter un ami -->
+    <div class="add-friend-section p-3 border-bottom">
+        <h5 class="text-center" style="color: white">{% trans "Ajouter un ami" %}</h5>
+        <form id="add-friend-form" method="POST">
+            {% csrf_token %}
+            <input type="text" id="friend-username" name="friend_username" class="form-control mb-2" placeholder="Nom d'utilisateur">
+            <button type="submit" id="add-friend-button" class="btn btn-primary w-100">{% trans "Ajouter" %}</button>
+        </form>
+        <div id="add-friend-error" class="text-danger mt-2"></div>
+        <div id="add-friend-success" class="text-success mt-2"></div>
+    </div>
+
+    <!-- Liste d'amis avec avatars -->
+    <div class="friends-list border-bottom p-3" style="color: white">
+        <h5 class="d-flex justify-content-center">{% trans "Amis" %}</h5>
+        <ul class="list-unstyled" id="friends-list-container">
+            {% for friend in friends %}
+            <li class="d-flex align-items-center mb-2 friend-item">
+                <div class="position-relative">
+                    <img src="{{ friend.avatar.url|default:'/media/avatars/default_avatar.png' }}" alt="Avatar of {{ friend.username }}" class="rounded-circle me-3" style="width: 50px; height: 50px;">
+                    <span class="status-indicator-friend {% if friend.is_online %}online{% else %}offline{% endif %}"></span>
+                </div>
+                <button class="friend-btn">{{ friend.username }}</button>
+            </li>
+            {% empty %}
+            <p class="text-center">{% trans "Aucun ami pour le moment." %}</p>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- Invitations d'amis -->
+    <div class="friend-requests-list border-bottom p-3" style="color: white">
+        <h5 class="d-flex justify-content-center">{% trans "Invitations d'amis" %}</h5>
+        <ul class="list-unstyled" id="friend-requests-list-container">
+            {% for request in friend_requests %}
+            <li class="d-flex align-items-center mb-2 request-item">
+                <div class="position-relative">
+                    <img src="{{ request.avatar_url|default:'/media/avatars/default_avatar.png' }}" alt="Avatar of {{ request.from_user }}" class="rounded-circle me-3" style="width: 50px; height: 50px;">
+                </div>
+                <div class="d-flex flex-column">
+                    <p>{{ request.from_user }}</p>
+                    <div class="d-flex">
+                        <button class="btn btn-success btn-sm me-2" data-request-id="{{ request.id }}" data-action="accept">{% trans "Accepter" %}</button>
+                        <button class="btn btn-danger btn-sm" data-request-id="{{ request.id }}" data-action="decline">{% trans "Refuser" %}</button>
+                    </div>
+                </div>
+            </li>
+            {% empty %}
+            <p class="text-center">{% trans "Aucun ami pour le moment." %}</p>
+            {% endfor %}
+        </ul>
+    </div>
+
+     <!-- Invitations de jeu -->
+     <div class="game-invitations-list border-bottom p-3" style="color: white">
+        <h5 class="d-flex justify-content-center">{% trans "Invitations à jouer" %}</h5>
+        <ul class="list-unstyled" id="game-invitations-list-container">
+            {% for invitation in game_invitations %}
+            <li class="d-flex align-items-center mb-2 invitation-item">
+                <div class="position-relative">
+                    <img src="{{ invitation.from_user.avatar.url|default:'/media/avatars/default_avatar.png' }}" alt="Avatar of {{ invitation.from_user.username }}" class="rounded-circle me-3" style="width: 50px; height: 50px;">
+                </div>
+                <div class="d-flex flex-column">
+                    <p>{{ invitation.from_user.username }}</p>
+                    <div class="d-flex">
+                        <button class="btn btn-success btn-sm me-2" data-invitation-id="{{ invitation.id }}" data-action="accept">{% trans "Accepter" %}</button>
+                        <button class="btn btn-danger btn-sm" data-invitation-id="{{ invitation.id }}" data-action="decline">{% trans "Refuser" %}</button>
+                    </div>
+                </div>
+            </li>
+            {% empty %}
+            <p class="text-center">{% trans "Aucune invitation pour le moment." %}</p>
+            {% endfor %}
+        </ul>
+    </div>
+
+
+    <div class="nav flex-column p-3">
+        <form id="logout-form" method="POST">
+            {% csrf_token %}
+            <button id="logout-btn" type="button" class="nav-link" style="color: rgb(153, 148, 148)">{% trans "Déconnexion" %}</button>
+        </form>
+    </div>
+
+    <!-- Popup pour les options d'ami -->
+    <div id="friendPopup" class="friend-popup d-none position-absolute">
+        <p id="popupFriendName" class="fw-bold mb-1 d-flex align-items-center justify-content-center">Options</p>
+        <button class="btn btn-profil mb-2" id="view-profile-btn">{% trans "Voir profil" %}</button>
+        <!-- <button class="btn btn-invit mb-2" id="invite-to-play-btn">{% trans "Inviter à jouer" %}</button> retire car galere -->
+        <button class="btn btn-delete" id="remove-friend-btn">{% trans "Supprimer" %}</button>
+    </div>
+
+</div>
+
+<div id="overlay" style="display: none;"></div>
+
+<!-- Styles pour l'indicateur de statut et le positionnement de la pastille -->
+<style>
+    .position-relative {
+        position: relative;
+    }
+    .status-indicator {
+        position: absolute;
+        bottom: 10px;
+        right: 5px;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        border: 2px solid white; 
+    }
+	.status-indicator-friend {
+		position: absolute;
+		bottom: 0px;
+		right: 20px;
+		width: 10px;
+		height: 10px;
+		border-radius: 50%;
+		border: 2px solid white;
+	}
+    .online {
+        background-color: #28a745; /* Vert pour 'en ligne' */
+    }
+    .offline {
+        background-color: #dc3545; /* Rouge pour 'hors ligne' */
+    }
+
+	.btn-profil, .btn-invit, .btn-delete {
+		background-color: #4da9d4;
+		color: white;
+		border: 1px solid rgb(153, 148, 148);
+		width: 100%;
+		border-radius: 50px;
+		padding: 5px 10px;
+		cursor: pointer;
+	}
+
+	.btn-profil:hover, .btn-invit:hover, .btn-delete:hover{
+		outline: 1px solid rgb(153, 148, 148);
+		background-color: rgba(255, 255, 255, 0.1);
+	}
+
+	/* .friend-btn {
+        border: 2px solid rgb(153, 148, 148);
+        background: none;
+		width: 100%;
+        color: white;
+        padding: 5px 10px;
+        border-radius: 50px;
+        cursor: pointer;
+    }
+    .friend-btn:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    } */
+
+	.friend-popup {
+        width: 150px;
+        padding: 10px;
+        background-color: #141b2e;
+        color: white;
+        border-radius: 8px;
+        box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+        z-index: 100;
+		outline: 1px solid rgb(255, 255, 255);
+		transform: translate(-50%, -100%)
+    }
+    .friend-item:hover {
+        cursor: pointer;
+    }
+
+	@media (max-width: 576px) {
+    #burger-menu {
+        width: 100%; /* Prend toute la largeur de l'écran */
+        height: var(--sin-nav-height); /* Prend toute la hauteur de l'écran */
+        top: 50px; /* Aligne en haut de l'écran */
+        left: 0; /* Aligne à gauche pour couvrir tout l'écran */
+        border-radius: 0; /* Supprime les coins arrondis */
+    }
+}
+
+</style>
+===== ./accounts/disable_2fa.html =====
+{% load i18n %}
+<div class="container-fluid d-flex justify-content-center mt-3" style="height: 100%; padding-top: 20px; z-index: 10;">
+	<div class="col-12 col-sm-10 col-md-8 col-lg-5 col-xl-4 col-xxl-4">
+
+		<h2 class="text-white texte-center mb-3" style="font-size: 2em;">{% trans "Désactiver l'authentification à deux facteurs" %}</h2>
+
+		<div class=" dfa-item d-flex flex-column align-items-center justify-content-between text-white p-4">
+			<p>{% trans "Entrez le code généré par votre application d'authentification." %}</p>
+			<form id="disable-2fa-form" method="POST">
+				{% csrf_token %}
+				<div class="d-flex flex-column form-group w-100">
+					<label for="id_code">{% trans "Code 2FA :" %}</label>
+					{{ disable_form.code }}
+				</div> 
+				<button type="submit" class="btn btn-danger btn-70">{% trans "Désactiver 2FA" %}</button>
+			</form>
+		</div>
+
+	</div>
+</div>
+<style>
+	.dfa-item {
+		background-color:  #101A32;
+		border: 2px solid rgb(153, 148, 148);
+		border-radius: 20px;
+		font-style: "Jersey 10";
+		color: white;
+		font-size: 1.2em;
+		min-width: 300px;
+	}
+</style>
+===== ./accounts/enable_2fa.html =====
+{% load i18n %}
+<div class="container-fluid d-flex justify-content-center mt-3" style="height: 100%; padding-top: 20px; z-index: 10;">
+	<div class="col-12 col-sm-10 col-md-8 col-lg-5 col-xl-4 col-xxl-4">
+		<h2 class="text-white texte-center mb-3" style="font-size: 2em;">{% trans "Activer l'authentification à deux facteurs" %}</h2>
+
+
+			<div class=" dfa-item d-flex flex-column align-items-center justify-content-between text-white p-4">
+							<div class="form-group mb-0">
+								<div class="qr-container p-2 mt-2" style="background: white; padding: 20px; display: inline-block; border-radius: 10px;">
+									{% if qr_code %}
+										<img src="data:image/png;base64,{{ qr_code }}" 
+												alt="QR Code" 
+												style="display: block; max-width: 200px; height: auto;">
+									{% else %}
+										<div style="color: red;">{% trans "QR Code non disponible" %}</div>
+									{% endif %}
+								</div>
+								
+								<!-- <p style="color: white; font-family: 'Jersey 10'; margin: 20px 0;">
+									{% trans "Code secret" %}: <strong>{{ secret|default:"N/A" }}</strong>
+								</p> -->
+								
+								<form id="verify-2fa-form" method="POST">
+									{% csrf_token %}
+									<div class="d-flex flex-column form-group w-100;">
+										<label for="id_code">{% trans "Code 2FA :" %}</label>
+										{{ 2FA_form.code }}
+									</div> 
+									<button type="submit" 
+											class="btn btn-primary btn-70"
+											style="background-color: #2DB4F3;
+													border: none;
+													font-family: 'Jersey 10';
+													font-size: 18px;">
+										{% trans "Vérifier" %}
+									</button>
+									<div class="verification-error text-danger mt-2" style="display: none;"></div>
+									<div class="verification-success text-success mt-2" style="display: none;"></div>
+								</form>
+							</div>
+			</div>
+	</div>
+
+
+
+
+</div>
+
+<style>
+
+	.html, body{
+		overflow: auto;
+	}
+
+	.dfa-item {
+		background-color:  #101A32;
+		border: 2px solid rgb(153, 148, 148);
+		border-radius: 20px;
+		min-width: 300px;
+	}
+</style>
+===== ./accounts/friend_profile.html =====
+{% load static %}
+{% load i18n %}
+<div class="container-fluid mt-4" style="height: 100%; ">
+	<h1 class="text-center title mb-4" style="min-width: 300px;">{% trans "Profil de" %} {{ friend.username }}</h1>
+
+    <!-- Informations du profil -->
+    <div class="row d-flex justify-content-center mb-4">
+        <div class="col-12 col-sm-8 col-md-6 col-lg-5 col-xl-4 col-xxl-4">
+            <div class="card p-4">
+                <div class="profile-info d-flex flex-column justify-content-center align-items-center">
+                    <img id="profile-avatar" src="{{ friend.avatar.url|default_if_none:'/media/avatars/default_avatar.png' }}" alt="Avatar" style="width: 120px; height: 120px;">
+                    <div class="mt-3">
+                        <h3>{% trans "Pseudo : " %}{{ friend.username }}</h3>
+                        <p class="mb-0">{% trans "Nombre de matchs joués : " %}<strong>{{ match_count|default:"N/A" }}</strong></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section Statistiques -->
+	<div class="row d-flex justify-content-center mb-4">
+		<div class="col-12 col-sm-8 col-md-6 col-lg-5 col-xl-4 col-xxl-4">
+			<div class="statistics text-center">
+				<h4 class="stat-title">{% trans "Statistiques Générales" %}</h4>
+				<ul class="list-group list-group-flush">
+					<li class="list-group-item bg-transparent text-white">{% trans "Victoires : " %}{{ victories }}</li>
+					<li class="list-group-item bg-transparent text-white">{% trans "Défaites : " %}{{ defeats }}</li>
+					<li class="list-group-item bg-transparent text-white">{% trans "Meilleur score : " %}{{ best_score }} pts</li>
+				</ul>
+			</div>
+		</div>
+	</div>
+
+	<!-- Section Historique des matchs -->
+    <div class="row d-flex justify-content-center mb-4">
+        <div class="col-12 col-sm-8 col-md-6 col-lg-5 col-xl-4 col-xxl-4">
+            <div class="match-history text-center">
+                <h4 class="stat-title">{% trans "Historique des Matchs" %}</h4>
+                {% if match_histories %}
+                    <ul class="list-group list-group-flush">
+                        {% for match in match_histories %}
+                            <li class="list-group-item bg-transparent text-white">
+                                <strong>{% trans "Adversaire : " %}</strong>{{ match.opponent }}<br>
+                                <strong>{% trans "Résultat : " %}</strong>{% if match.result == "win" %}{% trans "Victoire" %}{% else %}{% trans "Défaite" %}{% endif %}<br>
+                                <strong>{% trans "Joué le : " %}</strong>{{ match.played_at|date:"d/m/Y H:i" }}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p>{% trans "Aucun match enregistré pour le moment." %}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+     <!-- Section Amis -->
+	<div class="row d-flex justify-content-center mb-0">
+		<div class="col-12 col-sm-8 col-md-6 col-lg-5 col-xl-4 col-xxl-4">
+			<div class="friends-section text-center">
+				<h4 class="stat-title">{% trans "Amis" %}</h4>
+				<p>{% trans "Nombre d'amis : " %}<strong>{{ friends_count }}</strong></p>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- Styles spécifiques -->
+<style>
+	.html, body {
+		overflow: auto;
+	}
+	.card {
+		background-color:  #101A32;
+		border: 2px solid rgb(153, 148, 148);
+		min-width: 300px;
+		color: white;
+	}
+	body {
+		background-color: #101A32;
+		color: white;
+	}
+		h1, .card-title, .stat-title {
+		color: #2DB4F3;
+	}
+	.profile-info {
+		display: flex;
+		align-items: center;
+	}
+	.profile-info img {
+		width: 120px;
+		height: 120px;
+		border-radius: 50%;
+		margin-right: 20px;
+	}
+	
+	.statistics, .friends-section, .match-history {
+        background-color: #101A32;
+        border: 2px solid rgb(153, 148, 148);
+        padding: 20px;
+        border-radius: 10px;
+        min-width: 300px;
+    }
+
+
+</style>
+
+===== ./accounts/gestion_profil.html =====
+{% load i18n %}
+{% load widget_tweaks %}
+<div class="container-fluid mt-4" style="height: 100%;">
+	<h1 class="text-center title mb-3">{% trans "Gestion de Profil" %}</h1>
+
+    <!-- Change Language Section -->
+    <div class="row d-flex justify-content-center mb-3">
+        <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-4 col-xxl-4">
+            <div class="card">
+                <div class="card-body p-4">
+                    <h5 class="card-title mb-2">{% trans "Changer de langue" %}</h5>
+                    <div class="d-flex justify-content-center">
+                        <button id="language-fr" data-lang="fr" style="border: none; background: none;" class="me-2">🇫🇷</button>
+                        <button id="language-es" data-lang="es" style="border: none; background: none;" class="me-2">🇪🇸</button>
+                        <button id="language-en" data-lang="en" style="border: none; background: none;">🇬🇧</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+	
+    <!-- Change Avatar Section -->
+    <div class="row d-flex justify-content-center mb-3">
+        <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-4 col-xxl-4">
+            <div class="card">
+                <div class="card-body p-4">
+                    <h5 class="card-title mb-2">{% trans "Changer d'avatar" %}</h5>
+                    <form id="change-avatar-form" method="POST" enctype="multipart/form-data" style="color: white;">
+                        {% csrf_token %}
+                        <div class="form-group mb-3">
+                            <label for="id_avatar" class="form-label"></label>
+                            {{ avatar_form.avatar|add_class:"form-control mb-3"}}
+                        </div>
+                        <button type="submit" class="btn btn-primary w-90">{% trans "Valider" %}</button>
+                        <div id="change-avatar-error" class="text-danger mt-3"></div>
+                        <div id="change-avatar-success" class="text-success mt-3"></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Username Section -->
+    <div class="row d-flex justify-content-center mb-3">
+        <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-4 col-xxl-4">
+            <div class="card">
+                <div class="card-body p-4">
+                    <h5 class="card-title mb-2">{% trans "Changer de pseudo" %}</h5>
+
+                    <!-- Avertissement -->
+                    <div class="text-warning mb-2" style="font-size: 0.9em;">
+                        ⚠ {% trans "Changer de pseudo entraînera une déconnexion automatique." %}
+                    </div>
+
+                    <form id="change-username-form" method="POST" style="color: white;">
+                        {% csrf_token %}
+                        {{ profile_form.username |add_class:"form-control mb-3"}}
+                        <button type="submit" class="btn btn-primary w-90">{% trans "Valider" %}</button>
+                        <div id="change-username-error" class="text-danger mt-2"></div>
+                        <div id="change-username-success" class="text-success mt-2"></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Change Password Section -->
+	<div class="row d-flex justify-content-center mb-3">
+		<div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-4 col-xxl-4">
+			<div class="card w-100">
+				<div class="card-body p-4">
+					<h5 class="card-title mb-2">{% trans "Changer de mot de passe" %}</h5>
+					<form id="change-password-form" method="POST" style="color: white">
+						{% csrf_token %}
+                        {{ password_form.old_password|add_class:"form-control mb-3"|attr:"placeholder:Ancien mot de passe" }}
+						{{ password_form.new_password1|add_class:"form-control mb-3"|attr:"placeholder:Nouveau mot de passe" }}
+						{{ password_form.new_password2|add_class:"form-control mb-3"|attr:"placeholder:Confirmez le nouveau mot de passe" }}
+						<button type="submit" class="btn btn-primary w-90">{% trans "Valider" %}</button>
+						<div id="change-password-error" class="text-danger mt-2"></div>
+						<div id="change-password-success" class="text-success mt-2"></div>
+					</form>
+				</div>
+			</div>
+		</div>
+	</div>
+
+    
+    	<!-- 2FA Section -->
+	<div class="row d-flex justify-content-center mb-3">
+		<div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-4 col-xxl-4">
+			<div class="card">
+				<div class="card-body p-4">
+					<h5 class="card-title mb-2">{% trans "Authentification à deux facteurs" %}</h5>
+					{% if profile_user.is_2fa_enabled %}
+						<button id="disable-2fa-btn" class="btn btn-primary w-90">{% trans "Désactiver 2FA" %}</button>
+					{% else %}
+						<button id="enable-2fa-btn" class="btn btn-primary w-90">{% trans "Activer 2FA" %}</button>
+					{% endif %}
+				</div>
+			</div>
+		</div>
+	</div>
+
+    <!-- Delete Account Section -->
+    <div class="row d-flex justify-content-center mb-4">
+        <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-4 col-xxl-4 mb-3">
+            <div class="card">
+                <div class="card-body p-4">
+                    <h5 class="card-title mb-2 text-danger">{% trans "Supprimer le compte" %}</h5>
+                        <p class="text-white info mb-3">{% trans "Cette action est irréversible. Votre compte sera définitivement supprimé." %}</p>
+                        <button type="button" id="delete-account-btn" class="btn btn-danger delete w-90 mt-2 mb-1">{% trans "Supprimer mon compte" %}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+	<!-- Modale pour la suppression de compte -->
+	<div id="delete-account-modal" class="modal" style="display: none;">
+		<div class="modal-content">
+			<span class="close-btn">&times;</span>
+			<div class="container_delete_account">
+				<h3>{% trans "Supprimer le compte" %}</h3>
+				<p>{% trans "Pour des raisons de sécurité, veuillez entrer votre mot de passe pour confirmer la suppression de votre compte." %}</p>
+				<form id="delete-account-form" method="POST">
+					{% csrf_token %}
+					<div class="mb-3">
+						<label for="password" class="form-label">{% trans "Mot de passe" %}</label>
+						<input type="password" name="password" id="password" class="form-control" required>
+					</div>
+					<button type="submit" class="btn btn-danger">{% trans "Confirmer la suppression" %}</button>
+				</form>
+				<!-- Messages dynamiques -->
+				<div class="delete-success text-success mt-3" style="display: none;"></div>
+				<div class="delete-error text-danger mt-3" style="display: none;"></div>
+			</div>
+		</div>
+	</div>
+
+</div>
+
+
+
+    <style>
+        .html, body {
+            overflow: auto;
+        }
+        .card {
+            background-color: #101A32;
+            border: 2px solid rgb(153, 148, 148);
+            min-width: 250px;
+        }
+        h1, .card-title {
+            color: #2DB4F3;
+        }
+        .card-title {
+            font-size: 1.7rem;
+        }
+    
+        .form-label {
+            font-size: 1.4em; /* Adjust font size */
+        }
+       
+        .form-group {
+            margin-bottom: 0.8rem; /* Reduced spacing between form fields */
+        }
+       
+        .w-90, .form-control.input-compact {
+            width: 90%;
+            max-width: 100%;
+            display: block;
+            margin: 0 auto; /* Center the button */
+        }
+        .delete {
+            border-radius: 50px;
+            padding: 5px 10px;
+            font-family: "Jersey 10";
+            font-size: 1.1em;
+        }
+    
+        .form-control.input-compact, .btn-primary {
+            padding: 5px 10px !important; /* Ajustez pour réduire la hauteur */
+            font-size: 1.2em; /* Taille de police plus petite */
+            line-height: 1.5 !important; /* Ligne plus compacte */
+            height: auto !important; /* S'assurer que la hauteur est ajustée */;
+            border-radius: 10px;
+            margin-bottom: 0.8em;
+        }
+    
+        .info {
+            font-size: 1.1em;
+        }
+
+        /* Styles pour la modale */
+    .modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.6); /* Couleur d'arrière-plan semi-transparente */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000; /* Assure que la modale est au-dessus de tout */
+    }
+
+    .modal-content {
+        background: #101A32; /* Couleur de fond similaire aux cartes */
+        color: white; /* Texte en blanc */
+        padding: 20px;
+        border-radius: 8px;
+        width: 90%;
+        max-width: 500px;
+        text-align: center;
+        position: relative;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2); /* Ombre légère */
+    }
+
+    .close-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        font-size: 18px;
+        font-weight: bold;
+        color: #fff;
+        cursor: pointer;
+        background: none;
+        border: none;
+    }
+
+    .close-btn:hover {
+        color: #ff4d4d; /* Rouge clair au survol */
+    }
+
+    .container_delete_account h3 {
+        margin-bottom: 15px;
+        font-size: 1.5rem;
+        color: #2DB4F3; /* Couleur cohérente avec les titres de section */
+    }
+
+    .container_delete_account p {
+        margin-bottom: 20px;
+        font-size: 1rem;
+    }
+
+    .btn-danger:hover {
+        background-color: #ff6666; /* Rouge plus clair au survol */
+    }
+
+    /* Masque la modale lorsqu'elle est fermée */
+    .modal[style*="display: none;"] {
+        display: none !important;
+    }
+
+    .text-success {
+        color: #28a745; /* Couleur verte pour succès */
+    }
+
+    .text-danger {
+        color: #dc3545; /* Couleur rouge pour erreur */
+    }
+
+    input.form-control {
+        width: 100%; /* Le champ prend toute la largeur du conteneur */
+        border-radius: 10px; /* Bordures arrondies */
+        padding: 10px; /* Espacement interne */
+        font-size: 16px; /* Taille du texte */
+        border: 1px solid #ced4da; /* Bordure grisée */
+        background-color: #f8f9fa; /* Couleur de fond */
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1); /* Légère ombre interne */
+    }
+    </style>
+===== ./accounts/login.html =====
+{% load i18n %}
+<!-- Conteneur pour les boutons -->
+<div id="login" class=" container-fluid d-flex flex-column align-items-center text-center" style="height: 100%; padding-top: 70px;">
+	<div class="col-8 col-sm-6 col-md-6 col-lg-4 col-xl-3 col-xxl-3">
+		<h1 class="text-center text-white title mb-3">{% trans "Connexion" %}</h1>
+        <form id="login-form" method="POST">
+			{% csrf_token %}
+            <div class="form-group mb-2">
+
+				<label for="username" class="form-label text-white w-100">{% trans "Nom d'utilisateur :" %}</label>
+				<input type="text" class="form-control w-100" id="username" name="username" required>
+			</div>
+			<div class="form-group mb-2">
+				<label for="password" class="form-label text-white w-100 mb-3">{% trans "Mot de passe :" %}</label>
+				<input type="password" class="form-control w-100" id="password" name="password" required>
+			</div>
+				<button id= "validate-btn" type="submit" class=" btn btn-primary btn-70 mb-4">{% trans "Valider" %}</button>
+                <div id="login-error" class="text-danger mt-2"></div>
+		</form>
+	</div>
+</div>
+<script>
+	
+</script>
+
+<style>
+	html, body {
+		overflow-y: auto;
+	}
+	
+	.btn-primary {
+		min-width: 100px;
+	}
+
+</style>
+
+===== ./accounts/login2fa.html =====
+{% load i18n %}
+<div class="container-fluid d-flex justify-content-center mt-3" style="height: 100%; padding-top: 20px; z-index: 10;">
+	<div class="col-12 col-sm-10 col-md-8 col-lg-5 col-xl-4 col-xxl-4">
+		
+		<div class=" dfa-item d-flex flex-column align-items-center justify-content-between text-white p-4">
+			<div class="login_2fa_div d-flex flex-column form-group mb-0">
+			<h3>{% trans "Entrez Code 2FA" %}</h3>
+
+				<p>{% trans "Pour vous connecter, veuillez saisir le code 2FA depuis votre application d'authentification" %}.</p>
+				<form id="login-2fa-form" method="POST" >
+					{% csrf_token %}
+					<div class="d-flex flex-column form-group">
+							<label for="code">{% trans "Code 2FA :" %}</label>
+							{{ login2fa_form.code}}
+					</div>
+					<button type="submit" class="btn btn-primary btn-70">{% trans "Valider" %}</button>
+				</form>
+			</div>
+
+		</div>
+	</div>
+</div>
+<style>
+	.dfa-item {
+		background-color:  #101A32;
+		border: 2px solid rgb(153, 148, 148);
+		border-radius: 20px;
+		font-style: "Jersey 10";
+		color: white;
+		font-size: 1.2em;
+		min-width: 320px;
+	}
+</style>
+===== ./accounts/match_history.html =====
+<!-- templates/User/match_history.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Historique des Parties</title>
+</head>
+<body>
+    <h1>Historique des Parties</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Partie</th>
+                <th>Résultat</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for history in match_histories %}
+            <tr>
+                <td>{{ history.game }}</td>
+                <td>{{ history.get_result_display }}</td>
+                <td>{{ history.played_at }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
+
+===== ./accounts/profile.html =====
+{% load static %}
+{% load i18n %}
+<div class="container-fluid mt-5" style="height: var(--sin-nav-height);">
+    <h1 class="text-center title mb-4" style="min-width: 300px;">{% trans "Profil Utilisateur" %}</h1>
+
+    <!-- Informations du profil -->
+    <div class="row d-flex justify-content-center mb-4">
+        <div class="col-12 col-sm-8 col-md-6 col-lg-5 col-xl-4 col-xxl-4">
+            <div class="card p-4">
+                <div class="profile-info d-flex flex-column justify-content-center align-items-center">
+                    <img id="profile-avatar" src="{{ user.avatar.url|default_if_none:'/media/avatars/default_avatar.png' }}" alt="Avatar" style="width: 120px; height: 120px;">
+                    <div class="mt-3">
+                        <h3 id="profile-username">{% trans "Pseudo : " %}{{ user.username }}</h3>
+                        <p class="mb-0">{% trans "Nombre de matchs joués : " %}<strong>{{ match_count }}</strong></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section Statistiques -->
+    <div class="row d-flex justify-content-center mb-4">
+        <div class="col-12 col-sm-8 col-md-6 col-lg-5 col-xl-4 col-xxl-4">
+            <div class="statistics text-center">
+                <h4 class="stat-title">{% trans "Statistiques Générales" %}</h4>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item bg-transparent text-white">{% trans "Victoires : " %}{{ victories }}</li>
+                    <li class="list-group-item bg-transparent text-white">{% trans "Défaites : " %}{{ defeats }}</li>
+                    <li class="list-group-item bg-transparent text-white">{% trans "Meilleur score : " %}{{ best_score }}</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section Historique des matchs -->
+    <div class="row d-flex justify-content-center mb-4">
+        <div class="col-12 col-sm-8 col-md-6 col-lg-5 col-xl-4 col-xxl-4">
+            <div class="match-history text-center">
+                <h4 class="stat-title">{% trans "Historique des Matchs" %}</h4>
+                {% if match_histories %}
+                    <ul class="list-group list-group-flush">
+                        {% for match in match_histories %}
+                            <li class="list-group-item bg-transparent text-white">
+                                <strong>{% trans "Adversaire : " %}</strong>{{ match.opponent }}<br>
+                                <strong>{% trans "Résultat : " %}</strong>{% if match.result == "win" %}{% trans "Victoire" %}{% else %}{% trans "Défaite" %}{% endif %}<br>
+                                <strong>{% trans "Joué le : " %}</strong>{{ match.played_at|date:"d/m/Y H:i" }}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p>{% trans "Aucun match enregistré pour le moment." %}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Section Amis -->
+    <div class="row d-flex justify-content-center mb-0">
+        <div class="col-12 col-sm-8 col-md-6 col-lg-5 col-xl-4 col-xxl-4">
+            <div class="friends-section text-center">
+                <h4 class="stat-title">{% trans "Amis" %}</h4>
+                <p>{% trans "Nombre d'amis : " %}<strong>{{ friends_count }}</strong></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bouton Gestion -->
+    <div class="row d-flex justify-content-center align-content-center mb-4 mt-4">
+        <div class="col-12 col-sm-8 col-md-6 col-lg-5 col-xl-4 col-xxl-4 mb-4">
+            <button id="gestion-btn" class="btn btn-primary w-100" style="min-width: 100px;">
+                {% trans "Gestion de Profil" %}
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+    html, body {
+        overflow: auto;
+    }
+    .card {
+        background-color: #101A32;
+        border: 2px solid rgb(153, 148, 148);
+        min-width: 300px;
+        color: white;
+    }
+    body {
+        background-color: #101A32;
+        color: white;
+    }
+    h1, .card-title, .stat-title {
+        color: #2DB4F3;
+    }
+    .profile-info img {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+    }
+    .btn-primary {
+        min-width: 300px !important;
+    }
+    .statistics, .friends-section, .match-history {
+        background-color: #101A32;
+        border: 2px solid rgb(153, 148, 148);
+        padding: 20px;
+        border-radius: 10px;
+        min-width: 300px;
+    }
+    .list-group-item {
+        color: white;
+    }
+</style>
+
+===== ./accounts/register.html =====
+{% load i18n %}
+<!-- templates/User/register.html -->
+<!-- Conteneur pour les boutons -->
+<div id="register" class="container-fluid d-flex flex-column align-items-center " style="height: 100%; padding-top: 70px;">
+	<div class=" col-8 col-sm-6 col-md-6 col-lg-4 col-xl-3 col-xxl-3">
+		<h1 class="text-center text-white title mb-3">{% trans "Inscription" %}</h1>
+        <form id="register-form" method="POST">
+            {% csrf_token %}
+            <div class="form-group mb-2">
+                <label for="username" class="w-100">{% trans "Nom d'utilisateur :" %}</label>
+                <input type="text" class="w-100" id="username" name="username" required>
+            </div>
+			<div class="form-group mb-2">
+				<label for="password" class="w-100">{% trans "Mot de passe :" %}</label>
+				<input type="password" class="w-100" id="password" name="password1" required>
+			</div>
+			<div class="form-group mb-2">
+				<label for="confirm-password">{% trans "Confirmer le mot de passe :" %}</label>
+				<input type="password" class="w-100" id="confirm-password" name="password2" required>
+			</div>
+
+			<button id="submit-btn" type="submit" class="btn btn-primary btn-70 mt-4 mb-3">{% trans "S'inscrire" %}</button>
+            <div id="register-error" class="text-danger mt-2"></div> <!-- Élément pour afficher les erreurs -->
+		</form>
+	</div>
+	<style>
+		html, body {
+			overflow-y: auto;
+		}
+	</style>
+</div>
+===== ./core/404.html =====
+<div class="fullscreen-404">
+  <div class="card">
+    <h1 class="card-title">404 - Page non trouvée</h1>
+    <p>Désolé, la page que vous recherchez n'existe pas.</p>
+    <a href="/" class="btn-primary">Retour à l'accueil</a>
+  </div>
+</div>
+
+<style>
+  html, body {
+    overflow: auto;
+    background-color: #101A32;
+    color: white;
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: sans-serif;
+  }
+  /* Conteneur prenant toute la page avec une superposition */
+  .fullscreen-404 {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #101A32;
+  }
+  /* Style de la carte en cohérence avec vos autres composants */
+  .card {
+    background-color: #101A32;
+    border: 2px solid rgb(153, 148, 148);
+    min-width: 300px;
+    padding: 2rem;
+    text-align: center;
+  }
+  h1, .card-title, .stat-title {
+    color: #2DB4F3;
+    margin: 0 0 1rem 0;
+  }
+  p {
+    margin: 0 0 1.5rem 0;
+  }
+  .btn-primary {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    text-decoration: none;
+    color: white;
+    border: 2px solid rgb(153, 148, 148);
+    background-color: transparent;
+    cursor: pointer;
+  }
+</style>
+===== ./core/home.html =====
+<!-- templates/home.html -->
+{% load i18n %}
+
+<div id="home" class="container-fluid d-flex flex-column justify-content-center align-items-center" style="height: 100%; padding-top: 50px; width: 100%; ">
+  <div class="col-6 col-sm-5 col-md-5 col-lg-4 col-xl-3 col-xxl-3 text-center">
+      <button id="login-btn" class="home-btn w-100 mb-5">{% trans "Connexion" %}</button>
+      <button id="register-btn" class="home-btn w-100">{% trans "Inscription" %}</button>
+  </div>
+</div>
+===== ./core/navbar_logged_in.html =====
+<nav id="navbar" class="navbar navbar-expand">
+    <div class="container-fluid">
+        <button id="home-btn" class="navbar-brand text-white btn btn-link">PONGAME</button>
+
+        <div class="d-flex ms-auto" id="navbar-right">
+            <!-- Bouton burger avec avatar -->
+            <button id="burger-menu-toggle" class="navbar-toggler rounded-circle" type="button"></button>
+
+        </div>
+    </div>
+</nav>
+<!-- Inclure le contenu du burger-menu -->
+<!-- Le conteneur pour le contenu du burger menu -->
+<div id="burger-menu-container">
+    <!-- Option 1: On peut charger directement la portion burger_menu ici la 1ère fois -->
+    {{ burger_menu|safe }}
+</div>
+<div id="overlay" style="display: none;" onclick="toggleBurgerMenu()"></div>
+
+<style>
+    
+    #burger-menu-toggle {
+        display: block;
+        width: 50px;
+        height: 50px;
+        background-image: url('{{ avatar_url }}'); /* Utilise l'avatar comme fond */
+        background-size: cover; /* L'image remplit complètement le bouton */
+        background-position: center; /* Centre l'image */
+        background-repeat: no-repeat; /* Pas de répétition de l'image */
+        border: 2px solid rgb(255, 255, 255);
+    }
+</style>
+
+===== ./core/navbar_public.html =====
+<nav id="navbar" class="navbar navbar-expand">
+    <div class="container-fluid">
+        <a id="home-btn" class="navbar-brand text-white">PONGAME</a>
+    </div>
+</nav>
+
+<style>
+    #navbar-right a {
+        color: white;
+        text-decoration: none;
+        margin-left: 10px;
+    }
+</style>
+
+
+
+===== ./core/popup_info.html =====
+<nav id="navbar" class="navbar navbar-expand">
+    <div id="popup-info" class="container-fluid d-flex justify-content-center align-items-start">
+    </div>
+</nav>
+
+<style>
+    .pop {
+        top : 50px;
+		width: 100%;
+		height : 50px;
+		background-color: red;
+		color : white;
+    }
+</style>
+
+
+===== ./game/gameHome.html =====
+<!-- Bouton PLAY -->
+<div class="d-flex justify-content-center align-items-center" style="height: 100%; width: 100%; ">
+    <div class="col-12 col-sm-8 col-md-7 col-lg-6 col-xl-6 col-xxl-6 text-center">
+        <button id="play-btn-home" class="play-button w-100">PLAY</button>
+    </div>
+</div>
+
+<style>
+	.body, html {
+		overflow: hidden;
+	}
+	.terrain {
+		border: none;
+		filter: blur(0px);
+		width: 75vw;
+		height: 37.5vw;
+		min-width: none;
+	}
+
+	.play-button {
+        font-family: "Jersey 10";
+        font-size: 15vw; 
+        color: #2DB4F3;
+        background: none;
+        border: none;
+		z-index: 100000;
+        animation: blink 2s infinite;
+    }
+
+	@keyframes blink {
+	0%, 100% 
+	{
+		opacity: 1;
+	}
+	50% 
+	{
+		opacity: 0;
+	}
+}
+
+	.ligne-centrale,
+	.cercle-central,
+	.point-central,
+	.mask{
+		display: none;
+	}
+
+
+	
+</style>
+===== ./game/gameMenu.html =====
+{% load i18n %}
+{% load static %}
+<div class="game-menu">
+	<div class="container-fluid d-flex flex-column align-items-center mb-2 py-4 col-12 col-sm-10 col-md-10 col-lg-6 col-xl-6 col-xxl-5" style="height: 100%; font-size: 1.2em;">
+        <h1 class="text-center mb-4" style="font-size: 2em;">{% trans "Menu de Jeu" %}</h1>
+
+        <!-- Section de choix de type de partie -->
+        <div class="card mb-3 bg-secondary w-100">
+            <div class="card-body">
+                <h5 class="card-title">{% trans "Type de Partie" %}</h5>
+                <div class="d-flex flex-column gap-2">
+                    <button id="local-game-btn" class="btn btn-primary w-100">{% trans "Partie Locale" %}</button>
+                    <button id="online-game-btn" class="btn btn-primary w-100">{% trans "Partie en ligne" %}</button>
+                    <button id="tournament-game-btn" class="btn btn-primary w-100">{% trans "Créer un tournoi en ligne" %}</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sections dynamiques de personnalisation -->
+        <!-- Personnalisation pour Partie Locale -->
+        {% include 'partials/customization-section.html' with customization_id="local" customization_title="Gameplay Local" button_text="Lancer Partie" %}
+
+        <!-- Personnalisation pour Partie en Ligne -->
+        {% include 'partials/customization-section.html' with customization_id="online" customization_title="Gameplay en Ligne" button_text="Inviter un ami" %}
+
+        <!-- Personnalisation pour Tournoi -->
+        {% include 'partials/customization-section.html' with customization_id="tournament" customization_title="Gameplay du Tournoi" button_text="Lancer Tournoi" %}
+
+		<!-- marge en bas de page. (obligatoire) -->
+		<div style="height: 50px; color: #101A32;">.</div>
+
+    </div>
+</div>
+
+
+<style>
+	html, body {
+		overflow : auto;
+	}
+    .game-menu {
+        color: rgb(223, 216, 216) !important;
+		width: 100vw;
+		height: var(--sin-nav-height);
+		top : 50px;
+		z-index: 1;
+    }
+	.mask{
+		display: none;
+	}
+	.card {
+		background-color: #101A32 !important;
+		border: 2px solid rgb(153, 148, 148);
+		min-width: 200px;
+	}
+
+	.img-bonus {
+		width : 30px; 
+		height : 30px;
+		border-radius: 50px;
+		border: 1.5px solid white;
+	}
+
+	.card-title {
+		font-size: 1.5em;
+	}
+
+	.btn-secondary {
+		font-family: "Jersey 10";
+		border: none;
+		font-size: 1.2em;
+		border-radius: 20px;
+		min-width: 100px;
+	}
+
+	#ground-game, .terrain{
+        display: none;
+		height: 0px !important; /* pour eviter que cette div bloque le scroll*/
+    }
+</style>
+===== ./game/game_results.html =====
+<div id="results-container" class="container d-flex flex-column align-items-center justify-content-center col-12 col-sm-10 col-md-8 col-lg-6 col-xl-4 col-xxl-4">
+    <!-- Titre agrandi et centré -->
+    <h1 id="results-title" class="text-center text-white mb-4">Résultats du jeu</h1>
+    
+    <!-- Bloc des résultats dimensionné en fonction de l'écran -->
+    <div class="statistics d-flex flex-column align-items-center justify-content-center">
+      <p class="d-flex flex-column  text-center"><strong class="stat-title">Winner</strong> {{ winner }}</p>
+      <p class="d-flex flex-column  text-center"><strong class="stat-title">Looser</strong> {{ looser }}</p>
+      <p class="d-flex flex-column  text-center"><strong class="stat-title">Score</strong> {{ score_left }} - {{ score_right }}</p>
+    </div>
+  </div>
+
+  <style>
+    html, body {
+      background-color: #101A32;
+      color: white;
+      margin: 0;
+      padding: 0;
+      overflow: auto;
+    }
+    /* Conteneur principal qui prend toute la hauteur de la page */
+    #results-container {
+		z-index: 25;
+      min-height: 100vh;
+      padding-top: 20px;
+    }
+    /* Style du titre agrandi et centré */
+    #results-title {
+      font-size: 3.3em;
+      font-family: "Jersey 10", sans-serif;
+    }
+    /* Bloc des résultats */
+    .statistics {
+      background-color: #101A32;
+      border: 2px solid rgb(153, 148, 148);
+      padding: 30px;
+      border-radius: 10px;
+      width: 100%;
+    }
+    .statistics p {
+      margin: 15px 0;
+      font-size: 1.6em;
+    }
+    .stat-title {
+      color: #2DB4F3;
+	  font-size: 1.3em;
+    }
+  </style>
+===== ./game/live_game.html =====
+<!--fichiers live_game.html-->
+
+<div id="livegame" class="container-fluid d-flex flex-column align-items-center justify-content-center position-fixed">
+	<!-- Bouton de lancement -->
+	<div class="game-container d-flex justify-content-center align-items-center">
+		 <!-- Zone de score positionnée en haut du terrain -->
+		 <div id="score-display" class="score-display text-center">
+			<span class="player-name left">{{ player_left_name|default:"Joueur 1" }}</span>
+			<span id="score-nb"> | 0 - 0 | </span>
+			<span class="player-name right">{{ player_right_name|default:"Joueur 2" }}</span>
+		  </div>
+		<button id="startGameBtn" class="btn starting-btn">PLAY</button>
+		<canvas id="gameCanvas"></canvas>
+	</div>
+</div>
+  
+  
+
+<style>
+	body, html {
+		overflow: hidden;
+	}
+
+	#ground-game, .terrain{
+		display: none;
+	}
+
+
+	#startGameBtn {
+		z-index: 60;
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+	}
+
+	#livegame {
+		z-index: 50;
+		margin: 0;
+		height: 100vh;
+		width: 100%;
+		padding-top: 50px;
+		color: white;
+	}
+
+	.game-container {
+		z-index: 50;
+		width: max(80vw, 400px);
+		aspect-ratio: 2 / 1;
+		position: relative;
+		top :0;
+	}
+
+	#gameCanvas {
+		position: absolute; 
+		z-index: 50;
+		display: block;
+		margin: 0 auto;
+		width: 100%;
+		height: auto; 
+		border: 1px solid white;
+		border-radius: 1em;
+		background-color: #101A32;
+	}
+
+	.starting-btn {
+    font-family: "Jersey 10", sans-serif; /* Garde uniquement la police que tu utilises */
+	width: 30%;
+    height: 40%;
+    color: rgba(45, 180, 243, 0.4); /* Couleur atténuée au début */
+    background: none; /* Pas de fond pour un effet propre */
+    border: none;
+    z-index: 60;
+	opacity: 0.1;
+    transition: opacity 0.5s ease-in-out, text-shadow 0.5s ease-in-out;
+
+	font-size: clamp(2rem, 20vw, 15vh); /* Adapte le texte à la taille du bouton */
+    
+    /* Centrer le texte dans le bouton */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+
+	min-width: 100px;
+}
+
+
+
+/* Clignotement normal */
+@keyframes blink {
+    0%, 100% { opacity: 0; }
+    50% { opacity: 1; }
+}
+
+/* Effet de lumière rétro autour du texte sans flou */
+
+
+/* Activation du clignotement normal après le lent */
+.starting-btn.active {
+    color: #2DB4F3; /* Couleur vive */
+    animation: blink 2s infinite;
+}
+
+.score-display {
+  position: absolute;
+  transform: translateX(-50%);
+  color: white;
+  font-family:  "Jersey 10", sans-serif;
+  /* font-size: 1.5rem;     Ajustez la taille de la police selon vos besoins */
+  z-index: 60;           /* Au-dessus du canvas et du bouton PLAY */
+}
+
+.player-name.left, .player-name.right{
+		color: rgba(45, 180, 243, 1);  /* Par exemple, rouge pour le joueur de gauche */
+	}
+
+  
+</style>
+===== ./game/live_game_tactile.html =====
+<!--fichiers live_game_tactile.html-->
+<div id="global-rotator">
+
+<!-- Conteneur principal Bootstrap -->
+<div id="livegame" class="container">
+	<div class="row justify-content-center">
+	  <!-- La colonne s'ajuste : sur mobile, col-12, sur petit écran au-dessus de 576px, col-sm-10 -->
+	  <div id="game-col" class="col-12 col-sm-10 d-flex flex-column align-items-center">
+		<!-- Terrain de jeu -->
+		<div class="game-container mt-1">
+			<div id="score-display" class="score-display text-center">
+				<span class="player-name left">{{ player_left_name|default:"Joueur 1" }}</span>
+				<span id="score-nb"> | 0 - 0 | </span>
+				<span class="player-name right">{{ player_right_name|default:"Joueur 2" }}</span>
+			  </div>
+		  <canvas id="gameCanvas" width="800" height="400"></canvas>
+		  <button id="startGameBtn" class="starting-btn">PLAY</button>
+		</div>
+		<!-- Boutons de contrôle -->
+		<div class="touch-controls">
+		  <button id="touch1" class="control-btn" >&#x25C0;</button>  <!-- Flèche gauche -->
+		  <button id="touch2" class="control-btn" >&#x25B6;</button>  <!-- Flèche droite -->
+		</div>
+	  </div>
+	</div>
+  </div>
+</div>
+  <style>
+
+	/* Pour forcer la rotation de tout le contenu */
+	#global-rotator {
+  position: fixed;  /* fixed permet de le coller à la fenêtre */
+  top: 50px;
+  left: 0;
+  width: 100vh;
+  height: 100vw;
+}
+
+@media (orientation: landscape) {
+  #global-rotator {
+	transform: rotate(90deg) !important;
+        transform-origin: center;
+        width: 100vw !important;
+        height: 100vh !important;
+  }
+}
+
+/* Styles globaux */
+body, html {
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+}
+.mask {
+  display: none;
+  z-index: 0;
+}
+
+#ground-game {
+  display: none !important;
+  height: 0 !important;
+  top : 0 !important;
+}
+
+#livegame {
+	overflow: auto;
+}
+
+.hidden {
+  display: none;
+}
+
+.navbar {
+  transition: all 0.5s ease;
+}
+.score-display {
+  position: absolute;
+  top: 10px;           /* Distance depuis le haut du game-container (ajustez selon vos préférences) */
+  left: 50%;
+  transform: translateX(-50%);
+  color: white;
+  font-family: Arial, sans-serif;
+  font-size: 20px;
+  z-index: 70;         /* Pour être affiché au-dessus du canvas */
+}
+
+/* Conteneur principal Bootstrap déjà défini par .container */
+
+/* Conteneur du terrain */
+.game-container {
+  position: relative;
+  background-color: #101A32;
+  border: 1px solid white;
+  border-radius: 1em;
+  /* Les dimensions seront définies dynamiquement par JS */
+  min-width: 100px;
+  min-height: 200px;
+}
+
+/* Canvas (dimensions internes 800x400, affiché verticalement via transformation) */
+#gameCanvas {
+  position: absolute;
+  transform-origin: top left;
+  overflow: hidden !important;
+}
+
+/* Bouton PLAY, centré sur le terrain */
+#startGameBtn {
+  position: absolute;
+  z-index: 60;
+  font-family: "Jersey 10", sans-serif;
+  width: 30%;
+  height: 40%;
+  color: rgba(45,180,243,0.7);
+  background: none;
+  border: none;
+  opacity: 0.1;
+  transition: opacity 0.5s ease-in-out;
+  font-size: clamp(2rem, 20vw, 15vh);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-width: 100px;
+  top: 50%;
+  left: 50%;
+  /* La translation permet de centrer le bouton dans la div game-container,
+     puis on applique la rotation pour l'orientation verticale */
+  transform: translate(-50%, -50%) rotate(-90deg);
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+.starting-btn.active {
+  color: #2DB4F3;
+  animation: blink 2s infinite;
+}
+
+/* Conteneur des boutons tactiles : largeur exactement adaptée au contenu */
+.touch-controls {
+  display: inline-flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 5px;          /* Espace fixe entre les boutons */
+  margin-top: 1vh;   /* Distance fixe entre le terrain et les boutons */
+  height: 5vh !important;
+}
+
+/* Nouveau design des boutons avec min et max imposés */
+.control-btn {
+	font-family: "Jersey 10", sans-serif;
+	/* Appliquer le facteur d'échelle directement aux valeurs */
+	font-size: calc(clamp(1rem, 6vw, 1.3rem) * var(--btn-scale, 1));
+	/* Réduire la hauteur (vertical) et allonger la largeur (horizontal) */
+	padding: calc(8px * var(--btn-scale, 1)) calc(40px * var(--btn-scale, 1));
+	border: none;
+	border-radius: 0.75em;
+	background: linear-gradient(145deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+	color: #fff;
+	box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.4);
+	transition: all 0.2s ease;
+	/* Imposer des tailles minimum et maximum pour que le bouton reste cliquable */
+    width: 30vw;
+    height: 5vh;
+    min-width: 60px;
+    min-height: 10px;
+    max-width: 150px;
+    max-height: 60px;
+}
+
+.control-btn:hover {
+  background: linear-gradient(145deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1));
+  box-shadow: 3px 3px 7px rgba(0, 0, 0, 0.6);
+}
+
+.control-btn:active {
+  filter: brightness(0.9);
+}
+
+#content {
+	padding-bottom: 0 !important;
+}
+
+#ground-game {
+	display: none;
+}
+
+ .score-display {
+	position: absolute;
+  /* Ces valeurs seront recalculées en JS */
+  color: white;
+  font-family: "Jersey 10", sans-serif;
+  font-size: 1.5rem;
+  z-index: 70;
+  transform: rotate(269deg) !important;
+    transform-origin: left !important;
+    top: 59% !important;
+    left: 8% !important;
+} 
+
+.player-name.left, .player-name.right{
+		color: rgba(45, 180, 243, 1);  /* Par exemple, rouge pour le joueur de gauche */
+	}
+
+  .touch-controls button {
+  pointer-events: auto;
+  z-index: 9999;
+  background: red; /* pour voir s'ils s'affichent */
+}
+	
+  </style>
+===== ./game/local_game/live_local_game.html =====
+<div id="livegame" class="container-fluid d-flex flex-column align-items-center justify-content-center position-fixed">
+	<!-- Bouton de lancement -->
+	<div class="game-container d-flex justify-content-center align-items-center">
+		 <!-- Zone de score positionnée en haut du terrain -->
+		 <div id="score-display" class="score-display text-center">
+			<span class="player-name left">{{ player_left_name|default:"Joueur 1" }}</span>
+			<span id="score-nb"> | 0 - 0 | </span>
+			<span class="player-name right">{{ player_right_name|default:"Joueur 2" }}</span>
+		  </div>
+		<button id="startGameBtn" class="btn starting-btn" disabled>PLAY</button>
+		<canvas id="gameCanvas"></canvas>
+	</div>
+</div>
+  
+  
+
+<style>
+	body, html {
+		overflow: hidden;
+	}
+
+	#ground-game, .terrain{
+		display: none;
+	}
+
+
+	#startGameBtn {
+		z-index: 60;
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+	}
+
+	#livegame {
+		z-index: 50;
+		margin: 0;
+		height: 100vh;
+		width: 100%;
+		padding-top: 50px;
+		color: white;
+	}
+
+	.game-container {
+		z-index: 50;
+		width: max(80vw, 400px);
+		aspect-ratio: 2 / 1;
+		position: relative;
+		top :0;
+	}
+
+	#gameCanvas {
+		position: absolute; 
+		z-index: 50;
+		display: block;
+		margin: 0 auto;
+		width: 100%;
+		height: auto; 
+		border: 1px solid white;
+		border-radius: 1em;
+		background-color: #101A32;
+	}
+
+	.starting-btn {
+    font-family: "Jersey 10", sans-serif; /* Garde uniquement la police que tu utilises */
+	width: 30%;
+    height: 40%;
+    color: rgba(45, 180, 243, 0.4); /* Couleur atténuée au début */
+    background: none; /* Pas de fond pour un effet propre */
+    border: none;
+    z-index: 60;
+	opacity: 0.1;
+    transition: opacity 0.5s ease-in-out, text-shadow 0.5s ease-in-out;
+
+	font-size: clamp(2rem, 20vw, 15vh); /* Adapte le texte à la taille du bouton */
+    
+    /* Centrer le texte dans le bouton */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+
+	min-width: 100px;
+}
+
+
+
+/* Clignotement normal */
+@keyframes blink {
+    0%, 100% { opacity: 0; }
+    50% { opacity: 1; }
+}
+
+/* Effet de lumière rétro autour du texte sans flou */
+
+
+/* Activation du clignotement normal après le lent */
+.starting-btn.active {
+    color: #2DB4F3; /* Couleur vive */
+    animation: blink 2s infinite;
+}
+
+.score-display {
+  position: absolute;
+  transform: translateX(-50%);
+  color: white;
+  font-family:  "Jersey 10", sans-serif;
+  /* font-size: 1.5rem;     Ajustez la taille de la police selon vos besoins */
+  z-index: 60;           /* Au-dessus du canvas et du bouton PLAY */
+}
+
+.player-name.left, .player-name.right{
+		color: rgba(45, 180, 243, 1);  /* Par exemple, rouge pour le joueur de gauche */
+	}
+
+  
+</style>
+===== ./game/online_game/invite_game.html =====
+{% load i18n %}
+<div id="invite-container" class="container-fluid text-center d-flex flex-column align-items-center col-12" style="height: 100%; padding-top: 20px; z-index: 2;">
+    <h2 class="text-white texte-center mb-4" style="font-size: 2.5em;">{% trans "Invitez un ami" %}</h2>
+
+    <div class="list-group mb-4 col-12 col-sm-10 col-md-8 col-lg-6 col-xl-4 col-xxl-4">
+        <div class="col-12 list-group-item d-flex flex-column align-items-center justify-content-between text-white p-2 mb-2">
+            <div class="text-white p-3 w-100">
+                <ul class="list-unstyled w-100 mb-0" id="friends-list-container">
+                    {% for friend in friends %}
+                    <li class="d-flex align-items-center justify-content-between mb-2" data-username="{{ friend.username }}">
+                        <div class="avatar position-relative">
+                            <img src="{{ friend.avatar.url|default:'/media/avatars/default_avatar.png' }}" alt="Avatar of {{ friend.username }}" class="rounded-circle me-3" style="width: 50px; height: 50px;">
+                            <span class="status-indicator-friend {% if friend.is_online %}online{% else %}offline{% endif %}"></span>
+                        </div>
+						<button class="friend-btn me-3" >{{ friend.username }}</button>
+                        <button class="btn invite-button">{% trans "Inviter" %}
+                            <span class="cancel-icon d-none">&times;</span>
+                        </button>
+                    </li>
+                    {% empty %}
+                    <p class="text-center mb-0">{% trans "Aucun ami pour le moment." %}</p>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <!-- Bouton pour commencer le tournoi -->
+            <div class="col-11">
+                <button id="start-game-btn" class="btn btn-primary w-100 mb-3" disabled style="background-color: #2DB4F3">{% trans "Commencer" %}</button>
+            </div>
+        </div>
+    </div>
+
+	  <!-- Modal de Confirmation -->
+	<div id="confirmationModal" class="modal-overlay" style="display: none;">
+		<div class="modal-content">
+			<p>{% trans "Si vous quittez la page, la session actuelle sera supprimée." %}</p>
+			<button id="confirmLeave">{% trans "Oui, quitter" %}</button>
+			<button id="cancelLeave">{% trans "Non, rester" %}</button>
+		</div>
+    </div>
+</div>
+
+<style>
+	body, html {
+		overflow: auto;
+	}
+
+	.modal-overlay {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background: rgba(0, 0, 0, 0.7); /* Fond sombre avec opacité */
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 1000;
+	}
+
+	.modal-content {
+		background: #101A32; /* Même couleur que les boutons et items */
+		color: white;
+		padding: 20px;
+		border-radius: 10px;
+		text-align: center;
+		box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.5); /* Légère ombre pour un effet de profondeur */
+	}
+
+	.modal-content p {
+		font-size: 1.2em;
+		margin-bottom: 20px;
+	}
+
+	.modal-content button {
+		margin: 10px;
+		padding: 10px 20px;
+		font-size: 1em;
+		border-radius: 5px;
+		border: none;
+		cursor: pointer;
+	}
+
+	/* Bouton de confirmation */
+	.modal-content #confirmLeave {
+		background-color: #FF5C5C; /* Rouge cohérent avec l'icône de suppression */
+		color: white;
+		transition: background-color 0.3s ease;
+	}
+
+	.modal-content #confirmLeave:hover {
+		background-color: #D9534F; /* Rouge plus foncé au survol */
+	}
+
+	/* Bouton d'annulation */
+	.modal-content #cancelLeave {
+		background-color: #2DB4F3; /* Bleu cohérent avec le bouton principal */
+		color: white;
+		transition: background-color 0.3s ease;
+	}
+
+	.modal-content #cancelLeave:hover {
+		background-color: #1A91D1; /* Bleu plus foncé au survol */
+	}
+
+	.invite-button, .friend-btn {
+		border: 2px solid rgb(153, 148, 148);
+		border-radius: 10px;
+		font-size: 1.25em !important;
+		overflow: hidden;
+	}
+
+	.list-group-item, .friend-btn {
+		background-color: #101A32;
+	}
+
+	.start-game-btn, .list-group-item, .friend-btn, .list-group {
+		overflow: auto;
+	}
+
+	.list-group {
+		min-width: 20em;
+	}
+
+	.status-indicator-friend {
+		right: 20px !important;
+	}
+
+	.btn-primary {
+		font-size: 1.25em !important;
+	}
+
+	.friend-btn {
+		min-width: 4em;
+	}
+
+	.invite-button {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		background: none;
+		color: white;
+		padding: 5px 10px;
+		cursor: pointer;
+		position: relative;
+		text-align: center;
+		min-width: 6em;
+	}
+
+	.invite-button:hover {
+		border: 2px solid rgb(153, 148, 148);
+	}
+
+	@media (max-width: 576px) {
+		.avatar, .invite-button, .friend-btn {
+			margin-bottom: 10px;
+			margin-left: 0;
+			margin-right: 0 !important;
+		}
+		.rounded-circle {
+			margin-right: 0 !important;
+		}
+		.status-indicator-friend {
+			right: 5px !important;
+		}
+
+		.invite-button, .friend-btn {
+			width: 100%; /* Donne à chaque bouton 100% de la largeur */
+		}
+	}
+
+	.cancel-icon {
+		color: #FF5C5C; /* Rouge pour la croix */
+		cursor: pointer;
+		margin-left: 10px; /* Espace entre "Envoyé" et la croix */
+		margin-right: -5px;
+	}
+
+	.cancel-icon.d-none {
+		display: none; /* Masquer l'icône de croix par défaut */
+	}
+
+	.invite-button.sent:active {
+		border-color: rgb(153, 148, 148); /* Force la couleur de bordure en état actif */
+		outline: none;
+		box-shadow: none; /* Assure qu'il n'y a pas d'ombre ou d'effet de clic */
+	}
+</style>
+
+===== ./game/online_game/loading.html =====
+{% load i18n %}
+{% load static %}
+
+<div class="game-container">
+	<div class="player"></div>
+
+	<div id="tutorial-content" class="tutorial-box">
+		<div class="d-flex justify-content-center mb-2">Tuto Bonus</div>
+		<ul class="list-unstyled">
+			<li class="d-flex align-items-center mb-2">
+				<img src="{% static 'png_game/obstacle.png' %}" alt="Obstacle" class="img-bonus me-2">
+				<span>{% trans "Attention aux obstacles !" %}</span>
+			</li>
+			<li class="d-flex align-items-center mb-2">
+				<img src="{% static 'png_game/speed.png' %}" alt="Acceleration" class="img-bonus me-2">
+				<span>{% trans "Accelere la vitesse de ta raquette" %}</span>
+			</li>
+			<li class="d-flex align-items-center mb-2">
+				<img src="{% static 'png_game/minus.png' %}" alt="Minus" class="img-bonus me-2">
+				<span>{% trans "Raquette mini, chances maxi !" %}</span>
+			</li>
+			<li class="d-flex align-items-center mb-2">
+				<img src="{% static 'png_game/icy.png' %}" alt="ice-age" class="img-bonus me-2">
+				<span>{% trans "Des glissades, et pas pour toi" %}</span>
+			</li>
+			<li class="d-flex align-items-center mb-2">
+				<img src="{% static 'png_game/flash.png' %}" alt="flash" class="img-bonus me-2">
+				<span>{% trans "Morsure du Soleil" %}</span>
+			</li>
+			<li class="d-flex align-items-center mb-2">
+				
+				<img src="{% static 'png_game/change.png' %}" alt="reverse-control" class="img-bonus me-2">
+				<span>{% trans "Quand gauche devient droite..." %}</span>
+			</li>
+			<li class="d-flex align-items-center mb-2">
+				<img src="{% static 'png_game/canon.png' %}" alt="canon" class="img-bonus me-2">
+				<span>{% trans "Propulse la balle a toute vitesse" %}</span>
+			</li>
+		</ul>
+	</div>
+
+</div>
+
+<div id="loading-screen" class="position-absolute end-0 bottom-0 p-3 me-3 text-primary">
+    <span id="loading-text">{% trans "Chargement" %} </span><span id="loading-dots"></span>
+</div>
+
+<style>
+
+
+    #ground-game, .terrain{
+        display: none;
+    }
+
+    .mask{
+		display: none;
+	}
+
+	.text-primary {
+		font-size: 2em;
+		color : #2DB4F3 !important;
+		/* font-weight: bold; */
+	}
+	
+	body , html {
+		margin: 0;
+		overflow: hidden;
+	}
+	.game-container {
+		position: relative;
+		width: 100vw;
+		height: 100vh;
+		background: none;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+	}
+	.player {
+		position: absolute;
+		width: 40px;
+		height: 40px;
+		background-color: #2DB4F3;
+		border-radius: 8px;
+	}
+	.collectible {
+		position: absolute;
+		width: 30px;
+		height: 30px;
+		background-color: #ffcc00;
+		border-radius: 50%;
+		transition: top 0.1s linear, left 0.1s linear; /* Rendre les déplacements fluides */
+	}
+
+	.img-bonus {
+		width : 30px; 
+		height : 30px;
+		border-radius: 50px;
+		border: 1.5px solid white;
+	}
+
+	.tutorial-box {
+		position: absolute;
+		top: 0;
+		left: 0;
+		background-color: #141b2e; /* Fond semi-transparent */
+		border-right: 2px solid #2DB4F3; /* Bordure uniquement à droite */
+		border-bottom: 2px solid #2DB4F3; /* Bordure uniquement en bas */
+		color: white; /* Texte blanc */
+		border-radius: 0 0 8px 0; 
+		padding: 15px; /* Espace intérieur */
+		width: 300px; /* Largeur fixe ou ajustable */
+		box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Ombre */
+	}
+
+</style>
+
+<!-- <script>
+    const player = document.querySelector('.player');
+    const gameContainer = document.querySelector('.game-container');
+    let containerWidth = gameContainer.offsetWidth;
+    let containerHeight = gameContainer.offsetHeight;
+    const collectibleCount = 9;
+    const collectibles = [];
+    const keysPressed = {};
+    let direction = { x: 1, y: 0 }; // Par défaut, déplacement vers la droite
+    const playerSpeed = 10;
+    let playerX = 0;
+    let playerY = containerHeight / 2 - 15; // Milieu vertical
+    let lastDiagonalDirection = null; // Stocke la dernière direction diagonale
+
+    // Initialisation de la position du joueur
+    player.style.left = `${playerX}px`;
+    player.style.top = `${playerY}px`;
+
+    // Fonction pour recalculer les dimensions du conteneur
+    function updateContainerDimensions() {
+        containerWidth = gameContainer.offsetWidth;
+        containerHeight = gameContainer.offsetHeight;
+    }
+
+    // Fonction pour créer des collectibles
+    function createCollectibles() {
+        collectibles.forEach(col => col.remove()); // Supprime les collectibles existants
+        collectibles.length = 0;
+
+        for (let i = 0; i < collectibleCount; i++) {
+            const collectible = document.createElement('div');
+            collectible.className = 'collectible';
+            collectible.style.left = `${Math.random() * (containerWidth - 30)}px`;
+            collectible.style.top = `${Math.random() * (containerHeight - 30)}px`;
+            gameContainer.appendChild(collectible);
+            collectibles.push(collectible);
+        }
+    }
+
+    // Fonction pour mettre à jour la direction en fonction des touches pressées
+    function updateDirection() {
+        if (keysPressed['ArrowUp'] && keysPressed['ArrowLeft']) {
+            direction = { x: -1, y: -1 };
+            lastDiagonalDirection = { x: -1, y: -1 }; // Stocke la diagonale
+        } else if (keysPressed['ArrowUp'] && keysPressed['ArrowRight']) {
+            direction = { x: 1, y: -1 };
+            lastDiagonalDirection = { x: 1, y: -1 };
+        } else if (keysPressed['ArrowDown'] && keysPressed['ArrowLeft']) {
+            direction = { x: -1, y: 1 };
+            lastDiagonalDirection = { x: -1, y: 1 };
+        } else if (keysPressed['ArrowDown'] && keysPressed['ArrowRight']) {
+            direction = { x: 1, y: 1 };
+            lastDiagonalDirection = { x: 1, y: 1 };
+        } else if (keysPressed['ArrowUp']) {
+            direction = { x: 0, y: -1 };
+        } else if (keysPressed['ArrowDown']) {
+            direction = { x: 0, y: 1 };
+        } else if (keysPressed['ArrowLeft']) {
+            direction = { x: -1, y: 0 };
+        } else if (keysPressed['ArrowRight']) {
+            direction = { x: 1, y: 0 };
+        } else if (lastDiagonalDirection) {
+            // Si aucune touche n'est pressée, utilise la dernière diagonale connue
+            direction = lastDiagonalDirection;
+        }
+		lastDiagonalDirection = direction;
+    }
+
+    // Fonction pour déplacer le joueur
+    function movePlayer() {
+        // Normaliser la vitesse pour éviter le ralentissement en diagonale
+        const length = Math.sqrt(direction.x ** 2 + direction.y ** 2);
+        const normalizedDirection = {
+            x: (direction.x / length) * playerSpeed,
+            y: (direction.y / length) * playerSpeed,
+        };
+
+        // Mettre à jour la position du joueur
+        playerX += normalizedDirection.x;
+        playerY += normalizedDirection.y;
+
+        // Faire sortir le joueur du côté opposé
+        if (playerX < 0) {
+            playerX = containerWidth - player.offsetWidth;
+        } else if (playerX > containerWidth - player.offsetWidth) {
+            playerX = 0;
+        }
+
+        if (playerY < 0) {
+            playerY = containerHeight - player.offsetHeight;
+        } else if (playerY > containerHeight - player.offsetHeight) {
+            playerY = 0;
+        }
+
+        player.style.left = `${playerX}px`;
+        player.style.top = `${playerY}px`;
+
+        // Vérifier les collisions avec les collectibles
+        collectibles.forEach((collectible, index) => {
+            const collectibleRect = collectible.getBoundingClientRect();
+            const playerRect = player.getBoundingClientRect();
+
+            if (
+                playerRect.left < collectibleRect.right &&
+                playerRect.right > collectibleRect.left &&
+                playerRect.top < collectibleRect.bottom &&
+                playerRect.bottom > collectibleRect.top
+            ) {
+                collectible.remove();
+                collectibles.splice(index, 1);
+
+                // Réapparition des collectibles après collecte complète
+                if (collectibles.length === 0) {
+                    setTimeout(createCollectibles, 500);
+                }
+            }
+        });
+    }
+
+    // Gestion des touches pressées
+    document.addEventListener('keydown', (e) => {
+        keysPressed[e.key] = true;
+        updateDirection(); // Met à jour immédiatement la direction
+    });
+
+    document.addEventListener('keyup', (e) => {
+        keysPressed[e.key] = false;
+
+        // Si aucune touche n'est pressée, on conserve la dernière diagonale
+        if (
+            !keysPressed['ArrowUp'] &&
+            !keysPressed['ArrowDown'] &&
+            !keysPressed['ArrowLeft'] &&
+            !keysPressed['ArrowRight']
+        ) {
+            if (lastDiagonalDirection) {
+                direction = lastDiagonalDirection;
+            }
+        }
+    });
+
+    // Boucle d'animation
+    function gameLoop() {
+        movePlayer();
+        requestAnimationFrame(gameLoop);
+    }
+
+    // Gestion de la mise à jour de la taille
+    window.addEventListener('resize', () => {
+        updateContainerDimensions();
+    });
+
+    // Initialisation
+    updateContainerDimensions();
+    createCollectibles();
+    gameLoop();
+</script> -->
+===== ./game/tournament/select_players.html =====
+{% load i18n %}
+{% load static %}
+<div class="container-fluid py-4">
+  <h1 class="text-center mb-4" style="font-size: 2em;">Sélectionner les joueurs</h1>
+
+  <!-- Formulaire de sélection des joueurs -->
+  <div class="card bg-secondary">
+    <div class="card-body">
+      <!-- 
+           id="tournament-form" pour qu'on puisse faire `document.querySelector('#tournament-form')` en JS
+           name=... pour que Django reçoive ces champs dans request.POST 
+      -->
+      <form id="tournament-form">
+        <div class="mb-3">
+          <label for="tournament-name" class="form-label">Nom du Tournoi</label>
+          <input type="text" id="tournament-name" name="name" class="form-control" placeholder="Nom du Tournoi" required>
+        </div>
+
+        <div class="mb-3">
+          <label for="player1" class="form-label">Nom du Joueur 1</label>
+          <input type="text" id="player1" name="player1" class="form-control" placeholder="Joueur 1" required>
+        </div>
+        <div class="mb-3">
+          <label for="player2" class="form-label">Nom du Joueur 2</label>
+          <input type="text" id="player2" name="player2" class="form-control" placeholder="Joueur 2" required>
+        </div>
+        <div class="mb-3">
+          <label for="player3" class="form-label">Nom du Joueur 3</label>
+          <input type="text" id="player3" name="player3" class="form-control" placeholder="Joueur 3" required>
+        </div>
+        <div class="mb-3">
+          <label for="player4" class="form-label">Nom du Joueur 4</label>
+          <input type="text" id="player4" name="player4" class="form-control" placeholder="Joueur 4" required>
+        </div>
+
+        <!-- Bouton de soumission -->
+        <button type="submit" class="btn btn-primary mt-3 w-100">Lancer le tournoi</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<style>
+  body {
+    font-size: 1.2em;
+    background-color: #101A32;
+    color: rgb(223, 216, 216);
+    overflow: auto;
+  }
+  .container-fluid {
+    padding-top: 20px;
+    padding-bottom: 20px;
+  }
+  .form-label {
+    font-size: 1.1em;
+  }
+  .card {
+    background-color: #101A32 !important;
+    border: 2px solid rgb(153, 148, 148);
+    min-width: 200px;
+  }
+  .form-control {
+    background-color: #2D3A52;
+    border: 1px solid rgb(153, 148, 148);
+    color: rgb(223, 216, 216);
+  }
+  .form-check-label {
+    font-size: 1.1em;
+    color: rgb(223, 216, 216);
+  }
+  .btn-primary {
+    background-color: #007bff;
+    font-size: 1.2em;
+    border-radius: 20px;
+    min-width: 100px;
+  }
+  .btn-primary:hover {
+    background-color: #0056b3;
+  }
+  .text-center {
+    font-size: 1.8em;
+  }
+  .mb-3 {
+    margin-bottom: 1.5rem;
+  }
+  .form-check {
+    margin-top: 1.5rem;
+  }
+</style>
+
+===== ./game/tournament/tournament_bracket.html =====
+{%load static%}
+{%load i18n%}
+<div class="container-fluid d-flex flex-column align-items-center justify-content-start" style="height: 100%; width: 100%; ">
+   
+	<!-- Lignes de connexion pour le tournoi -->
+	<div id="bracket_tournament"  class="bracket d-flex flex-column align-items-center justify-content-center">
+		<div class="tournament-title text-center text-uppercase" style="font-family: 'Jersey 10'">
+			<h2 class="text-light fw-bold">{%trans 'Pong Championship' %} : <span class="title-choosen"></span></h2>
+			<p class="text-secondary d-none">{%trans 'Le Premier match va commencer ' %}..</p> <!-- classe d-none a retirer pour presentation avant match 1-->
+			<p class="text-secondary d-none">{%trans 'Le Deuxième match va commencer' %} ..</p> <!-- classe d-none a retirer pour presentation avant match 2-->
+			<p class="text-secondary d-none">{%trans 'Place à la Finale' %} ..</p> <!-- classe d-none a retirer pour presentation avant finale (match 3)-->
+			<p class="text-secondary d-none">{%trans 'Le grand vainqueur est' %} : </p> <!-- classe d-none a retirer pour presentation apres resultat finale -->
+		</div>
+		<div class="lines d-flex flex-column ">
+			<div class=" victory d-flex justify-content-center  align-items-end position-relative">
+				<div class="vertical d-flex justify-content-around align-items-end">
+					<line class="win vertical-line"></line>
+					<img src="{% static 'png/eclair.png' %}" class="eclair justify-content-center align-items-center position-absolute match-3 d-none"> <!-- classe d-none a retirer pour presentation avant finale (match 3)-->
+					
+					
+					<div class="winner3 d-flex flex-column align-items-center position-absolute d-none"> <!-- classe d-none a retirer pour presentation apres resultat finale -->
+						<div class="winner-name text-center">{ Vainqueur }</div>
+						<img src="" id="winner_3" class="avatar">
+					</div>
+
+				</div>
+			</div>
+			
+			<div class="lines-final d-flex flex-column justify-content-start">
+				<div class="horizontale d-flex justify-content-center align-items-start">
+					<line class=" final horizontale-line"></line>
+				</div>
+				<div class="vertical d-flex justify-content-around align-items-end">
+					<line class="final vertical-line"></line>
+					<line class="final vertical-line"></line>
+				</div>
+			</div>
+			<div class="lines-semi-final d-flex flex-column justify-content-start">
+				<div class="horizontale d-flex justify-content-around align-items-start position-relative">
+					<img src="{% static 'png/eclair.png' %}" class="eclair position-absolute match-1  d-none"> <!-- classe d-none a retirer pour presentation avant match 1 puis remettre le d-none pour les autre etapes-->
+					<img src="{% static 'png/eclair.png' %}" class="eclair position-absolute match-2  d-none"> <!-- classe d-none a retirer pour presentation avant match 2 puis remettre le d-none pour les autre etapes-->
+					
+					
+					<div class="winner1 d-flex flex-column align-items-center position-absolute  d-none"> <!-- classe d-none a retirer pour presentation apres resultat match 1 puis laisser jusqu'à la fin-->
+						<img src="" id="winner_1" class="avatar"> <!-- changer le src par le svg du gagnant du match 1 -->
+						<div class="player-name text-center">(nom du gagnant match 2)</div> <!-- changer le nom du gagnant du match 1 -->
+					</div>
+
+
+					<div class="winner2 d-flex flex-column align-items-center position-absolute   d-none"> <!-- classe d-none a retirer pour presentation apres resultat match 2 puis laisser jusqu'à la fin-->
+						<img src=""  class="avatar"> <!-- changer le src par le svg du gagnant du match 2 -->
+						<div class="player-name text-center">(nom du gagnant match 1)</div> <!-- changer le nom du gagnant du match 2 -->
+					</div>
+
+					<line class="semi horizontale-line"></line>
+					<line class="semi horizontale-line"></line>
+				</div>
+				<div class="vertical d-flex justify-content-around align-items-end">
+					<line class="semi vertical-line"></line>
+					<line class="semi vertical-line"></line>
+					<line class="semi vertical-line"></line>
+					<line class="semi vertical-line"></line>
+				</div>
+
+				<!-- Niveau des joueurs avec avatars et noms -->
+				<div class="round quarter-finals d-flex justify-content-around align-items-end w-100">
+					<div class="match d-flex justify-content-between align-items-center w-30 position-relative">
+						<div class="player1 d-flex flex-column align-items-center position-absolute" data-player-id="1">
+							<img src="" class="avatar">
+							<div class="player-name text-center">JOUEUR 1</div>
+						</div>
+							<!-- <img src="png/eclair.png" class="eclair"> -->
+						<div class="player2 d-flex flex-column align-items-center position-absolute" data-player-id="2">
+							<img src="" class="avatar">
+							<div class="player-name text-center">JOUEUR 2</div>
+						</div>
+					</div>
+					<div class="match d-flex justify-content-between align-items-center w-30 position-relative">
+						<div class="player3 d-flex flex-column align-items-center position-absolute " data-player-id="3">
+							<img src=""  class="avatar">
+							<div class="player-name text-center">JOUEUR 3</div>
+						</div>
+						<div class="player4 d-flex flex-column align-items-center position-absolute" data-player-id="4">
+							<img src=""  class="avatar">
+							<div class="player-name text-center">JOUEUR 4</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+<style>
+
+.html, body {
+	overflow: auto;
+}
+
+#content{
+	padding-bottom: 0 !important;
+}
+
+.bracket {
+	height: 100%;
+	width: 100%;
+}
+
+.tournament-title{
+	margin-bottom: 5vw;
+	margin-top: 2vw;
+}
+.tournament-title h2 {
+    margin-bottom: 0.5vw; /* Réduit l'espace sous le titre */
+	font-size: clamp(20px, 5vw, 150px); 
+}
+
+.tournament-title p {
+    margin-top: 0; /* Supprime l'espace au-dessus du sous-titre */
+	font-size: clamp(15px, 4vw, 120px); 
+}
+
+.w-30 {
+  width: 30%;
+}
+
+.avatar {
+    width: 6vw;
+    height: 6vw;
+    border-radius: 50%;
+    margin-bottom: 0.5vw;
+	border: 2px solid white;
+}
+
+.eclair {
+    width: 6vw;
+    height: 6vw;
+	border-radius: 50%;
+	border: 2px solid white;
+	background-color: #101A32;
+
+}
+
+.eclair.match-1, .winner1 {
+	top: -3vw; /* Ajustez cette valeur pour positionner l'image plus haut ou bas */
+  	left: 22%;
+}
+
+.eclair.match-2, .winner2 {
+	top: -3vw; /* Ajustez cette valeur pour positionner l'image plus haut ou bas */
+  	left: 72%;
+}
+
+.eclair.match-3, .winner3 {
+	top: -5vw; /* Ajustez cette valeur pour positionner l'image plus haut ou bas */
+  	left: 47%;
+}
+
+.winner1 {
+	left: 20%;
+}
+.winner2 {
+	left: 70%;
+}
+.winner3 {
+	left: 45%;
+}
+
+
+.winner1, .winner2, .winner3 {
+	width: 10vw;
+}
+
+.player-name {
+    font-size: clamp(6px, 1.5vw, 300px); 
+    color: #ffffff;
+    font-weight: bold;
+	margin-bottom: 0.5vw;
+	height: 3vw;
+	width: 100%;
+	white-space: nowrap;  /* ✅ Empêche le texte de passer à la ligne */
+    overflow: hidden;  /* ✅ Cache tout ce qui dépasse */
+    text-overflow: ellipsis;  /* ✅ Ajoute "..." à la fin */
+	
+}
+
+.player1, .player2, .player3, .player4 {
+	width: 10vw;
+}
+
+.player1, .player3 {
+	left: -8%;
+}
+.player2, .player4 {
+	left: 75%;
+}
+
+.winner-name {
+    font-size: clamp(6px, 1.5vw, 300px); 
+    color: #ffffff;
+    font-weight: bold;
+	height: 3vw;
+	display: block;
+    width: 100%;  /* ✅ Prend toute la largeur disponible */
+    white-space: nowrap;  /* ✅ Empêche le texte de passer à la ligne */
+    overflow: hidden;  /* ✅ Cache tout ce qui dépasse */
+    text-overflow: ellipsis;  /* ✅ Ajoute "..." à la fin */
+}
+
+.bracket {
+	height: var(--sin-nav-height);
+	width: 100vw;
+}
+
+.lines {
+	height: 25vw;
+	width: 100vw;
+}
+
+.lines-final {
+    top: 15%;
+}
+
+.lines-semi-final {
+    top: 55%;
+}
+
+.victory {
+	top: 0%;
+	height: 5vw;
+	width: 100vw;
+}
+
+
+.lines-final{
+	height: 7.5vw;
+	width: 100vw;
+}
+
+.lines-semi-final {
+	height: 10vw;
+	width: 100vw;
+}
+
+.round {
+	height: 50%;
+}
+
+.horizontale, .vertical {
+	width: 100vw;
+}
+
+.horizontale {
+	height: 3.125%;
+}
+
+.vertical {
+	height: 96.825%;
+}
+
+.vertical-line {
+	
+	background-color: white;
+	height: 100%;
+	width:  0.25%;
+}
+
+.horizontale-line {
+    
+    background-color: white;
+	height: 100%;
+}
+
+.final.horizontale-line {
+	width: 50.25%;
+}
+
+.semi.horizontale-line {
+	width: 25.25%;
+}
+
+@media (max-width: 400px) {
+    #bracket_tournament {
+        position: fixed;
+        top: 50px;
+        left: 0;
+        width: 400px;  /* Taille minimale forcée */
+        height: 100vh;  /* Prend toute la hauteur de l'écran */
+        overflow-y: auto;  /* Ajoute un scroll si besoin */
+    }
+	.tournament-title h2, .tournament-title p {
+		left: 0;
+	}
+	.bracket{
+		height: 100%;
+	}
+    /* Ajuste la taille des éléments à l'intérieur */
+    .bracket, .lines, .lines-final, .lines-semi-final, .victory, .vertical, .horizontale {
+        width: 400px !important;
+    }
+	.lines {
+		height: 140px !important;
+	}
+	.lines-final, .round {
+        height: 30px !important;
+    }
+
+	.lines-semi-final {
+		height: 60px !important;
+	}
+
+	.victory {
+		height: 20px !important;
+
+	}
+	.player1, .player2, .player3, .player4 {
+		height: 40px;
+		width: 40px;
+	}
+
+	.winner1, .winner2, .winner3 {
+		width: 40px;
+	}
+
+    .match {
+        width: 120px;
+		height: 40px;
+    }
+	.avatar, .eclair {
+		width: 24px !important;
+		height: 24px !important;
+		margin-bottom: 4px !important;
+	}
+	.eclair {
+		width: 24px !important;
+		height: 24px !important;
+		top: -12px !important;
+
+	}
+
+	.winner1, .winner2 {
+		top: -12px !important;
+		height: 40px !important;
+	}
+
+	.winner3 {
+		top: -20px !important;
+		height: 40px !important;
+	}
+
+	.winner-name, .player-name {
+		height: 12px !important;
+	}
+}
+
+		
+
+/* .player-lost {
+    opacity: 0.5;
+    filter: grayscale(100%);
+}
+
+.avatar-won {
+    border: 3px solid gold;
+    animation: winnerHighlight 1s infinite alternate;
+}
+
+
+@keyframes winnerHighlight {
+    0% {
+        box-shadow: 0 0 5px gold;
+    }
+    100% {
+        box-shadow: 0 0 20px gold;
+    }
+} */
+
+</style>
+
+<script>
+// // Fonction pour simuler un résultat aléatoire pour chaque match
+// function simulateMatch() {
+//         const matches = document.querySelectorAll('.match');
+
+//         matches.forEach((match) => {
+//             const players = match.querySelectorAll('.avatar');
+
+//             // Déterminer un gagnant aléatoire
+//             const winnerIndex = Math.floor(Math.random() * players.length);
+//             const loserIndex = winnerIndex === 0 ? 1 : 0;
+
+//             const winner = players[winnerIndex];
+//             const loser = players[loserIndex];
+
+//             // Appliquer les styles pour gagnant et perdant
+//             winner.classList.add('avatar-won');
+//             loser.classList.add('player-lost');
+
+//             // Simuler le transfert du gagnant à l'étape suivante
+//             const nextMatch = document.querySelector('.lines-final .match');
+//             if (nextMatch) {
+//                 const nextPlayerSlot = nextMatch.querySelector('.player');
+//                 nextPlayerSlot.innerHTML = winner.innerHTML; // Copie le contenu du gagnant
+//             }
+//         });
+//     }
+
+//     // Simuler le tournoi immédiatement
+//     simulateMatch();
+
+</script>
+===== ./game/tournament/tournament_next_game.html =====
+{% load static %}
+{% load i18n %}
+
+<div id="vs1" class="container-fluid d-flex justify-content-center align-items-center" style="height: 100%; width: 100%; ">
+   
+	<div class="player d-flex flex-column me-2 avatar1">
+		<img src=""  class="avatar">
+		<div class="player-name">JOUEUR 1</div>
+	</div>
+	<div class="eclair d-flex justify-content-center align-items-center ">
+		<svg id="eclair-svg" version="1.0" xmlns="http://www.w3.org/2000/svg"
+			preserveAspectRatio="xMidYMid meet">
+			<metadata>
+			Created by potrace 1.15, written by Peter Selinger 2001-2017
+			</metadata>
+			<g transform="translate(0.000000,1280.000000) scale(0.100000,-0.100000)"
+			fill="rgb(244,188,21)" stroke="none">
+			<path d="M4921 12538 c-34 -106 -167 -510 -296 -898 -304 -920 -602 -1824
+			-985 -2990 -127 -388 -285 -867 -350 -1065 -65 -198 -160 -486 -210 -640 -90
+			-277 -115 -348 -104 -294 4 19 -36 129 -145 402 -83 207 -151 383 -151 392 0
+			8 62 140 139 293 l138 277 -65 363 c-37 199 -69 362 -72 362 -4 0 -11 -159
+			-17 -352 l-10 -353 -88 -218 c-48 -120 -89 -216 -90 -215 -2 2 -64 156 -139
+			343 -75 187 -136 332 -136 323 0 -9 32 -131 71 -270 129 -459 310 -1103 315
+			-1121 4 -12 -24 2 -83 43 -48 34 -154 106 -235 161 -80 54 -149 102 -152 107
+			-3 5 -43 127 -89 270 -81 252 -106 317 -95 242 3 -19 19 -174 34 -344 l29
+			-310 64 -45 c35 -25 188 -136 340 -246 l276 -201 27 -94 c14 -52 27 -109 27
+			-125 1 -17 -32 -131 -73 -253 l-74 -222 384 0 c375 0 385 -1 379 -19 -3 -11
+			-28 -101 -55 -202 -27 -100 -51 -183 -53 -185 -3 -3 -179 -53 -597 -168 l-115
+			-32 -52 -84 c-72 -116 -75 -121 -58 -76 11 29 12 37 2 33 -7 -2 -123 -28 -257
+			-56 -135 -29 -252 -55 -260 -59 -8 -4 93 -9 226 -12 l241 -5 -204 -340 c-217
+			-363 -236 -395 -229 -395 3 0 89 111 192 248 103 136 256 337 340 448 l153
+			200 95 22 c52 12 99 22 104 22 5 0 1 -55 -10 -123 -10 -67 -17 -130 -16 -140
+			2 -11 36 40 86 126 45 79 88 151 95 161 15 21 217 69 217 52 -1 -22 -169 -620
+			-169 -603 -1 9 -4 17 -7 17 -3 0 -53 -26 -112 -58 -59 -33 -154 -83 -210 -113
+			l-104 -54 -54 -109 c-31 -59 -53 -111 -49 -114 3 -3 56 44 118 105 l112 111
+			133 37 c74 20 135 35 137 33 2 -3 -117 -445 -160 -595 -11 -37 -27 -64 -56
+			-90 -22 -20 -45 -38 -52 -39 -7 -2 -174 -75 -372 -164 -198 -89 -371 -166
+			-384 -171 -13 -5 -21 -12 -18 -15 4 -4 491 120 555 141 6 2 12 3 12 1 0 -2
+			-121 -119 -269 -260 l-268 -256 -210 -327 c-234 -366 -226 -353 -219 -353 3 0
+			133 152 289 338 157 185 301 352 320 370 l35 34 6 -29 c3 -15 8 -133 12 -260
+			4 -128 10 -233 13 -233 4 0 32 146 61 325 l54 326 201 178 c110 98 201 177
+			203 176 2 -1 -78 -299 -177 -661 -221 -811 -280 -1029 -432 -1594 -152 -563
+			-278 -1025 -286 -1048 -4 -12 -3 -14 5 -7 10 10 66 140 592 1375 128 300 245
+			574 260 610 15 36 132 310 260 610 128 300 323 759 435 1020 112 261 234 549
+			273 640 38 91 232 546 431 1012 198 467 361 850 361 853 0 3 -196 5 -435 5
+			-357 0 -435 2 -435 13 0 8 9 58 21 113 11 54 67 331 124 614 251 1245 307
+			1516 316 1525 9 9 351 116 356 111 1 -1 11 -94 23 -206 11 -113 22 -209 24
+			-215 6 -17 14 31 41 245 15 113 30 208 33 211 4 4 64 23 134 44 l126 38 77
+			215 c41 118 74 219 73 224 -2 4 -46 -69 -98 -163 -55 -99 -103 -175 -115 -180
+			-28 -11 -345 -83 -349 -78 -2 2 7 132 19 289 13 157 21 287 19 289 -5 5 -3 10
+			-102 -319 l-89 -294 -69 -18 c-38 -9 -70 -16 -71 -14 -2 1 80 416 183 922 171
+			847 240 1194 493 2449 50 248 93 456 96 463 2 6 1 12 -3 12 -4 0 -36 -87 -71
+			-192z"/>
+			<path d="M4833 11327 l-132 -132 -21 -113 c-12 -63 -20 -118 -18 -123 2 -5 72
+			104 156 243 84 138 151 252 149 254 -2 2 -62 -56 -134 -129z"/>
+			<path d="M4021 11214 c0 -6 -14 -108 -31 -225 -16 -118 -30 -224 -30 -237 0
+			-14 44 -75 122 -169 l122 -146 13 49 c7 27 13 56 13 64 0 8 -40 64 -89 125
+			l-89 109 -7 166 c-5 140 -20 300 -24 264z"/>
+			<path d="M3646 9829 c-3 -8 -53 -152 -111 -321 l-106 -307 80 -234 c44 -129
+			83 -246 87 -260 3 -15 9 -27 13 -27 3 0 17 29 29 64 l23 64 -56 217 -56 216
+			41 227 c23 125 48 258 56 296 8 38 12 71 9 74 -2 3 -7 -1 -9 -9z"/>
+			<path d="M3350 9668 c5 -18 25 -105 46 -192 l37 -160 33 65 c18 35 33 70 34
+			78 0 16 -140 241 -151 241 -4 0 -4 -15 1 -32z"/>
+			<path d="M4627 7972 c-57 -301 -121 -627 -123 -630 -2 -3 -206 -82 -211 -82
+			-2 0 -2 3 -1 8 4 17 -15 424 -22 454 -6 30 -8 27 -19 -37 -7 -38 -27 -153 -45
+			-255 -18 -102 -32 -186 -31 -188 2 -2 24 2 49 9 97 24 50 0 -137 -70 -107 -40
+			-199 -76 -206 -81 -13 -8 -30 -74 -31 -121 l0 -27 103 38 c56 20 219 78 363
+			129 143 51 266 96 272 100 13 8 22 100 52 531 11 157 22 304 25 328 2 23 1 42
+			-3 42 -4 0 -20 -66 -35 -148z"/>
+			<path d="M3826 4541 l-47 -79 161 -322 161 -322 -40 -117 c-35 -103 -189 -579
+			-254 -783 -14 -43 -22 -78 -18 -78 3 0 48 76 99 168 51 92 144 259 206 371 64
+			114 112 210 110 220 -3 9 42 -76 100 -189 58 -113 105 -211 105 -218 1 -7
+			-109 -219 -244 -472 -135 -252 -245 -464 -245 -471 0 -14 269 359 426 592 136
+			202 187 293 186 328 -1 34 -79 218 -250 591 -125 274 -399 850 -407 858 -1 2
+			-24 -33 -49 -77z"/>
+			<path d="M4075 4233 c3 -10 23 -44 43 -75 29 -45 43 -58 62 -58 14 0 69 -5
+			122 -10 l98 -9 117 -75 c65 -41 119 -73 122 -71 2 3 -36 74 -85 160 l-88 155
+			-199 0 c-186 0 -199 -1 -192 -17z"/>
+			</g>
+			</svg>
+	  </div>
+	<div class="player d-flex flex-column avatar2">
+		<img src="" class="avatar">
+		<div class="player-name">JOUEUR 2</div>
+	</div>
+</div>
+
+<style>
+
+
+
+.html, body {
+overflow: auto;
+}
+
+.w-30 {
+width: 30%;
+}
+
+.avatar {
+width: 20vw;
+height: 20vw;
+border-radius: 50%;
+margin-bottom: 1vw;
+border: 2px solid white;
+}
+
+
+
+.eclair {
+width: 30vw;
+height: 100%;
+
+}
+
+.player-name {
+font-size: clamp(17.35px, 5vw, 50px);
+color: #ffffff;
+font-weight: bold;
+text-align: center;
+height: 3vw;
+
+}
+
+.player, #vs1 {
+transform: rotate(0deg);
+transition: transform 0.3s ease; 
+}
+
+/* Media query pour détecter un rapport largeur/hauteur spécifique */
+@media (max-aspect-ratio: 3/3) {
+/* Quand la hauteur devient dominante */
+#vs1 {
+	flex-direction: column;
+	transform: rotate(0deg);
+	transform-origin: center;
+	position: absolute; /* Permet de positionner précisément */
+	height: calc(100vh - 50px) !important;
+	top: 50px;
+
+}
+
+.eclair { 
+	display: flex; 
+	justify-content: center;
+	align-items: center;
+	flex:1 !important;
+	 /* transform: rotate(90deg); */
+	/* width: 30%; */
+	/* height: 50vw;  */
+	margin-right: 0 !important;
+	z-index:0; 
+	transform: rotate(90deg);
+	transform-origin: center;
+	width: 30%;
+	height: 30%;
+}
+
+.player {
+	display: flex; 
+	flex:1;
+	margin-right: 0 !important;
+}
+
+#eclair-svg {
+	min-width: 96px;
+	min-height: 340px;
+}
+
+
+.avatar {
+	width: 30vw;
+	height: 30vw;
+	min-height: 100px;
+	min-width: 100px;
+}
+.avatar1{
+	display: flex; 
+	flex-direction: column;
+	justify-content: end;
+	
+}
+}
+
+
+</style>
+
+===== ./landing.html =====
+<!-- your_app/templates/base.html -->
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pongame</title>
+
+    <!-- Styles Bootstrap et icônes -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+
+    <!-- Votre feuille de style principale -->
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+
+    <script>
+        // Initialiser isAuthenticated en fonction de l'état d'authentification du backend (Django)
+        window.isAuthenticated = {{ request.user.is_authenticated|yesno:"true,false"|lower }};
+        console.log('isAuthenticated:', window.isAuthenticated);
+    </script>
+
+    <!-- Inclure le token CSRF dans une meta -->
+    <meta name="csrf-token" content="{{ csrf_token }}">
+</head>
+<body>
+    <!-- Conteneur pour l'animation de fond (terrain de jeu) -->
+    <div id="ground-game" class=" backg d-flex justify-content-center align-items-center position-fixed" style="height: var(--sin-nav-height); width: 100%; ">
+		<div class="terrain position-relative">
+			<div class="balle position-absolute"></div>
+			<div class="ligne-centrale position-absolute"></div>
+			<div class="cercle-central position-absolute"></div>
+			<div class="point-central position-absolute"></div>
+			<div class="trait-gauche position-absolute"></div> 
+			<div class="trait-droit position-absolute"></div> 
+		</div>
+	</div>
+
+
+    <div class="mask"></div>
+    
+    <div id="navbar">
+        <!-- Navbar sera chargée dynamiquement -->
+    </div>
+    
+        <div id="popup" class="popup d-none">
+        <p id="info" class="mb-0 text-center"></p>
+    </div>
+
+    
+    <div id="content" class=" d-flex justify-content-center align-items-center" style="min-height: 100vh; z-index: 2; padding-top: 50px;">
+        <!-- Le contenu dynamique sera chargé ici -->
+    </div>
+
+
+
+    <!-- jQuery (si vous en avez vraiment besoin, sinon vous pouvez le retirer) -->
+    <!-- <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> -->
+
+    <!-- Navigo depuis un CDN -->
+    <script src="//unpkg.com/navigo"></script>
+    
+    <!-- Script principal en mode module -->
+    <!-- Ce fichier importera les autres modules comme api.js, views.js, events.js, etc. -->
+    <script type="module" src="{% static 'js/main.js' %}"></script>
+
+    <!-- Script Bootstrap -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+</body>
+</html>
+
+
+
+===== ./partials/customization-section.html =====
+{% load i18n %}
+{% load static %}
+<div id="customization-{{ customization_id }}" class="card mb-1 bg-secondary w-100 d-none">
+    <div class="card-body">
+        <h5 class="card-title">{% trans customization_title %}</h5>
+        
+        <!-- Vitesse de la balle -->
+        <div class="mb-3">
+            <label for="ballSpeed{{ customization_id }}" class="form-label">{% trans "Vitesse de la Balle" %}</label>
+            <select id="ballSpeed{{ customization_id }}" class="form-select">
+                <option value="1">{% trans "Lente" %}</option>
+                <option value="2" selected>{% trans "Normale" %}</option>
+                <option value="3">{% trans "Rapide" %}</option>
+            </select>
+        </div>
+
+        <!-- Taille de la raquette -->
+        <div class="mb-3">
+            <label for="paddleSizeSelect{{ customization_id }}" class="form-label">{% trans "Taille de la Raquette" %}</label>
+            <select id="paddleSizeSelect{{ customization_id }}" class="form-select">
+                <option value="1">{% trans "Petite" %}</option>
+                <option value="2" selected>{% trans "Moyenne" %}</option>
+                <option value="3">{% trans "Grande" %}</option>
+            </select>
+        </div>
+
+        <!-- Checkbox Obstacles -->
+        <div class="d-flex align-items-center mb-3">
+            <input class="form-check-input me-2" type="checkbox" id="bonusObstacle{{ customization_id }}">
+            <label for="bonusObstacle{{ customization_id }}" class="form-label m-0">
+                {% trans "Activer les obstacles !" %}
+            </label>
+        </div>
+
+        <!-- Checkbox Bonus et Malus -->
+        <div class="d-flex align-items-center mb-3">
+            <input class="form-check-input me-2" type="checkbox" id="bonus{{ customization_id }}">
+            <label for="bonus{{ customization_id }}" class="form-label m-0">
+                {% trans "Activer les bonus et malus !" %}
+            </label>
+        </div>
+    
+        <!-- Bouton Voir Tuto -->
+        <button id="tutorial-btn-{{ customization_id }}" class="btn btn-secondary w-100">
+            {% trans "Voir Tuto Bonus" %}
+        </button>
+        <div id="tutorial-content-{{ customization_id }}" class="collapse mt-3">
+            <p class="text-white">💥 {% trans "**Power-Ups Légendaires !**" %} 💥</p>
+            <ul class="list-unstyled">
+                <li class="d-flex align-items-center mb-2">
+                    <img src="{% static 'png_game/obstacle.png' %}" alt="Obstacle" class="img-bonus me-2">
+                    <span>{% trans "Attention aux obstacles !" %}</span>
+                </li>
+                <li class="d-flex align-items-center mb-2">
+                    <img src="{% static 'png_game/speed.png' %}" alt="Acceleration" class="img-bonus me-2">
+                    <span>Accelere la vitesse de ta raquette</span>
+                </li>
+                <li class="d-flex align-items-center mb-2">
+                    <img src="{% static 'png_game/minus.png' %}" alt="Minus" class="img-bonus me-2">
+                    <span>Reduis la taille de la raquette de ton adversaire</span>
+                </li>
+                <li class="d-flex align-items-center mb-2">
+                    <img src="{% static 'png_game/icy.png' %}" alt="ice-age" class="img-bonus me-2">
+                    <span>Fais deraper ton adversaire</span>
+                </li>
+                <li class="d-flex align-items-center mb-2">
+                    <img src="{% static 'png_game/flash.png' %}" alt="flash" class="img-bonus me-2">
+                    <span>Morsure du Soleil</span>
+                </li>
+                <li class="d-flex align-items-center mb-2">
+                    <img src="{% static 'png_game/change.png' %}" alt="reverse-control" class="img-bonus me-2">
+                    <span>Inverse les commandes de l'adversaire</span>
+                </li>
+                <li class="d-flex align-items-center mb-2">
+                    <img src="{% static 'png_game/canon.png' %}" alt="canon" class="img-bonus me-2">
+                    <span>Propulse la balle a toute vitesse</span>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Bouton Lancer Partie -->
+        <button id="start-game-btn-{{ customization_id }}" class="btn btn-primary w-100 mt-3">
+            {% trans button_text %}
+        </button>
+    </div>
+</div>
+

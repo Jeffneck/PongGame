@@ -38,7 +38,6 @@ export async function launchLiveGameWithOptions(gameId, userRole, urlStartButton
       const formData = new FormData();
       formData.append('game_id', gameId);
       formData.append('userRole', userRole);
-  
       const response = await requestPost('game', url, formData);
       if (response.status !== 'success') {
         return; 
@@ -91,11 +90,19 @@ export async function launchLiveGameWithOptions(gameId, userRole, urlStartButton
    */
 function initLiveGame(config) {
   return new Promise((resolve) => {
+	// Masquer les boutons tactiles si l'appareil n'est pas tactile.
+    if (!isTouchDevice()) {
+		const touchControls = document.querySelector('.touch-controls');
+		if (touchControls) {
+		  // Ici, on masque simplement l'élément
+		  touchControls.style.display = 'none';
+		}
+	  }
     // 1) Préparer les éléments HTML
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const startGameBtn = config.startGameSelector;
-  
+    console.log("Appareil tactile ?", isTouchDevice());
     // 2) Gérer le bouton "Start" (optionnel)
     if (startGameBtn && config.onStartGame) {
       // Débloquer le bouton après 3s (optionnel)
@@ -391,69 +398,220 @@ function initLiveGame(config) {
 		}, EFFECT_DURATION);
 	  }
 
-  
-    function handleResize() {
-      const ORIGINAL_WIDTH = 800;
-      const ORIGINAL_HEIGHT = 400;
-      const margin = 12; // Marge interne utilisée pour le positionnement
-      const container = document.querySelector('.game-container');
-      if (!container) return;
-  
-      // Dimensions du conteneur et de la fenêtre
-      const containerWidth = container.clientWidth;
-      const windowHeight = window.innerHeight;
-  
-      // Calcul du scale en fonction de l'espace disponible
-      let scale = Math.min(containerWidth / ORIGINAL_WIDTH, windowHeight * 0.7 / ORIGINAL_HEIGHT);
-  
-      // Appliquer le scale sur le canvas (dimension affichée)
-      canvas.style.width = (ORIGINAL_WIDTH * scale) + 'px';
-      canvas.style.height = (ORIGINAL_HEIGHT * scale) + 'px';
-  
-      // Garder la résolution logique du canvas inchangée
-      canvas.width = ORIGINAL_WIDTH;
-      canvas.height = ORIGINAL_HEIGHT;
+    
       
-      // Ajuster dynamiquement la hauteur du game-container (en fonction de la largeur)
-      container.style.height = Math.min(windowHeight * 0.8, containerWidth / 2) + 'px';
+   
   
-      ctx.imageSmoothingEnabled = false;
+	  function handleResize() {
+		const ORIGINAL_WIDTH = 800;
+		const ORIGINAL_HEIGHT = 400;
+		const margin = 12; // Marge interne utilisée pour le positionnement
+	  
+		const canvas = document.getElementById('gameCanvas');
+		if (!canvas) return;
+		const ctx = canvas.getContext('2d');
+	  
+		// On récupère le conteneur de jeu (dans #livegame)
+		const container = document.querySelector('.game-container');
+		if (!container) return;
+	  
+		// Dimensions du conteneur et de la fenêtre
+		const containerWidth = container.clientWidth;
+		const windowHeight = window.innerHeight;
+	  
+		// Calcul du scale en fonction de l'espace disponible
+		let scale = Math.min(containerWidth / ORIGINAL_WIDTH, windowHeight * 0.7 / ORIGINAL_HEIGHT);
+	  
+		// Mise à jour de la hauteur du conteneur des boutons (touch-controls)
+		const touchControls = document.querySelector('.touch-controls');
+		if (touchControls) {
+		  // On définit temporairement la hauteur en fonction du scale (pour le mode horizontal)
+		  touchControls.style.height = (ORIGINAL_HEIGHT * scale) + 'px';
+		}
+	  
+		// Appliquer le scale sur le canvas (dimension affichée)
+		canvas.style.width = (ORIGINAL_WIDTH * scale) + 'px';
+		canvas.style.height = (ORIGINAL_HEIGHT * scale) + 'px';
+		// Garder la résolution logique du canvas inchangée
+		canvas.width = ORIGINAL_WIDTH;
+		canvas.height = ORIGINAL_HEIGHT;
+	  
+		// Ajuster dynamiquement la hauteur du game-container
+		container.style.height = Math.min(windowHeight * 0.8, containerWidth / 2) + 'px';
+	  
+		ctx.imageSmoothingEnabled = false;
+		const s = scale;
+	  
+		// Positionnement du score-display par rapport au game-container
+		const scoreDisplay = document.getElementById("score-display");
+		if (scoreDisplay) {
+		  container.style.position = "relative"; // S'assurer que le container est positionné en relatif
+		  const canvasLeft = canvas.offsetLeft;
+		  const canvasTop = canvas.offsetTop;
+		  const canvasDisplayWidth = ORIGINAL_WIDTH * s;
+		  scoreDisplay.style.position = "absolute";
+		  scoreDisplay.style.left = (canvasLeft + canvasDisplayWidth / 2) + "px";
+		  scoreDisplay.style.top = (canvasTop + 2) + "px";
+		  scoreDisplay.style.transform = "translate(-50%, 0)";
+		  scoreDisplay.style.transformOrigin = "center top";
+		  scoreDisplay.style.fontSize = (30 * s) + "px";
+		}
+	  
+		// --- Sélection du layout en fonction de l'orientation ---
+		if (isTouchDevice() && window.innerWidth < window.innerHeight) {
+			const livegame = document.getElementById("livegame");
+			if (livegame) {
+			  livegame.classList.add("rotate90");
+			  // Appliquer les styles pour le mode vertical sur tactile
+			  livegame.style.display = "flex";
+			  // On laisse livegame en disposition normale (pas de flex-column ici, puisque les boutons seront dans .game-container)
+			  // On impose que livegame occupe toute la hauteur de la fenêtre
+			  livegame.style.height = window.innerHeight + "px";
+			  // On fixe sa largeur à 100vh (correspondant à la hauteur de la fenêtre)
+			  livegame.style.width = "100vh";
+		  
+			  // Ajuster le conteneur de jeu interne
+			  const innerContainer = livegame.querySelector(".game-container");
+			  if (innerContainer) {
+				innerContainer.style.display = "flex";
+				innerContainer.style.flexDirection = "column"; // Empile le canvas et les boutons verticalement
+				innerContainer.style.alignItems = "center";
+				innerContainer.style.justifyContent = "center";
+				innerContainer.style.maxHeight = "90%";
+				innerContainer.style.width = "85%";
+				// innerContainer.style.width = "85%";
+				innerContainer.style.margin = "auto";
+				innerContainer.style.marginLeft = "0";
+				innerContainer.style.left = "4%";
+
+
+			  }
+
+				// Pour garantir que le canvas garde toujours son ratio 2:1,
+				// on calcule le scale comme d'habitude, puis on impose une hauteur minimale.
+				const ORIGINAL_WIDTH = 800;
+				const ORIGINAL_HEIGHT = 400;
+				const containerWidth = innerContainer ? innerContainer.clientWidth : window.innerWidth;
+				let scale = Math.min(containerWidth / ORIGINAL_WIDTH, window.innerWidth * 0.8 / ORIGINAL_HEIGHT);
+				const minCanvasHeight = 100; // Hauteur minimale désirée
+				if ((ORIGINAL_HEIGHT * scale) < minCanvasHeight) {
+				scale = minCanvasHeight / ORIGINAL_HEIGHT;
+				}
+				// Appliquer le scale au canvas
+				const canvas = document.getElementById('gameCanvas');
+				canvas.style.width = (ORIGINAL_WIDTH * scale) + 'px';
+				canvas.style.height = (ORIGINAL_HEIGHT * scale) + 'px';
+				canvas.width = ORIGINAL_WIDTH;
+				canvas.height = ORIGINAL_HEIGHT;
+				
+				// Ajuster le score-display (en se basant sur le canvas et le scale)
+				const scoreDisplay = document.getElementById("score-display");
+				if (scoreDisplay) {
+				innerContainer.style.position = "relative";
+				const canvasLeft = canvas.offsetLeft;
+				const canvasTop = canvas.offsetTop;
+				const canvasDisplayWidth = ORIGINAL_WIDTH * scale;
+				scoreDisplay.style.position = "absolute";
+				scoreDisplay.style.left = (canvasLeft + canvasDisplayWidth / 2) + "px";
+				scoreDisplay.style.top = (canvasTop + 2) + "px";
+				scoreDisplay.style.transform = "translate(-50%, 0)";
+				scoreDisplay.style.transformOrigin = "center top";
+				// On peut utiliser clamp() pour une taille de police adaptative
+				scoreDisplay.style.fontSize = `clamp(16px, ${30 * scale}px, 30px)`;
+				}
+		  
+			  // Dans ce mode, on veut que les boutons se placent sous le canvas
+			  const touchControls = livegame.querySelector(".touch-controls");
+			  if (touchControls) {
+				// On retire toute propriété de position absolue pour laisser la disposition en flux (flow)
+				touchControls.style.position = "static";
+				// Ajouter une marge supérieure pour séparer le canvas des boutons
+				touchControls.style.marginTop = "auto";
+				// Calculer la largeur du canvas afin de fixer la largeur des boutons
+				const canvasRect = canvas.getBoundingClientRect();
+				// Ici, on fixe la largeur du conteneur des boutons à 0.02 fois la largeur du canvas
+				touchControls.style.width = (canvasRect.width * 0.1) + "px";
+
+				touchControls.style.marginLeft = (canvasRect.width * 2.15) + "px";
+			  }
+			}
+		  }		   else if ((touchControls && getComputedStyle(touchControls).display !== "none")|| (isTouchDevice() && window.innerWidth > window.innerHeight)) {
+		  // Mode horizontal ou appareil non tactile
+		  // On retire les styles spécifiques au mode vertical, le cas échéant.
+		  const livegame = document.getElementById("livegame");
+		  if (livegame) {
+			livegame.classList.remove("rotate90");
+			livegame.style.height = "100%";
+			livegame.style.width = "100%";
+		  }
+		  
+		  if (touchControls) {
+			// On réapplique la logique de positionnement relative au canvas
+			const canvasRect = canvas.getBoundingClientRect();
+			const containerRect = container.getBoundingClientRect();
+			const gap = canvasRect.width * 0.01;
+			const relativeCanvasRight = canvasRect.right - containerRect.left;
+			touchControls.style.position = 'absolute';
+			touchControls.style.left = (relativeCanvasRight + gap) + 'px';
+			const relativeCanvasTop = canvasRect.top - containerRect.top;
+			touchControls.style.top = relativeCanvasTop + 'px';
+			touchControls.style.height = canvasRect.height + 'px';
+			touchControls.style.width = (canvasRect.width * 0.07) + 'px';
+			touchControls.style.marginLeft = "0px";
+		  }
+		}
+	  }
+	  
+	  window.addEventListener('resize', handleResize);
+	  window.addEventListener('load', handleResize);
+	  handleResize();
+	  
+
+
+
+
   
-      // Utilisation du facteur d'échelle pour d'autres ajustements
-      const s = scale;
-  
-      // Positionnement absolu de score-display par rapport à game-container
-      // On considère que :
-      //   - Le canvas est positionné en absolute dans le game-container (déjà défini dans votre CSS).
-      //   - Le canvas est décalé d'une marge (margin) par rapport au bord supérieur et gauche du container.
-      // On positionne alors le score-display pour qu'il soit centré horizontalement sur le bord supérieur du canvas.
-      const scoreDisplay = document.getElementById("score-display");
-      if (scoreDisplay) {
-          // Assurez-vous que le game-container est en position relative (pour que le positionnement absolu se fasse par rapport à lui)
-          container.style.position = "relative";
-          // Le canvas devrait être positionné en absolute (vérifiez votre CSS)
-          // Récupérer la position du canvas par rapport au container (offsetLeft et offsetTop fonctionnent si le container est en position relative)
-          const canvasLeft = canvas.offsetLeft;
-          const canvasTop = canvas.offsetTop;
-          // Calculer la largeur affichée du canvas (en pixels)
-          const canvasDisplayWidth = ORIGINAL_WIDTH * s;
-  
-          // Placer le score-display centré sur le bord supérieur du canvas.
-          // On fixe sa position verticale à la même valeur que canvasTop (souvent égale à la marge appliquée)
-          // et sa position horizontale au centre du canvas.
-          scoreDisplay.style.position = "absolute";
-          scoreDisplay.style.left = (canvasLeft + canvasDisplayWidth / 2) + "px";
-          scoreDisplay.style.top = (canvasTop + 2) + "px";
-          // Pour centrer le score-display par rapport à son point de positionnement, on décale de 50% de sa largeur.
-          scoreDisplay.style.transform = "translate(-50%, 0)";
-          scoreDisplay.style.transformOrigin = "center top";
-  
-          // On fixe la taille de la police en pixels pour éviter les fluctuations liées aux unités rem
-          scoreDisplay.style.fontSize = (30 * s) + "px";
-      }
+if (isTouchDevice()) {
+		// Seuil (en pixels) pour considérer qu'un glissement a eu lieu
+		const SWIPE_THRESHOLD = 50;
+		let touchStartY = null;
+
+		document.addEventListener('touchstart', (e) => {
+		// Enregistrer la position verticale au début du toucher (si un seul doigt)
+		if (e.touches.length === 1) {
+			touchStartY = e.touches[0].clientY;
+		}
+		}, { passive: true });
+
+		document.addEventListener('touchend', (e) => {
+		if (touchStartY === null) return;
+		const touchEndY = e.changedTouches[0].clientY;
+		const deltaY = touchEndY - touchStartY;
+		
+		const navbar = document.getElementById('navbar');
+		if (!navbar) return;
+
+		// Si l'utilisateur glisse vers le bas (delta positif) et dépasse le seuil
+		if (deltaY > SWIPE_THRESHOLD) {
+			navbar.classList.remove('hidden');
+			// Optionnel : masquer la navbar de nouveau après quelques secondes
+			setTimeout(() => {
+			// Vérifier que l'écran est toujours en paysage
+			if (window.innerWidth > window.innerHeight) {
+				navbar.classList.add('hidden');
+			}
+			}, 3000);
+		}
+		
+		// Si l'utilisateur glisse vers le haut (delta négatif) et dépasse le seuil
+		if (deltaY < -SWIPE_THRESHOLD) {
+			navbar.classList.add('hidden');
+		}
+		
+		// Réinitialiser la valeur
+		touchStartY = null;
+		});
   }
-  window.addEventListener('resize', handleResize);
-  handleResize(); // initial
   
     // 4) Initialiser WebSocket
     const socket = new WebSocket(config.wsUrl);
@@ -596,6 +754,9 @@ function initLiveGame(config) {
     const keysPressed = {};
   
     document.addEventListener('keydown', (evt) => {
+		if (evt.key === "ArrowUp" || evt.key === "ArrowDown") { // eviter le scroll fleche (marche bien sur chrome et firefox)
+		evt.preventDefault();
+		}
       if (evt.repeat) return;
       let action = "start_move";
       let player = null, direction = null;

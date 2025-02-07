@@ -315,9 +315,9 @@ class CheckGameInvitationStatusView(View):
 # IMPROVE pourrait etre une requete get ?
 @method_decorator(csrf_protect, name='dispatch')
 @method_decorator(login_required_json, name='dispatch')
+# class StartOnlineGameView(LoginRequiredMixin, View):
 class JoinOnlineGameAsLeftView(View):
-    def post(self, request, game_id):
-        logger.debug("JoinOnlineGameAsLeftView")
+    def get(self, request, game_id):
         try:
             session = GameSession.objects.get(id=game_id)
         except GameSession.DoesNotExist:
@@ -326,18 +326,21 @@ class JoinOnlineGameAsLeftView(View):
                 'message': "La session de jeu spécifiée n'existe pas."
             }, status=404)
 
+        # Vérifier que c'est une partie en ligne
         if not session.is_online:
             return JsonResponse({
                 'status': 'error',
                 'message': "Cette session n'est pas une partie en ligne."
             }, status=400)
 
+        # Vérifier que l'utilisateur est player_left OU player_right
         if request.user not in [session.player_left, session.player_right]:
             return JsonResponse({
                 'status': 'error',
                 'message': "Vous n'êtes pas autorisé à rejoindre cette partie."
             }, status=403)
 
+        # Vérifier que la partie n'est pas déjà lancée/finie
         if session.status in ['running', 'finished']:
             return JsonResponse({
                 'status': 'error',
@@ -345,21 +348,14 @@ class JoinOnlineGameAsLeftView(View):
             }, status=400)
 
         context = {
-            'player_left_name': session.player_left.get_username(),
-            'player_right_name': session.player_right.get_username(),
+            'player_left_name': session.player_left.get_username() ,# default player 1
+            'player_right_name': session.player_right.get_username() # defaut player 2,
         }
+        rendered_html = render_to_string(
+            'game/live_game.html',
+            context
+        )
 
-        # Récupérer le paramètre is_touch depuis le POST et le nettoyer
-        is_touch_param = request.POST.get('is_touch', 'false').strip().replace('/', '')
-        is_touch = is_touch_param.lower() == 'true'
-
-        if is_touch:
-            print("is_touch == TRUE")
-            rendered_html = render_to_string('game/live_game_tactile.html', context)
-        else:
-            print("is_touch == FALSE")
-            rendered_html = render_to_string('game/live_game.html', context)
-     
         return JsonResponse({
             'status': 'success',
             'html': rendered_html,
@@ -374,9 +370,7 @@ class JoinOnlineGameAsRightView(View):
     """
     Démarre la partie en ligne.
     """
-    def post(self, request, game_id):
-        logger.debug("JoinOnlineGameAsRightView")
-        print("WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWw")
+    def get(self, request, game_id):
         try:
             session = GameSession.objects.get(id=game_id)
         except GameSession.DoesNotExist:
@@ -401,17 +395,10 @@ class JoinOnlineGameAsRightView(View):
             'player_left_name': session.player_left.get_username() ,# default player 1
             'player_right_name': session.player_right.get_username() # defaut player 2,
         }
-        
-         # Récupérer le paramètre is_touch depuis le POST et le nettoyer
-        is_touch_param = request.POST.get('is_touch', 'false').strip().replace('/', '')
-        is_touch = is_touch_param.lower() == 'true'
-
-        if is_touch:
-            print("is_touch == TRUE")
-            rendered_html = render_to_string('game/live_game_tactile.html', context)
-        else:
-            print("is_touch == FALSE")
-            rendered_html = render_to_string('game/live_game.html', context)
+        rendered_html = render_to_string(
+            'game/live_game.html',
+            context
+        )
 
         return JsonResponse({
             'status': 'success',

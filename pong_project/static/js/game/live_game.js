@@ -39,7 +39,6 @@ export async function launchLiveGameWithOptions(gameId, userRole, urlStartButton
       const formData = new FormData();
       formData.append('game_id', gameId);
       formData.append('userRole', userRole);
-  
       const response = await requestPost('game', url, formData);
       if (response.status !== 'success') {
         alert("Erreur lors du démarrage : " + response.message);
@@ -97,8 +96,6 @@ function initLiveGame(config) {
     const ctx = canvas.getContext('2d');
     const startGameBtn = config.startGameSelector;
     console.log("Appareil tactile ?", isTouchDevice());
-    cleanupGamePage();
-    setupGamePage();
     // 2) Gérer le bouton "Start" (optionnel)
     if (startGameBtn && config.onStartGame) {
       // Débloquer le bouton après 3s (optionnel)
@@ -362,35 +359,6 @@ function initLiveGame(config) {
 	  }
 
     
-      // --- Pour gérer l'orientation sur mobile tactile ---
-    function onOrientationChange() {
-      // Petit délai si besoin pour que la taille soit bien mise à jour
-      setTimeout(handleresizeTactile, 200);
-    }
-
-    // --- Setup de la page de jeu ---
-   async function setupGamePage() {
-      if (isTouchDevice()) {
-        console.log("Mode tactile activé");
-        window.addEventListener('resize', handleresizeTactile);
-        window.addEventListener('orientationchange', onOrientationChange);
-        handleresizeTactile();
-      } else {
-        console.log("Mode non tactile activé");
-        window.addEventListener('resize', handleResize);
-        handleResize();
-      }
-    }
-
-    // --- Cleanup de la page de jeu ---
-    function cleanupGamePage() {
-      if (isTouchDevice()) {
-        window.removeEventListener('resize', handleresizeTactile);
-        window.removeEventListener('orientationchange', onOrientationChange);
-      } else {
-        window.removeEventListener('resize', handleResize);
-      }
-    }
       
     function handleResize() {
       const ORIGINAL_WIDTH = 800;
@@ -453,153 +421,52 @@ function initLiveGame(config) {
       }
   }
 
+  window.addEventListener('resize', handleResize);
+handleResize();
 
-  function handleresizeTactile() {
-    // Dimensions internes du canvas (logique du jeu inchangée)
-    const ORIGINAL_WIDTH = 800;   // Utilisé pour la hauteur du terrain (après rotation)
-    const ORIGINAL_HEIGHT = 400;  // Utilisé pour la largeur du terrain (après rotation)
-    const margin = 20;            // Marge interne dans la game-container
-    const horizontalExtra = 2 * margin; // 40px au total
-    const baseControlHeight = 100; // Hauteur de base des boutons pour s = 1
 
-    // Pour le calcul vertical total, on tient compte de :
-    // - La hauteur affichée du terrain : ORIGINAL_WIDTH * s + horizontalExtra
-    // - La hauteur du conteneur des boutons : baseControlHeight * s
-    // - Le padding vertical du conteneur principal (#livegame) : 20 top + 20 bottom = 40
-    // - Une marge fixe entre terrain et boutons : 5px
-    // Total vertical = 800*s + 40 + 100*s + 45 = 900*s + 85
-    const verticalExtra = 85;
-
-    // Pour le calcul horizontal, nous utilisons la largeur disponible dans la colonne Bootstrap.
-    const parentCol = document.getElementById('game-col');
-    const availableWidth = parentCol ? parentCol.clientWidth : window.innerWidth;
-
-    // Calcul de l'échelle horizontal : la largeur affichée du terrain sera ORIGINAL_HEIGHT * s + horizontalExtra
-    const s_h = (availableWidth - horizontalExtra) / ORIGINAL_HEIGHT;
-
-    // Calcul de l'échelle vertical : l'espace total requis verticalement est 900*s + 85, qui doit tenir dans window.innerHeight.
-    const s_v = (window.innerHeight - verticalExtra) / 900;
-
-    // On prend le facteur le plus contraignant
-    const computedS = Math.min(s_h, s_v);
-
-    // Calcul de l'échelle minimale pour que le terrain ait au moins 100px de largeur et 200px de hauteur.
-    const sMinWidth = (100 - horizontalExtra) / ORIGINAL_HEIGHT;   // (100 - 40)/400 = 0.15
-    const sMinHeight = (200 - horizontalExtra) / ORIGINAL_WIDTH;    // (200 - 40)/800 = 0.2
-    const sMin = Math.max(sMinWidth, sMinHeight); // ici sMin = 0.2
-
-    // On s'assure que l'échelle ne descend pas en dessous de sMin.
-    const s = Math.max(computedS, sMin);
-
-    // Mise à jour des dimensions du game-container (terrain)
-    const gameContainer = document.querySelector('.game-container');
-    if (!gameContainer) {
-      console.error("L'élément '.game-container' est introuvable dans le DOM.");
-      return;
-    }
-    gameContainer.style.width = (ORIGINAL_HEIGHT * s + horizontalExtra) + "px"; // 400*s + 40
-    gameContainer.style.height = (ORIGINAL_WIDTH * s + horizontalExtra) + "px";  // 800*s + 40
-
-    // Transformation du canvas pour le rendre vertical :
-    const canvas = document.getElementById('gameCanvas');
-    canvas.style.transform =
-      `translate(${margin}px, ${margin}px) translateY(${ORIGINAL_WIDTH * s}px) rotate(-90deg) scale(${s})`;
-
-    // Mise à jour de la hauteur du conteneur des boutons (touch-controls) en fonction de l'échelle.
-    const controls = document.getElementById('left_player');
-    const controlHeight = baseControlHeight * s;
-    if (controls) {
-      controls.style.height = controlHeight + "px";
-    }
-
-    // Transmet l'échelle aux boutons via la variable CSS --btn-scale pour qu'ils se redimensionnent proportionnellement.
-    document.documentElement.style.setProperty('--btn-scale', s);
-
-    // Mise à jour de la position de la zone de score pour l'accrocher entre le bord du game-container et celui du canvas (sans rotation)
-const scoreDisplay = document.getElementById("score-display");
-if (scoreDisplay) {
-    // On souhaite que le score soit positionné de sorte que son centre soit à mi-distance
-    // entre le bord gauche du game-container (0) et le bord gauche du canvas (qui est à "margin" pixels)
-    const posX = margin / 2;  // Ceci correspond au point milieu horizontal
-    // Pour le centrage vertical, on se base sur la hauteur actuelle du game-container.
-    const posY = gameContainer.clientHeight / 2;
-    
-    // Positionnement absolu dans le game-container :
-    scoreDisplay.style.left = posX + "px";
-    scoreDisplay.style.top = posY + "px";
-    
-    // Appliquer un translate(-50%, -50%) pour que le centre de la zone corresponde à ce point,
-    // sans aucune rotation (le texte reste dans son orientation normale)
-    scoreDisplay.style.transform = "translate(-50%, -50%)";
-    scoreDisplay.style.transformOrigin = "center";
-    
-    // Adaptez la taille de la police en fonction du scale, pour qu'elle reste proportionnelle
-    scoreDisplay.style.fontSize = (1.5 * s) + "rem";
-}
-
-}
   
+if (isTouchDevice()) {
+		// Seuil (en pixels) pour considérer qu'un glissement a eu lieu
+		const SWIPE_THRESHOLD = 50;
+		let touchStartY = null;
 
-// Seuil (en pixels) pour considérer qu'un glissement a eu lieu
-const SWIPE_THRESHOLD = 50;
-let touchStartY = null;
+		document.addEventListener('touchstart', (e) => {
+		// Enregistrer la position verticale au début du toucher (si un seul doigt)
+		if (e.touches.length === 1) {
+			touchStartY = e.touches[0].clientY;
+		}
+		}, { passive: true });
 
-document.addEventListener('touchstart', (e) => {
-  // Enregistrer la position verticale au début du toucher (si un seul doigt)
-  if (e.touches.length === 1) {
-    touchStartY = e.touches[0].clientY;
+		document.addEventListener('touchend', (e) => {
+		if (touchStartY === null) return;
+		const touchEndY = e.changedTouches[0].clientY;
+		const deltaY = touchEndY - touchStartY;
+		
+		const navbar = document.getElementById('navbar');
+		if (!navbar) return;
+
+		// Si l'utilisateur glisse vers le bas (delta positif) et dépasse le seuil
+		if (deltaY > SWIPE_THRESHOLD) {
+			navbar.classList.remove('hidden');
+			// Optionnel : masquer la navbar de nouveau après quelques secondes
+			setTimeout(() => {
+			// Vérifier que l'écran est toujours en paysage
+			if (window.innerWidth > window.innerHeight) {
+				navbar.classList.add('hidden');
+			}
+			}, 3000);
+		}
+		
+		// Si l'utilisateur glisse vers le haut (delta négatif) et dépasse le seuil
+		if (deltaY < -SWIPE_THRESHOLD) {
+			navbar.classList.add('hidden');
+		}
+		
+		// Réinitialiser la valeur
+		touchStartY = null;
+		});
   }
-}, { passive: true });
-
-document.addEventListener('touchend', (e) => {
-  if (touchStartY === null) return;
-  const touchEndY = e.changedTouches[0].clientY;
-  const deltaY = touchEndY - touchStartY;
-  
-  const navbar = document.getElementById('navbar');
-  if (!navbar) return;
-
-  // Si l'utilisateur glisse vers le bas (delta positif) et dépasse le seuil
-  if (deltaY > SWIPE_THRESHOLD) {
-    navbar.classList.remove('hidden');
-    // Optionnel : masquer la navbar de nouveau après quelques secondes
-    setTimeout(() => {
-      // Vérifier que l'écran est toujours en paysage
-      if (window.innerWidth > window.innerHeight) {
-        navbar.classList.add('hidden');
-      }
-    }, 3000);
-  }
-  
-  // Si l'utilisateur glisse vers le haut (delta négatif) et dépasse le seuil
-  if (deltaY < -SWIPE_THRESHOLD) {
-    navbar.classList.add('hidden');
-  }
-  
-  // Réinitialiser la valeur
-  touchStartY = null;
-});
-
-function adjustGlobalRotator() {
-	const rotator = document.getElementById('global-rotator');
-	if (!rotator) return;
-	
-	// Dans le cas d'une rotation forcée en portrait,
-	// on définit la largeur et la hauteur en fonction des dimensions de l'écran.
-	if (window.innerHeight > window.innerWidth) {
-	  rotator.style.width = window.innerHeight + 'px';
-	  rotator.style.height = window.innerWidth + 'px';
-	  rotator.style.transform = 'rotate(90deg)';
-	} else {
-	  rotator.style.width = window.innerWidth + 'px';
-	  rotator.style.height = window.innerHeight + 'px';
-	  rotator.style.transform = 'none';
-	}
-  }
-  
-  window.addEventListener('resize', adjustGlobalRotator);
-  window.addEventListener('orientationchange', adjustGlobalRotator);
-  adjustGlobalRotator();
 
   
     // 4) Initialiser WebSocket
@@ -828,6 +695,9 @@ function adjustGlobalRotator() {
     const keysPressed = {};
   
     document.addEventListener('keydown', (evt) => {
+		if (evt.key === "ArrowUp" || evt.key === "ArrowDown") { // eviter le scroll fleche (marche bien sur chrome et firefox)
+		evt.preventDefault();
+		}
       if (evt.repeat) return;
       let action = "start_move";
       let player = null, direction = null;

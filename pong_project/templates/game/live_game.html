@@ -12,18 +12,45 @@
 		<button id="startGameBtn" class="btn starting-btn">PLAY</button>
 		<canvas id="gameCanvas"></canvas>
 	</div>
+	<!-- Boutons de contrôle -->
+	<div class="touch-controls">
+		<button id="touch1" class="control-btn" >&#x25C0;</button>  <!-- Flèche gauche -->
+		<button id="touch2" class="control-btn" >&#x25B6;</button>  <!-- Flèche droite -->
+	</div>
 </div>
   
   
 
 <style>
 	body, html {
-		overflow: hidden;
+		overflow: auto;
 	}
 
-	#ground-game, .terrain{
-		display: none;
-	}
+	/* Styles globaux */
+body, html {
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+}
+.mask {
+  display: none;
+  z-index: 0;
+}
+
+#ground-game {
+  display: none !important;
+  height: 0 !important;
+  top : 0 !important;
+}
+
+
+.hidden {
+  display: none;
+}
+
+.navbar {
+  transition: all 0.5s ease;
+}
 
 
 	#startGameBtn {
@@ -41,6 +68,7 @@
 		width: 100%;
 		padding-top: 50px;
 		color: white;
+		overflow: auto;
 	}
 
 	.game-container {
@@ -61,6 +89,7 @@
 		border: 1px solid white;
 		border-radius: 1em;
 		background-color: #101A32;
+		overflow: hidden;
 	}
 
 	.starting-btn {
@@ -115,5 +144,45 @@
 		color: rgba(45, 180, 243, 1);  /* Par exemple, rouge pour le joueur de gauche */
 	}
 
+	/* Conteneur des boutons tactiles : largeur exactement adaptée au contenu */
+.touch-controls {
+  display: inline-flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 5px;          /* Espace fixe entre les boutons */
+  margin-top: 1vh;   /* Distance fixe entre le terrain et les boutons */
+  height: 5vh !important;
+}
+
+/* Nouveau design des boutons avec min et max imposés */
+.control-btn {
+	font-family: "Jersey 10", sans-serif;
+	/* Appliquer le facteur d'échelle directement aux valeurs */
+	font-size: calc(clamp(1rem, 6vw, 1.3rem) * var(--btn-scale, 1));
+	/* Réduire la hauteur (vertical) et allonger la largeur (horizontal) */
+	padding: calc(8px * var(--btn-scale, 1)) calc(40px * var(--btn-scale, 1));
+	border: none;
+	border-radius: 0.75em;
+	background: linear-gradient(145deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+	color: #fff;
+	box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.4);
+	transition: all 0.2s ease;
+	/* Imposer des tailles minimum et maximum pour que le bouton reste cliquable */
+    width: 30vw;
+    height: 5vh;
+    min-width: 60px;
+    min-height: 10px;
+    max-width: 150px;
+    max-height: 60px;
+}
+
+.control-btn:hover {
+  background: linear-gradient(145deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1));
+  box-shadow: 3px 3px 7px rgba(0, 0, 0, 0.6);
+}
+
+.control-btn:active {
+  filter: brightness(0.9);
+}
   
 </style>

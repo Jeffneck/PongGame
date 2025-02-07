@@ -13,6 +13,7 @@ from django.views.decorators.csrf import csrf_protect
 from accounts.models import RefreshToken, CustomUser
 from accounts.utils import generate_jwt_token
 from pong_project.decorators import login_required_json
+from django.utils.translation import gettext_lazy as _
 
 logger = logging.getLogger(__name__)
 
@@ -68,5 +69,4 @@ class RefreshJwtView(View):
             logger.warning("Invalid refresh token")
             return JsonResponse({'error': 'Invalid refresh token', 'error_code': 'token-error'}, status=401)
         except Exception as e:
-            logger.error(f"Unexpected error during token refresh: {str(e)}")
             return JsonResponse({'error': 'An unexpected error occurred'}, status=500)

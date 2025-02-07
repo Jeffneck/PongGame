@@ -31,8 +31,8 @@ DEBUG = os.environ.get("DEBUG", "False").lower() in ("true", "1", "yes")
 # ------------------------------------------------------------------
 # 3) Hôtes autorisés
 # ------------------------------------------------------------------
-# Vous pouvez définir ALLOWED_HOSTS dans le .env (séparé par des virgules)
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
+# Récupérer et parser ALLOWED_HOST en liste
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOST', 'localhost').split(',')
 
 # ------------------------------------------------------------------
 # 4) Authentification utilisateur
@@ -160,9 +160,12 @@ SECURE_HSTS_PRELOAD = True
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:8080',
     'https://localhost:8443',
-    # Ajoutez ici vos domaines et adresses IP de production
-    # ex : 'https://example.com',
+    
 ]
+# Ajouter pour chaque allowed host la version HTTPS avec le port 8443
+host = os.environ.get('ALLOWED_HOST')
+CSRF_TRUSTED_ORIGINS.append(f"https://{host}:8443")
+
 CSRF_COOKIE_SAMESITE = 'Lax'
 
 # ------------------------------------------------------------------
@@ -171,11 +174,11 @@ CSRF_COOKIE_SAMESITE = 'Lax'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('POSTGRES_DB', 'pong_db'),
-        'USER': os.environ.get('POSTGRES_USER', 'postgres'),
-        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'postgres'),
-        'HOST': os.environ.get('POSTGRES_HOST', 'db'),
-        'PORT': os.environ.get('POSTGRES_PORT', '5432'),
+        'NAME': os.environ.get('POSTGRES_DB'),
+        'USER': os.environ.get('POSTGRES_USER'),
+        'PASSWORD': os.environ.get('POSTGRES_PASSWORD'),
+        'HOST': os.environ.get('POSTGRES_HOST'),
+        'PORT': os.environ.get('POSTGRES_PORT'),
     }
 }
 
@@ -191,7 +194,7 @@ SESSION_COOKIE_HTTPONLY = True
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': f"redis://{os.environ.get('REDIS_HOST', 'redis')}:{os.environ.get('REDIS_PORT', '6379')}/1",
+        'LOCATION': f"redis://{os.environ.get('REDIS_HOST')}:{os.environ.get('REDIS_PORT')}/1",
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient'
         }
@@ -204,8 +207,8 @@ CHANNEL_LAYERS = {
         "CONFIG": {
             "hosts": [
                 (
-                    os.environ.get("REDIS_HOST", "redis"),
-                    int(os.environ.get("REDIS_PORT", 6379))
+                    os.environ.get("REDIS_HOST"),
+                    int(os.environ.get("REDIS_PORT"))
                 )
             ],
         },
@@ -234,5 +237,5 @@ LOGIN_URL = '/home/'
 # 16) Exposer la configuration Redis pour d'autres modules
 # ------------------------------------------------------------------
 # Ces variables permettent à d'autres modules (ex : vos consumers) d'accéder à la configuration Redis.
-REDIS_HOST = os.environ.get("REDIS_HOST", "redis")
-REDIS_PORT = int(os.environ.get("REDIS_PORT", 6379))
+REDIS_HOST = os.environ.get("REDIS_HOST")
+REDIS_PORT = int(os.environ.get("REDIS_PORT"))

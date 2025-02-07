@@ -13,9 +13,7 @@ from django.contrib.auth import get_user_model
 from django.db.models import Q
 from game.models import GameResult  # Import du modèle mis à jour
 from pong_project.decorators import login_required_json
-
-from django.utils.translation import gettext as _  # Import pour la traduction
-
+from django.utils.translation import gettext_lazy as _
 # ---- Configuration ----
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -28,7 +26,6 @@ class FriendProfileView(View):
     """
 
     def get(self, request, friend_username):
-        logger.debug("Entering FriendProfileView.get()")
         try:
             # Récupérer l'ami par son nom d'utilisateur
             friend = get_object_or_404(User, username=friend_username)
@@ -87,8 +84,4 @@ class FriendProfileView(View):
             }, status=200)
 
         except Exception as e:
-            logger.error(f"Error loading friend profile: {e}")
-            return JsonResponse(
-                {'status': 'error', 'message': _("Erreur lors du chargement du profil de l'ami.")},
-                status=500
-            )
+            return JsonResponse({'status': 'error', 'message': _('Erreur lors du chargement du profil de l\'ami.')}, status=500)

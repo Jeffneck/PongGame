@@ -103,7 +103,6 @@ class AvatarUpdateForm(forms.ModelForm):
             # Charger l'image entièrement pour s'assurer qu'elle est valide
             image.load()
         except Exception as e:
-            logger.error("Erreur lors de la vérification de l'image: %s", e)
             raise ValidationError(_("Fichier image invalide ou corrompu."))
         
         # Réinitialiser le curseur pour que Django puisse enregistrer le fichier

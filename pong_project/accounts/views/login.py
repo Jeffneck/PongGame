@@ -7,7 +7,7 @@ from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_POST, require_GET
 from django.template.loader import render_to_string
 from django.contrib.auth import authenticate, login
-from django.utils.translation import gettext as _  # Import pour la traduction
+from django.utils.translation import gettext_lazy as _
 
 from accounts.utils import generate_jwt_token
 from accounts.forms import LoginForm
@@ -48,8 +48,9 @@ class LoginView(View):
                 status=400
             )
 
-        username = form.cleaned_data.get('username')
-        password = form.cleaned_data.get('password')
+            if user is not None:
+                if user.is_active:
+                    request.session['user_id'] = user.id
 
         user = authenticate(request, username=username, password=password)
 
@@ -64,18 +65,18 @@ class LoginView(View):
                 status=401
             )
 
-        try:
-            # Gestion de la 2FA
-            if getattr(user, 'is_2fa_enabled', False):
-                request.session['auth_partial'] = True
-                request.session['user_id'] = user.id
-                return JsonResponse(
-                    {'status': 'success', 'requires_2fa': True},
-                    status=200
-                )
+                    return JsonResponse({
+                        'status': 'success',
+                        'access_token': token_jwt['access_token'],
+                        'refresh_token': token_jwt['refresh_token'],
+                        'requires_2fa': False,
+                        'ís_authenticated': True
+                    })
+                else:
+                    return JsonResponse({'status': 'error', 'message': _('Compte désactivé')})
 
-            # Génération des tokens JWT (access et refresh)
-            token_jwt = generate_jwt_token(user)
+            # Invalid credentials
+            return JsonResponse({'status': 'error', 'message': _('Identifiants incorrects')})
 
             # Mise à jour du statut de l'utilisateur et authentification
             user.is_online = True

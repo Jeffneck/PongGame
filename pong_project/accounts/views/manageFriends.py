@@ -9,7 +9,8 @@ from django.db import transaction
 from django.views.decorators.csrf import csrf_protect
 from django.core.exceptions import ValidationError
 from pong_project.decorators import login_required_json
-
+from django.utils.translation import gettext_lazy as _
+# ---- Imports locaux ----
 from accounts.models import FriendRequest
 
 # ---- Configuration ----
@@ -119,21 +120,19 @@ class HandleFriendRequestView(View):
                 # Supprime la demande d'ami
                 friend_request.delete()
                 logger.info(f"Demande d'ami acceptée entre {user.username} et {friend_request.from_user.username}.")
-                return JsonResponse({'status': 'success', 'message': "Demande d'ami acceptée"}, status=200)
+                return JsonResponse({'status': 'success', 'message': _('Demande d\'ami acceptée')}, status=200)
 
             elif action == 'decline':
                 # Supprime la demande d'ami
                 friend_request.delete()
                 logger.info(f"Demande d'ami refusée entre {user.username} et {friend_request.from_user.username}.")
-                return JsonResponse({'status': 'success', 'message': "Demande d'ami refusée"}, status=200)
+                return JsonResponse({'status': 'success', 'message': _('Demande d\'ami refusée')}, status=200)
 
             else:
-                logger.warning("Action non valide lors du traitement de la demande d'ami")
-                return JsonResponse({'status': 'error', 'message': "Action non valide"}, status=400)
+                return JsonResponse({'status': 'error', 'message': _('Action non valide')}, status=400)
 
         except Exception as e:
-            logger.error(f"Erreur lors du traitement de la demande d'ami: {e}")
-            return JsonResponse({'status': 'error', 'message': "Erreur lors de la gestion de la demande d'ami"}, status=500)
+            return JsonResponse({'status': 'error', 'message': _('Erreur lors de la gestion de la demande d\'ami')}, status=500)
 
 
 @method_decorator(csrf_protect, name='dispatch')

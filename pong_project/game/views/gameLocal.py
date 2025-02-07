@@ -139,6 +139,7 @@ from game.models import GameSession, GameParameters
 from game.forms import GameParametersForm
 from game.manager import schedule_game
 from pong_project.decorators import login_required_json
+from django.utils.translation import gettext_lazy as _
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +153,7 @@ class CreateGameLocalView(View):
         try:
             form = GameParametersForm(request.POST)
             if request.POST.get('is_touch', 'false') == "true":
-                return JsonResponse({'status': 'error', 'message': 'Mode non disponible pour le tactile'}, status=403)
+                return JsonResponse({'status': 'error', 'message': _('Mode non disponible pour le tactile')}, status=403)
 
 
             logger.debug("Entering CreateGameLocalView")
@@ -198,9 +199,9 @@ class StartLocalGameView(View):
             session = GameSession.objects.get(id=game_id)
             logger.debug(f"StartLocalGameView - Session: {session}")
             if session.is_online:
-                return JsonResponse({'status': 'error', 'message': "La partie en ligne ne peut pas être lancée avec cette API."}, status=400)
+                return JsonResponse({'status': 'error', 'message': _("La partie en ligne ne peut pas être lancée avec cette API.")}, status=400)
             if session.status in ['running', 'finished']:
-                return JsonResponse({'status': 'error', 'message': f"La partie {game_id} est déjà lancée ou terminée."}, status=400)
+                return JsonResponse({'status': 'error', 'message': _(f"La partie {game_id} est déjà lancée ou terminée.")}, status=400)
             
             session.status = 'running'
             session.ready_left = True
@@ -209,10 +210,10 @@ class StartLocalGameView(View):
             
             schedule_game(game_id)
             
-            return JsonResponse({'status': 'success', 'message': f"Partie {game_id} lancée avec succès."}, status=200)
+            return JsonResponse({'status': 'success', 'message': _(f"Partie {game_id} lancée avec succès.")}, status=200)
         except GameSession.DoesNotExist:
             logger.error(f"GameSession {game_id} does not exist.")
-            return JsonResponse({'status': 'error', 'message': "La session de jeu spécifiée n'existe pas."}, status=404)
+            return JsonResponse({'status': 'error', 'message': _("La session de jeu spécifiée n'existe pas.")}, status=404)
         except Exception as e:
             logger.exception("Error in StartLocalGameView: %s", e)
-            return JsonResponse({'status': 'error', 'message': 'Internal server error'}, status=500)
+            return JsonResponse({'status': 'error', 'message': _('Internal server error')}, status=500)

@@ -1,6 +1,6 @@
 services:
   nginx:
-    build: ./nginx        # <- on build l'image depuis /nginx
+    build: ./nginx        # <- on build l'image depuis ./nginx
     container_name: pong_nginx
     ports:
       - "8081:80"
@@ -8,7 +8,10 @@ services:
     volumes:
       - ./static:/static
       - ./media:/app/media
-      - /dev/null:/var/log/nginx/access.log  # Rediriger les logs vers /dev/null
+      # Vous pouvez laisser cette ligne si vous voulez rediriger spécifiquement le fichier d'accès
+      - /dev/null:/var/log/nginx/access.log  
+    logging:
+      driver: "none"      # Désactive la collecte des logs
     depends_on:
       - uvicorn
     networks:
@@ -21,7 +24,6 @@ services:
     volumes:
       - .:/app
       - ./media:/app/media
-  
     environment:
       - DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE}
       - REDIS_HOST=${REDIS_HOST}
@@ -33,6 +35,8 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     expose:
       - "8000"
+    logging:
+      driver: "none"
     depends_on:
       - db
       - redis
@@ -50,12 +54,16 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    logging:
+      driver: "none"
     networks:
       - pong_network
 
   redis:
     image: redis:alpine
     container_name: pong_redis
+    logging:
+      driver: "none"
     networks:
       - pong_network
 

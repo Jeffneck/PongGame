@@ -16,6 +16,8 @@ from django.shortcuts import get_object_or_404
 
 from accounts.utils import generate_jwt_token
 from pong_project.decorators import login_required_json, auth_partial_required
+from django.utils.translation import gettext_lazy as _
+
 from accounts.forms import TwoFactorLoginForm
 from pong_project.decorators import user_not_authenticated
 
@@ -85,6 +87,7 @@ class Enable2FAView(Base2FAView):
                 'status': 'error',
                 'message': _("An error occurred while enabling 2FA.")
             }, status=500)
+            return JsonResponse({'status': 'error', 'message': _('2FA est déjà activé sur votre compte')}, status=400)
 
 
 @method_decorator(csrf_protect, name='dispatch')
@@ -95,6 +98,7 @@ class Check2FAView(View):
     Verify the TOTP code to enable 2FA.
     """
     def post(self, request):
+<<<<<<< HEAD
         try:
             totp_secret = request.session.get('totp_secret')
             if not totp_secret:
@@ -133,6 +137,25 @@ class Check2FAView(View):
                 'status': 'error',
                 'message': _("An unexpected error occurred.")
             }, status=500)
+=======
+        totp_secret = request.session.get('totp_secret')
+        if not totp_secret:
+            return JsonResponse({'status': 'error', 'message': _('Aucune configuration 2FA en cours.')}, status=400)
+
+        code = request.POST.get('code')
+        if not code:
+            return JsonResponse({'status': 'error', 'message': _('Un code est requis.')}, status=400)
+
+        totp = pyotp.TOTP(totp_secret)
+        if totp.verify(code):
+            request.user.totp_secret = totp_secret
+            request.user.is_2fa_enabled = True
+            request.user.save()
+            del request.session['totp_secret']
+            return JsonResponse({'status': 'success', 'message': _('2FA a été activé avec succès.')})
+
+        return JsonResponse({'status': 'error', 'message': _('Code 2FA invalide.')}, status=400)
+>>>>>>> origin/traduction
 
 
 @method_decorator(csrf_protect, name='dispatch')
@@ -146,6 +169,7 @@ class Login2faView(View):
         """
         Return the 2FA login form as HTML embedded in JSON.
         """
+<<<<<<< HEAD
         try:
             login2fa_form = TwoFactorLoginForm()
             html_content = render_to_string(
@@ -216,6 +240,58 @@ class Login2faView(View):
                 'status': 'error',
                 'message': _("An unexpected error occurred.")
             }, status=500)
+=======
+      
+        # Créez une instance de TwoFactorLoginForm
+        login2fa_form = TwoFactorLoginForm()
+
+         # Générer le HTML pour le formulaire
+          # Générer le HTML pour le formulaire avec RequestContext
+        html_content = render_to_string(
+            'accounts/login2fa.html',
+            {'login2fa_form': login2fa_form},
+            request=request  # Inclut le RequestContext pour le token CSRF
+        )
+        return JsonResponse({
+            'status': 'success',
+            'html': html_content,  # Renommé pour être plus explicite
+        })
+
+    def post(self, request):
+        user_id = request.session.get('user_id')
+        auth_partial = request.session.get('auth_partial')
+
+        if not user_id or not auth_partial:
+            return JsonResponse({'status': 'error', 'message': _('Accès non autorisé.')}, status=403)
+
+        user = get_object_or_404(User, id=user_id)
+        code = request.POST.get('code')
+
+        if not code:
+            return JsonResponse({'status': 'error', 'message': _('Un code est requis.')}, status=400)
+
+        logger.debug(f"Received 2FA code: {code}")
+
+        totp = pyotp.TOTP(user.totp_secret)
+        if totp.verify(code):
+
+            token_jwt = generate_jwt_token(user)
+            user.is_online = True
+            user.save()
+            login(request, user)
+            del request.session['auth_partial']
+
+            logger.debug(f"Utilisateur connecté après login: {request.user.is_authenticated}")
+
+            return JsonResponse({
+                'status': 'success',
+                'access_token': token_jwt['access_token'],
+                'refresh_token': token_jwt['refresh_token'],
+                'ís_authenticated': True,
+                'message': _('2FA vérifié avec succès. Connexion réussie.')
+            })
+        return JsonResponse({'status': 'error', 'message': _('Invalid 2FA code.')}, status=400)
+>>>>>>> origin/traduction
 
 
 @method_decorator(csrf_protect, name='dispatch')
@@ -225,6 +301,7 @@ class Disable2FAView(View):
     Disable 2FA for the authenticated user.
     """
     def get(self, request):
+<<<<<<< HEAD
         try:
             if not request.user.is_2fa_enabled:
                 return JsonResponse({
@@ -284,3 +361,36 @@ class Disable2FAView(View):
                 'status': 'error',
                 'message': _("An unexpected error occurred.")
             }, status=500)
+=======
+        if not request.user.is_2fa_enabled:
+            return JsonResponse({'status': 'error', 'message': _('2FA n\'est pas activé sur votre compte.')}, status=400)
+
+        # Créez une instance de TwoFactorLoginForm
+        disable_form = TwoFactorLoginForm()
+
+         # Générer le HTML pour le formulaire
+        html_content = render_to_string('accounts/disable_2fa.html', {
+            'disable_form': disable_form,
+        })
+        return JsonResponse({
+            'status': 'success',
+            'html': html_content
+        })
+
+    def post(self, request):
+        if not request.user.is_2fa_enabled:
+            return JsonResponse({'status': 'error', 'message': _('2FA n\'est pas activé sur votre compte.')}, status=400)
+
+        code = request.POST.get('code')
+        if not code:
+            return JsonResponse({'status': 'error', 'message': _('Un code est requis.')}, status=400)
+
+        totp = pyotp.TOTP(request.user.totp_secret)
+        if totp.verify(code):
+            request.user.totp_secret = ''
+            request.user.is_2fa_enabled = False
+            request.user.save()
+            return JsonResponse({'status': 'success', 'message': _('2FA a été désactivé.')})
+
+        return JsonResponse({'status': 'error', 'message': _('Code 2FA invalide.')}, status=400)
+>>>>>>> origin/traduction

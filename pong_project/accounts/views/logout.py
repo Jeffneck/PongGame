@@ -10,8 +10,7 @@ from django.views.decorators.csrf import csrf_protect
 from django.contrib.auth import logout
 from accounts.models import RefreshToken
 from pong_project.decorators import login_required_json
-from django.utils.translation import gettext as _  # Import pour la traduction
-
+from django.utils.translation import gettext_lazy as _
 # ---- Configuration ----
 logger = logging.getLogger(__name__)
 

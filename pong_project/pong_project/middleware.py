@@ -42,7 +42,6 @@ class JWTAuthenticationMiddleware:
                 logger.warning("Jeton JWT invalide : %s", e)
                 request.user = AnonymousUser()
             except Exception as e:
-                logger.error("Erreur inattendue lors de l'authentification JWT : %s", e)
                 request.user = AnonymousUser()
         else:
             logger.debug("Aucun jeton JWT fourni ou format invalide dans le header Authorization.")

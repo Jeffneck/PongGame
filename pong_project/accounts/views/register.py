@@ -6,6 +6,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_POST, require_GET
 from django.template.loader import render_to_string
+from django.utils.translation import gettext_lazy as _
 
 from accounts.forms import RegistrationForm
 
@@ -36,7 +37,6 @@ class RegisterView(View):
         """
         Traite la soumission du formulaire d'inscription et crée un nouvel utilisateur.
         """
-        logger.debug("Données POST reçues: %s", request.POST)
         form = RegistrationForm(request.POST)
         if form.is_valid():
             try:
@@ -47,7 +47,6 @@ class RegisterView(View):
                     'message': 'Inscription réussie.'
                 }, status=201)
             except Exception as e:
-                logger.exception("Erreur lors de la création de l'utilisateur.")
                 return JsonResponse({
                     'status': 'error',
                     'message': 'Erreur interne du serveur.'

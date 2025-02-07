@@ -8,6 +8,7 @@ services:
     volumes:
       - ./static:/static
       - ./media:/app/media
+      - /dev/null:/var/log/nginx/access.log  # Rediriger les logs vers /dev/null
     depends_on:
       - uvicorn
     networks:

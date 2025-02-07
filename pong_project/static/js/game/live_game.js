@@ -114,176 +114,194 @@ function initLiveGame(config) {
     }
 
 	// Draw visual effects / added
-	function drawCollisionEffects() {
-		collisionEffects.forEach(effect => {
-			const age = effect.type.includes('spawn') ?
-			  Date.now() - effect.startTime :
-			  Date.now() - effect.startTime;
-			const duration = effect.type.includes('spawn') ?
-			  SPAWN_EFFECT_DURATION :
-			  EXPIRE_EFFECT_DURATION;
-			const progress = age / duration;
-  
-			ctx.save();
-			ctx.globalAlpha = 1 - progress;
-  
-			switch(effect.type) {
-				case 'paddle_collision':
-					// Ripple effect
-					const rippleSize = 20 + (progress * 40);
-					ctx.strokeStyle = 'white';
-					ctx.lineWidth = 3 * (1 - progress);
-					ctx.beginPath();
-					ctx.arc(effect.x, effect.y, rippleSize, 0, Math.PI * 2);
-					ctx.stroke();
-					break;
-  
-				// case 'border_collision':
-				//     // Simple glow effect at collision point
-				//     const glowSize = 20 * (1 - progress);
-				//     ctx.shadowColor = 'white';
-				//     ctx.shadowBlur = 15 * (1 - progress);
-					
-				//     ctx.beginPath();
-				//     ctx.arc(effect.x, effect.border_side === 'up' ? 50 : 350, glowSize, 0, Math.PI * 2);
-				//     ctx.fillStyle = 'rgba(255, 255, 255, ' + (1 - progress) + ')';
-				//     ctx.fill();
-				//     break;
-  
-				case 'bumper_collision':
-					// Explosion effect
-					const numParticles = 8;
-					const radius = 30 * progress;
-					ctx.strokeStyle = '#4169E1';
-					ctx.lineWidth = 3 * (1 - progress);
-					
-					for (let i = 0; i < numParticles; i++) {
-						const angle = (i / numParticles) * Math.PI * 2;
-						const startX = effect.x + Math.cos(angle) * 10;
-						const startY = effect.y + Math.sin(angle) * 10;
-						const endX = effect.x + Math.cos(angle) * radius;
-						const endY = effect.y + Math.sin(angle) * radius;
-						
-						ctx.beginPath();
-						ctx.moveTo(startX, startY);
-						ctx.lineTo(endX, endY);
-						ctx.stroke();
-					}
-					break;
-				case 'powerup_spawn':
-					// Expanding circles with powerup color
-					const circles = 3;
-					ctx.strokeStyle = effect.color;
-					ctx.lineWidth = 2;
-					
-					for (let i = 0; i < circles; i++) {
-						const circleProgress = (progress + (i / circles)) % 1;
-						const radius = circleProgress * 40;
-						ctx.beginPath();
-						ctx.arc(effect.x, effect.y, radius, 0, Math.PI * 2);
-						ctx.stroke();
-					}
-  
-					// Add sparkles
-					const sparkles = 8;
-					for (let i = 0; i < sparkles; i++) {
-						const angle = (i / sparkles) * Math.PI * 2;
-						const sparkleDistance = 20 + (progress * 20);
-						const x = effect.x + Math.cos(angle) * sparkleDistance;
-						const y = effect.y + Math.sin(angle) * sparkleDistance;
-						
-						ctx.beginPath();
-						ctx.arc(x, y, 2, 0, Math.PI * 2);
-						ctx.fillStyle = effect.color;
-						ctx.fill();
-					}
-					break;
-  
-				case 'powerup_expire':
-					// Imploding effect
-					const fadeRadius = 20 * (1 - progress);
-					ctx.strokeStyle = effect.color;
-					ctx.lineWidth = 2 * (1 - progress);
-					
-					// Shrinking circle
-					ctx.beginPath();
-					ctx.arc(effect.x, effect.y, fadeRadius, 0, Math.PI * 2);
-					ctx.stroke();
-					
-					// Particles moving inward
-					const particles = 6;
-					for (let i = 0; i < particles; i++) {
-						const angle = (i / particles) * Math.PI * 2;
-						const distance = fadeRadius * 2;
-						const x = effect.x + Math.cos(angle) * distance * progress;
-						const y = effect.y + Math.sin(angle) * distance * progress;
-						
-						ctx.beginPath();
-						ctx.arc(x, y, 2, 0, Math.PI * 2);
-						ctx.fill();
-					}
-					break;
-  
-				case 'bumper_spawn':
-					// Expanding diamond pattern
-					ctx.strokeStyle = '#4169E1';
-					ctx.lineWidth = 2;
-					const size = 40 * progress;
-					const rotation = progress * Math.PI;
-					
-					ctx.translate(effect.x, effect.y);
-					ctx.rotate(rotation);
-					
-					// Inner diamond
-					ctx.beginPath();
-					ctx.moveTo(0, -size);
-					ctx.lineTo(size, 0);
-					ctx.lineTo(0, size);
-					ctx.lineTo(-size, 0);
-					ctx.closePath();
-					ctx.stroke();
-					
-					// Outer diamond
-					ctx.beginPath();
-					ctx.moveTo(0, -size * 1.5);
-					ctx.lineTo(size * 1.5, 0);
-					ctx.lineTo(0, size * 1.5);
-					ctx.lineTo(-size * 1.5, 0);
-					ctx.closePath();
-					ctx.stroke();
-					break;
-  
-				case 'bumper_expire':
-					// Dissolving rings effect
-					ctx.strokeStyle = '#4169E1';
-					ctx.lineWidth = 2 * (1 - progress);
-					
-					const rings = 3;
-					for (let i = 0; i < rings; i++) {
-						const ringProgress = (progress + (i / rings)) % 1;
-						const ringRadius = 20 * ringProgress;
-						
-						ctx.beginPath();
-						ctx.arc(effect.x, effect.y, ringRadius, 0, Math.PI * 2);
-						ctx.stroke();
-						
-						// Add dissolving particles
-						const particleCount = 8;
-						for (let j = 0; j < particleCount; j++) {
-							const particleAngle = (j / particleCount) * Math.PI * 2;
-							const distance = ringRadius * (1 + progress);
-							const px = effect.x + Math.cos(particleAngle) * distance;
-							const py = effect.y + Math.sin(particleAngle) * distance;
-							
-							ctx.fillStyle = '#4169E1';
-							ctx.fillRect(px - 1, py - 1, 2, 2);
-						}
-					}
-					break;
-			}
-			ctx.restore();
-		});
-	}
+	// ===========================
+  //  Function drawCollisionEffects
+  // ===========================
+  function drawCollisionEffects() {
+    collisionEffects.forEach(effect => {
+      // Calcul de l'âge de l'effet
+      const now = Date.now();
+      const age = now - effect.startTime;
+
+      // Durée selon le type "spawn" ou "expire"
+      const duration = effect.type.includes('spawn')
+        ? SPAWN_EFFECT_DURATION
+        : EXPIRE_EFFECT_DURATION;
+      
+      // progress brut
+      const rawProgress = age / duration;
+      // progress clampé entre 0 et 1
+      const progress = Math.max(0, Math.min(rawProgress, 1));
+
+      // Sauvegarde du contexte
+      ctx.save();
+
+      // On réduit l'alpha en fonction du progress
+      ctx.globalAlpha = Math.max(0, 1 - progress);
+
+      switch(effect.type) {
+
+        case 'paddle_collision': {
+          // Ripple effect
+          const rippleSize = Math.max(0, 20 + (progress * 40));
+          ctx.strokeStyle = 'white';
+          ctx.lineWidth = 3 * (1 - progress);
+
+          ctx.beginPath();
+          ctx.arc(effect.x, effect.y, rippleSize, 0, Math.PI * 2);
+          ctx.stroke();
+          break;
+        }
+
+        case 'bumper_collision': {
+          // Explosion effect
+          const numParticles = 8;
+          // on clamp pour éviter radius négatif
+          const radius = Math.max(0, 30 * progress);
+
+          ctx.strokeStyle = '#4169E1';
+          ctx.lineWidth = 3 * (1 - progress);
+
+          for (let i = 0; i < numParticles; i++) {
+            const angle = (i / numParticles) * Math.PI * 2;
+            const startX = effect.x + Math.cos(angle) * 10;
+            const startY = effect.y + Math.sin(angle) * 10;
+            const endX = effect.x + Math.cos(angle) * radius;
+            const endY = effect.y + Math.sin(angle) * radius;
+            
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+          }
+          break;
+        }
+
+        case 'powerup_spawn': {
+          // Expanding circles with powerup color
+          ctx.strokeStyle = effect.color;
+          ctx.lineWidth = 2;
+
+          const circles = 3;
+          for (let i = 0; i < circles; i++) {
+            // On modifie légèrement progress pour chaque cercle
+            const circleProgress = (progress + (i / circles)) % 1;
+            const radius = Math.max(0, circleProgress * 40);
+
+            ctx.beginPath();
+            ctx.arc(effect.x, effect.y, radius, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+
+          // Add sparkles
+          const sparkles = 8;
+          for (let i = 0; i < sparkles; i++) {
+            const angle = (i / sparkles) * Math.PI * 2;
+            // clamp pour éviter tout souci
+            const sparkleDistance = Math.max(0, 20 + (progress * 20));
+
+            const x = effect.x + Math.cos(angle) * sparkleDistance;
+            const y = effect.y + Math.sin(angle) * sparkleDistance;
+            
+            ctx.beginPath();
+            ctx.arc(x, y, 2, 0, Math.PI * 2);
+            ctx.fillStyle = effect.color;
+            ctx.fill();
+          }
+          break;
+        }
+
+        case 'powerup_expire': {
+          // Imploding effect
+          const fadeRadius = Math.max(0, 20 * (1 - progress));
+          ctx.strokeStyle = effect.color;
+          ctx.lineWidth = 2 * (1 - progress);
+
+          // Shrinking circle
+          ctx.beginPath();
+          ctx.arc(effect.x, effect.y, fadeRadius, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Particles moving inward
+          const particles = 6;
+          for (let i = 0; i < particles; i++) {
+            const angle = (i / particles) * Math.PI * 2;
+            const distance = fadeRadius * 2; // base de départ
+            const x = effect.x + Math.cos(angle) * distance * progress;
+            const y = effect.y + Math.sin(angle) * distance * progress;
+
+            ctx.beginPath();
+            ctx.arc(x, y, 2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          break;
+        }
+
+        case 'bumper_spawn': {
+          // Expanding diamond pattern
+          ctx.strokeStyle = '#4169E1';
+          ctx.lineWidth = 2;
+          const size = Math.max(0, 40 * progress);
+          const rotation = progress * Math.PI;
+
+          // On translate/rotate le contexte avant de dessiner
+          ctx.translate(effect.x, effect.y);
+          ctx.rotate(rotation);
+
+          // Inner diamond
+          ctx.beginPath();
+          ctx.moveTo(0, -size);
+          ctx.lineTo(size, 0);
+          ctx.lineTo(0, size);
+          ctx.lineTo(-size, 0);
+          ctx.closePath();
+          ctx.stroke();
+
+          // Outer diamond
+          ctx.beginPath();
+          ctx.moveTo(0, -size * 1.5);
+          ctx.lineTo(size * 1.5, 0);
+          ctx.lineTo(0, size * 1.5);
+          ctx.lineTo(-size * 1.5, 0);
+          ctx.closePath();
+          ctx.stroke();
+          break;
+        }
+
+        case 'bumper_expire': {
+          // Dissolving rings effect
+          ctx.strokeStyle = '#4169E1';
+          ctx.lineWidth = 2 * (1 - progress);
+
+          const rings = 3;
+          for (let i = 0; i < rings; i++) {
+            const ringProgress = (progress + (i / rings)) % 1;
+            const ringRadius = Math.max(0, 20 * ringProgress);
+
+            ctx.beginPath();
+            ctx.arc(effect.x, effect.y, ringRadius, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Add dissolving particles
+            const particleCount = 8;
+            for (let j = 0; j < particleCount; j++) {
+              const particleAngle = (j / particleCount) * Math.PI * 2;
+              const distance = ringRadius * (1 + progress);
+              const px = effect.x + Math.cos(particleAngle) * distance;
+              const py = effect.y + Math.sin(particleAngle) * distance;
+
+              ctx.fillStyle = '#4169E1';
+              ctx.fillRect(px - 1, py - 1, 2, 2);
+            }
+          }
+          break;
+        }
+      }
+
+      ctx.restore();
+    });
+  }
+
 
 
 	function drawCountdown() {
@@ -299,6 +317,23 @@ function initLiveGame(config) {
       ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
       ctx.shadowBlur = 20;
       ctx.fillText(gameState.countdown, canvas.width / 2, canvas.height / 3);
+      ctx.restore();
+    }
+	}
+
+  function drawScored() {
+    if (typeof gameState.scoreMsg !== 'undefined') {
+      ctx.save();
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+      ctx.fillStyle = 'yellow';
+      ctx.font = 'bold 80px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = 'rgba(255, 255, 0, 0.8)';
+      ctx.shadowBlur = 20;
+      ctx.fillText(gameState.scoreMsg, canvas.width / 2, canvas.height / 3);
       ctx.restore();
     }
 	}
@@ -502,7 +537,9 @@ function initLiveGame(config) {
     } else if (data.type === 'countdown') {
       // Stocker le compte à rebours dans le gameState
       gameState.countdown = data.countdown_nb;
-      // drawCountdown(data.countdown_nb);
+    } else if (data.type === 'scored') {
+        // Stocker le compte à rebours dans le gameState
+        gameState.scoreMsg = data.scoreMsg;
 		} else if (data.type === 'collision_event') {
 			const collision = data.collision;
 			switch(collision.type) {
@@ -792,40 +829,55 @@ function initLiveGame(config) {
         }
         }
 
-      // Affichage powerups actifs
+      // Affichage des noms de power-up actifs
       const powerupNames = {
-        'speed':'SPEED','shrink':'SHRINK','ice':'ICE','sticky':'STICKY','invert':'INVERT'
+        'speed': 'SPEED',
+        'shrink': 'SHRINK',
+        'ice': 'ICE',
+        'sticky': 'STICKY',
+        'invert': 'INVERT'
       };
+  
       // Gauche
       if (activeEffects.left.size > 0) {
-        ctx.font='16px Arial';
-        let yOffset=60;
+        ctx.font = "bold 25px Arial";
+        let yOffset = 60; 
         activeEffects.left.forEach(effect => {
           ctx.fillStyle = {
-            'speed':'#FFD700','shrink':'#FF0000','ice':'#00FFFF',
-            'sticky':'#32CD32','invert':'#FF69B4','flash':'#FFFF00'
+            'speed': '#FFD700',
+            'shrink': '#FF0000',
+            'ice': '#00FFFF',
+            'sticky': '#32CD32',
+            'invert': '#FF69B4',
+            'flash': '#FFFF00'
           }[effect];
           ctx.fillText(powerupNames[effect], 20, yOffset);
-          yOffset+=25;
+          yOffset += 20;
         });
       }
+  
       // Droite
       if (activeEffects.right.size > 0) {
-        ctx.font='16px Arial';
-        let yOffset=60;
+        ctx.font = "bold 25px Arial";
+        let yOffset = 60;
         activeEffects.right.forEach(effect => {
           ctx.fillStyle = {
-            'speed':'#FFD700','shrink':'#FF0000','ice':'#00FFFF',
-            'sticky':'#32CD32','invert':'#FF69B4','flash':'#FFFF00'
+            'speed': '#FFD700',
+            'shrink': '#FF0000',
+            'ice': '#00FFFF',
+            'sticky': '#32CD32',
+            'invert': '#FF69B4',
+            'flash': '#FFFF00'
           }[effect];
-          const tW = ctx.measureText(powerupNames[effect]).width;
-          ctx.fillText(powerupNames[effect], canvas.width-20 - tW, yOffset);
-          yOffset+=25;
+          const textWidth = ctx.measureText(powerupNames[effect]).width;
+          ctx.fillText(powerupNames[effect], canvas.width - 20 - textWidth, yOffset);
+          yOffset += 20;
         });
       }
     updateScoreDisplay();
 	  drawCollisionEffects();
 	  drawCountdown();
+	  drawScored();
       requestAnimationFrame(draw);
     }
     requestAnimationFrame(draw);

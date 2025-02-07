@@ -1,5 +1,6 @@
 # game/game_loop/loop.py
 
+
 import asyncio
 import time
 from django.conf import settings
@@ -17,10 +18,10 @@ from .collisions import (
     handle_bumper_collision,
     handle_powerup_collision
 )
-from .score_utils import handle_score, winner_detected, finish_game
+from .score_utils import handle_score, winner_detected, finish_game, reset_all_objects
 from .bumpers_utils import handle_bumpers_spawn, handle_bumper_expiration
 from .powerups_utils import handle_powerups_spawn, handle_powerup_expiration
-from .broadcast import broadcast_game_state, notify_countdown
+from .broadcast import broadcast_game_state, notify_countdown, notify_scored
 
 class WaitForPlayersTimeout(Exception):
     """Exception levée lorsqu'un délai d'attente est dépassé avant que les joueurs ne soient prêts."""
@@ -48,10 +49,9 @@ async def countdown_before_game(game_id):
         await notify_countdown(game_id, countdown_nb)
         await asyncio.sleep(1)
 
-# async def countdown_between_goals(game_id):
-#     for countdown_nb in range(3, 0, -1):
-#         await notify_countdown(game_id, countdown_nb)
-#         await asyncio.sleep(1)
+# async def scored(game_id, scorer):
+#     await notify_scored(game_id, scorer)
+#     await asyncio.sleep(1)
 
 async def game_loop(game_id):
     """
@@ -63,7 +63,6 @@ async def game_loop(game_id):
     print(f"[game_loop.py] Starting loop for game_id={game_id}.")
     try:
         await wait_for_players(game_id)
-        await countdown_before_game(game_id)
         # Récupérer/charger les paramètres
         parameters = await get_gameSession_parameters(game_id)
 
@@ -71,10 +70,11 @@ async def game_loop(game_id):
         # Construire les objets (raquettes, balle, powerups, bumpers)
         paddle_left, paddle_right, ball, powerup_orbs, bumpers = initialize_game_objects(game_id, parameters)
         initialize_redis(game_id, paddle_left, paddle_right, ball, parameters)
-        print(f"[game_loop] Game objects initialisés pour game_id={game_id}")
+        await countdown_before_game(game_id)
+        # print(f"[game_loop] Game objects initialisés pour game_id={game_id}")
 
         
-        await set_gameSession_status(game_id, "running")
+        # await set_gameSession_status(game_id, "running")
         
         # 2) Lancer la boucle ~90fps 
         while True:
@@ -107,6 +107,9 @@ async def game_loop(game_id):
                 # 2.3 - Paddles / Score
                 scorer = await handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right, ball)
                 if scorer in ['score_left', 'score_right']:
+                    await reset_all_objects(game_id, powerup_orbs, bumpers) 
+                    await notify_scored(game_id)
+                    await asyncio.sleep(1.5)
                     handle_score(game_id, scorer)
 
                     # Vérifier si on a un gagnant
@@ -120,14 +123,15 @@ async def game_loop(game_id):
                 # print(f"3")#debug
                 # 2.4 - Powerups & Bumpers
                 if parameters.bonus_enabled:
-                    await handle_powerups_spawn(game_id, powerup_orbs, current_time)
+                    await handle_powerups_spawn(game_id, powerup_orbs, current_time, bumpers)
                     await handle_powerup_expiration(game_id, powerup_orbs)
 
                 if parameters.obstacles_enabled:
-                    await handle_bumpers_spawn(game_id, bumpers, current_time)
+                    await handle_bumpers_spawn(game_id, bumpers, current_time, powerup_orbs)
                     await handle_bumper_expiration(game_id, bumpers)
                 # print(f"4")#debug
-
+                # balle fixe apres un point
+                # launch_ball_after_score(game_id, ball)
                 # 2.5 - Broadcast de l'état
                 await broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right, ball, powerup_orbs, bumpers)
 

@@ -121,6 +121,13 @@ class PongConsumer(AsyncWebsocketConsumer):
         }))
         print(f"[PongConsumer] Broadcast countdown for game_id={self.game_id}")
     
+    async def scored(self, event):
+        await self.send(json.dumps({
+            'type': 'scored',
+            'scoreMsg': event['scoreMsg']
+        }))
+        print(f"[PongConsumer] Broadcast countdown for game_id={self.game_id}")
+    
     # async def start_game(self, event):
     #     await self.send(json.dumps({
     #         'type': 'start_game',

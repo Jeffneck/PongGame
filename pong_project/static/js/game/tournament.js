@@ -3,7 +3,7 @@ import { showStatusMessage, updateHtmlContent } from "../tools/index.js";
 import { launchLiveGameWithOptions } from './live_game.js';
 import { TournamentNextMatch } from './tournament_utils.js';
 import { showResults } from "./gameResults.js";
-import { navigateTo } from "../router.js";
+import { navigateTo} from "../router.js";
 
 
 // Fonction principale appelée quand on clique sur "Lancer Tournoi" dans le menu
@@ -97,64 +97,70 @@ async function createTournament(formData) {
 // -- Le “flow” du tournoi (récup bracket, next match, etc.) --
 
 async function runTournamentFlow(tournamentId) {
-  while (true) {
-    // 1) Afficher le bracket
-    const bracketResp = await requestGet('game', `tournament_bracket/${tournamentId}`);
-    if (!bracketResp || bracketResp.status !== "success") {
-      console.error("Impossible de récupérer le bracket du tournoi.");
-      break;
-    }
+	window.stopTournamentFlow = false; // Réinitialise au lancement du tournoi
+  
+	while (true) {
+	  if (window.stopTournamentFlow) {
+		console.log("Flux tournoi arrêté car l'utilisateur est revenu à la Home.");
+		break;
+	  }
+  
+	  // 1) Afficher le bracket
+	  const bracketResp = await requestGet('game', `tournament_bracket/${tournamentId}`);
+	  if (!bracketResp || bracketResp.status !== "success" || window.stopTournamentFlow) {
+		console.error("Impossible de récupérer le bracket du tournoi ou tournoi annulé.");
+		break;
+	  }
+  
+	  updateHtmlContent("#content", bracketResp.html);
+	  updateBracketUI(bracketResp);
+	  await delay(3000);
 
-    console.log(bracketResp);
-    updateHtmlContent("#content", bracketResp.html);
-	console.log("BRACKET UPDATED\n");
-    updateBracketUI(bracketResp)
-    await delay(3000);  // Pause de 4s (si vraiment nécessaire)
-    
-    // TODO : si le backend renvoie un champ indiquant “finished”, sortir de la boucle
-    // Exemple si bracketResp renvoie un `tournament_finished: true` ou
-    // un champ `tournament_status = "finished"`.
-    if (bracketResp.tournament_status === "finished") {
-      console.log("Tournoi terminé (d’après bracket).");
-      break;
-    }
-    // 2) Récupérer les joueurs du prochain match
-    const nextResp = await requestGet('game', `tournament_next_game/${tournamentId}`);
-    if (!nextResp || nextResp.status !== "success") {
-      console.error("Impossible de récupérer le prochain match.");
-      break;
-    }
-
-    if (nextResp.next_match_type === "finished") {
-      console.log("Tournoi terminé (d’après next_game).");
-      break;
-    }
-
-    updateHtmlContent("#content", nextResp.html);
-	updateNextGameUI(bracketResp, nextResp);
-	TournamentNextMatch();
-    await delay(3000);
-
-    // 3) Créer la gameSession de match (semi1, semi2, finale…) en POST
-    const gameId = await createTournamentGameSession(tournamentId, nextResp.next_match_type);
-    if (!gameId) {
-      console.error("Erreur lors de la création de la session de match.");
-      break;
-    }
-
-    // 4) Lancer le liveGame 
-    await launchLiveGameWithOptions(gameId, 'both', `start_tournament_game_session/${gameId}`);
-	// on vérifie le status côté serveur avant de continuer la loop
-	const statusResponse = await requestGet('game', `get_game_status/${gameId}`);
-	if (statusResponse.status === 'success' && statusResponse.session_status === 'cancelled') {
-		showStatusMessage('Un des joueurs s\'est deconnecte, tournoi annule ...', 'error');
-		break
+	  if (bracketResp.tournament_status === "finished" || window.stopTournamentFlow) {
+		console.log("Tournoi terminé ou arrêté.");
+		break;
+	  }
+  
+	  // 2) Récupérer les joueurs du prochain match
+	  const nextResp = await requestGet('game', `tournament_next_game/${tournamentId}`);
+	  if (!nextResp || nextResp.status !== "success" || window.stopTournamentFlow) {
+		console.error("Impossible de récupérer le prochain match ou tournoi annulé.");
+		break;
+	  }
+  
+	  if (nextResp.next_match_type === "finished" || window.stopTournamentFlow) {
+		console.log("Tournoi terminé.");
+		break;
+	  }
+  
+	  updateHtmlContent("#content", nextResp.html);
+	  updateNextGameUI(bracketResp, nextResp);
+	  TournamentNextMatch();
+	  await delay(3000);
+  
+	  // 3) Créer la gameSession de match
+	  const gameId = await createTournamentGameSession(tournamentId, nextResp.next_match_type);
+	  if (!gameId || window.stopTournamentFlow) {
+		showStatusMessage('Tournoi annulé ...', 'error');
+		console.error("Erreur lors de la création de la session de match ou tournoi annulé.");
+		break;
+	  }
+  
+	  // 4) Lancer le liveGame 
+	  await launchLiveGameWithOptions(gameId, 'both', `start_tournament_game_session/${gameId}`);
+	  
+	  // Vérification du statut
+	  const statusResponse = await requestGet('game', `get_game_status/${gameId}`);
+	  if (statusResponse.status === 'error' || statusResponse.session_status !== 'finished' || window.stopTournamentFlow) {
+		showStatusMessage('Tournoi annulé ...', 'error');
+		console.log("Tournoi annulé ou statut non terminé.");
+		break;
+	  }
 	}
+  
+	sessionStorage.removeItem('tournamentparams');
+	console.log("Fin du flux tournoi");
   }
-
-  sessionStorage.removeItem('tournamentparams');
-  console.log("Fin du flux tournoi");
-}
 
 
 function updateNextGameUI(bracketResp, nextResp) {

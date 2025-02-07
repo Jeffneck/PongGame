@@ -9,6 +9,7 @@ import { adjustContainerIfExists } from './modules/animations.js';
 import { adjustAllContainers } from './modules/animations.js';
 import { initializeRouter } from './router.js'; // Nouveau routeur Navigo
 
+
 document.addEventListener('DOMContentLoaded', async () => {
     // Charger la navbar
     console.log('DOMContentLoaded');

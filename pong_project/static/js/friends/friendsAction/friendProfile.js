@@ -1,41 +1,30 @@
+"use strict";
 import { requestGet } from '../../api/index.js';
 import { updateHtmlContent, showStatusMessage } from '../../tools/index.js';
 
-
 async function FriendProfile(friendName) {
-    try {
-        console.log(`Chargement du profil de l'ami : ${friendName}`);
-        const response = await requestGet('accounts', `friend/${friendName}`);
-
-        if (!response) {
-            return;
-        }
-        if (response.status !== 'success') {
-            const errorMessage = response?.message || 'Erreur lors de la récupération du profil.';
-            console.error('Erreur dans FriendProfile :', errorMessage);
-            throw new Error(errorMessage);
-        }
-
-        updateHtmlContent('#content', response.html);
-        return response.message;
-    } catch (error) {
-        console.error('Erreur dans FriendProfile :', error);
-        throw error;
+  try {
+    console.debug(`Chargement du profil de ${friendName}`);
+    const response = await requestGet('accounts', `friend/${friendName}`);
+    if (!response) return;
+    if (response.status !== 'success') {
+      throw new Error(response?.message || 'Erreur lors de la récupération du profil.');
     }
+    updateHtmlContent('#content', response.html);
+    return response.message;
+  } catch (error) {
+    console.error('Erreur dans FriendProfile :', error);
+    throw error;
+  }
 }
 
 export async function handleFriendProfile(friendName) {
-    console.log(`Gestionnaire: Affichage du profil de l'ami ${friendName}`);
-
-    try {
-        const response = await FriendProfile(friendName);
-        if (!response) {
-            return;
-        }
-        showStatusMessage(response || 'Profil de l\'ami chargé avec succès.', 'success');
-    } catch (error) {
-        const errorMessage = error?.message || 'Erreur lors de la récupération du profil.';
-        console.error('Erreur dans handleFriendProfile :', error);
-        showStatusMessage(errorMessage, 'error');
+  try {
+    const response = await FriendProfile(friendName);
+    if (response) {
+      showStatusMessage(response || 'Profil chargé avec succès.', 'success');
     }
+  } catch (error) {
+    showStatusMessage(error?.message || 'Erreur lors de la récupération du profil.', 'error');
+  }
 }

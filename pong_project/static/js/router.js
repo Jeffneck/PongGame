@@ -6,7 +6,11 @@ import { handleAccountsManagement } from './accountManagement/index.js';
 import { handleViewProfile } from './userProfile/index.js';
 import { handleNavbar } from './navbar/loadNavbar.js';
 import { initializeNotFoundView } from './tools/errorPage.js';
+import { handleTournament } from './game/tournament.js'
+import { createGameOnline } from './game/index.js';
 
+
+// Initialisation du routeur Navigo
 const router = new window.Navigo('/', { hash: false });
 
 export function initializeRouter() {
@@ -44,6 +48,8 @@ export function navigateTo(route) {
         window.currentGameSocket.close();
     }
     window.currentGameSocket = null;
+    //si on etait dans une boucle de tournoi, on bloque l' affichage des pages suivantes
+    window.stopTournamentFlow = true;
 
     router.navigate(route);
 }

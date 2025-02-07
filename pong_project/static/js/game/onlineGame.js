@@ -142,7 +142,7 @@ async function joinOnlineGameAsLeft(game_id){
             // afficher le front du jeu au joueur left & transmettre les inputs du joueur left au jeu
             // le button startGame de live_online_game_as_left.html permettra de lancer l'algo du jeu en back depuis le js de liveOnlineGameLeft()
             await launchLiveGameWithOptions(game_id, 'left', `start_online_game/${game_id}`);
-            const statusResponse = await requestGet('game', `get_game_status/${gameId}`);
+            const statusResponse = await requestGet('game', `get_game_status/${game_id}`);
             if (statusResponse.status === 'success' && statusResponse.session_status === 'cancelled') {
                 showStatusMessage('Un des joueurs s\'est deconnecte, partie annulee ...', 'error');
                 return
@@ -208,10 +208,12 @@ export async function acceptGameInvitation(invitationId, action) {
   }
 }
 
-async function joinOnlineGameAsRight(sessionId) {
+// lancee par acceptGameInvitation() 
+// rediriger le joueur ayant accepté l'invitation vers la page de jeu
+async function joinOnlineGameAsRight(gameId) {
     try {
         // Récupérer les données pour rejoindre la partie
-        const response = await requestGet('game', `join_online_game_as_right/${sessionId}`);
+        const response = await requestGet('game', `join_online_game_as_right/${gameId}`);
 
         // Gestion des erreurs renvoyées par le serveur
         if (response.status === 'error') {
@@ -221,18 +223,20 @@ async function joinOnlineGameAsRight(sessionId) {
         }
         // Si succès, afficher la page de jeu 
         updateHtmlContent('#content', response.html);
-        await launchLiveGameWithOptions(response.game_id, 'right', `start_online_game/${response.game_id}`);
+        await launchLiveGameWithOptions(gameId, 'right', `start_online_game/${gameId}`);
         // on vérifie le status côté serveur avant de continuer la loop
         const statusResponse = await requestGet('game', `get_game_status/${gameId}`);
+        alert('get game status effectue')
         if (statusResponse.status === 'success' && statusResponse.session_status === 'cancelled') {
             showStatusMessage('Un des joueurs s\'est deconnecte, partie annulee ...', 'error');
             return
         }
+        alert('ne devrait pas apparaitre')
         if (statusResponse.status === 'error' ) {
             showStatusMessage('Vous avez ete deconnecte de la partie en ligne', 'error');
             return
         }
-        await showResults(response.game_id);
+        await showResults(gameId);
 
 
     } catch (error) {

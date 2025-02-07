@@ -16,54 +16,88 @@ def move_ball(game_id, ball):
     update_ball_redis(game_id, ball)
 
 
-# async def reset_ball(game_id, ball):
-#     terrain_rect = get_terrain_rect(game_id)
-#     center_x = terrain_rect['left'] + terrain_rect['width'] // 2
-#     center_y = terrain_rect['top'] + terrain_rect['height'] // 2
-
-#     # Get the initial ball speed multiplier from Redis / added
-#     speed_multiplier = float(get_key(game_id, "initial_ball_speed_multiplier"))
-#     initial_speed_x = random.choice([-3, 3]) * speed_multiplier  # Base speed * multiplier / modified
-#     initial_speed_y = random.choice([-3, 3]) * speed_multiplier
-
-#     ball.reset(center_x, center_y, initial_speed_x, initial_speed_y) #modified
-#     update_ball_redis(game_id, ball)
-
-#     print(f"[game_loop.py] Ball reset to ({ball.x}, {ball.y}) with speed ({ball.speed_x}, {ball.speed_y})")
-
-
 def reset_ball(game_id, ball):
     terrain_rect = get_terrain_rect(game_id)
     center_x = terrain_rect['left'] + terrain_rect['width'] // 2
     center_y = terrain_rect['top'] + terrain_rect['height'] // 2
-    # Réinitialiser la balle en position centrale avec vitesse nulle
-    ball.reset(center_x, center_y, 0, 0)
-    update_ball_redis(game_id, ball)
-    print(f"[game_loop.py] Ball reset to ({ball.x}, {ball.y}) with speed (0, 0)")
-    # Lancer une tâche asynchrone qui, après 1 seconde, démarre la balle
-    # Lancer une tâche asynchrone qui, après 1 seconde, démarre la balle
-    subtask = asyncio.create_task(start_ball_after_delay(game_id, ball))
-    register_subtask(game_id, subtask)  
-    
-async def start_ball_after_delay(game_id, ball):
-    """
-    Coroutine asynchrone qui attend 1s avant de démarrer la balle.
-    On gère CancelledError pour sortir proprement si le jeu est stoppé avant.
-    """
-    try:
-        await asyncio.sleep(1)
-    except asyncio.CancelledError:
-        print(f"[start_ball_after_delay] => CANCELLED for game_id={game_id}")
-        return
 
-    # Ici, vous pouvez définir les vitesses de départ souhaitées
-    speed_multiplier = float(get_key(game_id, "initial_ball_speed_multiplier") or 1.0)
-    initial_speed_x = random.choice([-3, 3]) * speed_multiplier
-    initial_speed_y = random.choice([-3, 3]) * speed_multiplier
-    ball.speed_x = initial_speed_x
-    ball.speed_y = initial_speed_y
+    # Get the initial ball speed multiplier from Redis / added
+    speed_multiplier = int(get_key(game_id, "initial_ball_speed_multiplier"))
+    initial_speed_x = random.choice([-1, 1]) * speed_multiplier  # Base speed * multiplier / modified
+    initial_speed_y = random.choice([-1, 1]) * speed_multiplier
+
+    ball.reset(center_x, center_y, initial_speed_x, initial_speed_y) #modified
     update_ball_redis(game_id, ball)
-    print(f"[game_loop.py] Ball started with speed ({ball.speed_x}, {ball.speed_y})")
+
+    print(f"[game_loop.py] Ball reset to ({ball.x}, {ball.y}) with speed ({ball.speed_x}, {ball.speed_y})")
+
+# def reset_ball(game_id, ball):
+#     terrain_rect = get_terrain_rect(game_id)
+#     center_x = terrain_rect['left'] + terrain_rect['width'] // 2
+#     center_y = terrain_rect['top'] + terrain_rect['height'] // 2
+
+#     # 1. Mettre la balle au centre, vitesse 0
+#     ball.reset(center_x, center_y, 0, 0)
+#     update_ball_redis(game_id, ball)
+#     print(f"[game_loop.py] Ball reset to ({ball.x}, {ball.y}) with speed (0, 0)")
+
+#     # 2. Stocker en Redis un flag "waiting_for_launch"
+#     #    et l'horodatage "reset_start_time"
+#     set_key(game_id, "ball_is_waiting", 1)
+#     set_key(game_id, "ball_reset_start_time", time.time())
+
+# def launch_ball_after_score(game_id, ball):
+#     wait_flag = get_key(game_id, "ball_is_waiting")
+#     if wait_flag and wait_flag.decode('utf-8') == '1':
+#         reset_start = float(get_key(game_id, "ball_reset_start_time") or 0)
+#         # Si 1 seconde est écoulée
+#         if time.time() - reset_start >= 1.0:
+#             # -> On assigne la nouvelle vitesse
+#             speed_multiplier = float(get_key(game_id, "initial_ball_speed_multiplier") or 1.0)
+#             initial_speed_x = random.choice([-3, 3]) * speed_multiplier
+#             initial_speed_y = random.choice([-3, 3]) * speed_multiplier
+#             ball.speed_x = initial_speed_x
+#             ball.speed_y = initial_speed_y
+#             update_ball_redis(game_id, ball)
+#             print(f"[game_loop.py] Ball started with speed ({ball.speed_x}, {ball.speed_y})")
+
+#             # On supprime le flag
+#             delete_key(game_id, "ball_is_waiting")
+#             delete_key(game_id, "ball_reset_start_time")
+
+# def reset_ball(game_id, ball):
+#     terrain_rect = get_terrain_rect(game_id)
+#     center_x = terrain_rect['left'] + terrain_rect['width'] // 2
+#     center_y = terrain_rect['top'] + terrain_rect['height'] // 2
+#     # Réinitialiser la balle en position centrale avec vitesse nulle
+#     ball.reset(center_x, center_y, 0, 0)
+#     update_ball_redis(game_id, ball)
+#     print(f"[game_loop.py] Ball reset to ({ball.x}, {ball.y}) with speed (0, 0)")
+#     # Lancer une tâche asynchrone qui, après 1 seconde, démarre la balle
+#     # Lancer une tâche asynchrone qui, après 1 seconde, démarre la balle
+#     # subtask = asyncio.create_task(start_ball_after_delay(game_id, ball))
+#     # register_subtask(game_id, subtask) 
+#     start_ball_after_delay(game_id, ball)#test
+    
+# async def start_ball_after_delay(game_id, ball):
+#     """
+#     Coroutine asynchrone qui attend 1s avant de démarrer la balle.
+#     On gère CancelledError pour sortir proprement si le jeu est stoppé avant.
+#     """
+#     try:
+#         await asyncio.sleep(1)
+#     except asyncio.CancelledError:
+#         print(f"[start_ball_after_delay] => CANCELLED for game_id={game_id}")
+#         return
+
+#     # Ici, vous pouvez définir les vitesses de départ souhaitées
+#     speed_multiplier = float(get_key(game_id, "initial_ball_speed_multiplier") or 1.0)
+#     initial_speed_x = random.choice([-3, 3]) * speed_multiplier
+#     initial_speed_y = random.choice([-3, 3]) * speed_multiplier
+#     ball.speed_x = initial_speed_x
+#     ball.speed_y = initial_speed_y
+#     update_ball_redis(game_id, ball)
+#     print(f"[game_loop.py] Ball started with speed ({ball.speed_x}, {ball.speed_y})")
 
 def move_ball_sticky(game_id, paddle_left, paddle_right, ball):
     stuck_side = get_key(game_id, "ball_stuck_side").decode('utf-8')  # 'left' ou 'right'

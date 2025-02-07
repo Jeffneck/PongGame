@@ -52,6 +52,8 @@ async def get_gameSession_parameters(game_id):
         raise GameParametersNotFound(f"La GameSession avec l'ID {game_id} n'a pas de paramètres définis.")
     return parameters
 
+
+
 async def get_LocalTournament(game_id, phase):
     # print("get_LocalTournament")
     LocalTournament = apps.get_model('game', 'LocalTournament')

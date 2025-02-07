@@ -4,6 +4,7 @@ import { loadPongAnimation } from './modules/groundAnimation.js';
 import { adjustBurgerHeight, adjustSinNavHeight, adjustAllContainers, adjustContainerIfExists } from './modules/animations.js';
 import { initializeRouter } from './router.js';
 
+
 document.addEventListener('DOMContentLoaded', async () => {
   console.debug('DOMContentLoaded');
   await handleNavbar();

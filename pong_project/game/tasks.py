@@ -74,7 +74,7 @@ def register_subtask(game_id, subtask):
 
 async def stop_game(game_id):
     """Annule la tâche principale ET toutes les sous-tâches associées."""
-    await set_gameSession_status(game_id, "cancelled")
+    # await set_gameSession_status(game_id, "cancelled")
     main_task = ACTIVE_GAMES.get(str(game_id))
     if main_task:
         main_task.cancel()

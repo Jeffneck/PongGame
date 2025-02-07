@@ -44,11 +44,16 @@ const Api = {
       // Gère les réponses 401 et 403
       if (response.status === 401) {
         const data = await response.json();
+        // Si le code d'erreur indique que l'utilisateur n'est pas authentifié, on se contente d'afficher le message d'erreur
         if (data.error_code === "not_authenticated") {
           showStatusMessage(data.message, "error");
-          forceLogout(data.message || "Session expirée, reconnectez-vous.");
+          return;
+        }else if (data.error_code === "forbidden") {
+          showStatusMessage(data.message, "error");
+          navigateTo(data.redirect);
           return;
         } else {
+          // Sinon, on tente de rafraîchir le token
           response = await this.handleUnauthorized(url, method, formData, customHeaders);
         }
       } else if (response.status === 403) {
@@ -148,21 +153,42 @@ const Api = {
       return null;
     }
     try {
+      // Créez un FormData et ajoutez-y le refresh token
+      const formData = new FormData();
+      formData.append("refresh_token", jwtRefreshToken);
+      
+        // Préparez les headers avec le token CSRF et, s'il existe, le token JWT
+      const headers = {
+        "X-CSRFToken": this.getCSRFToken()
+      };
+
+        const jwtAccessToken = this.getJWTaccessToken();
+        if (jwtAccessToken) {
+          headers["Authorization"] = `Bearer ${jwtAccessToken}`;
+        }
+
+  
+      // Effectuez la requête fetch directement sans passer par this.post()
       const response = await fetch("/accounts/refreshJwt/", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRFToken": this.getCSRFToken(),
-        },
-        body: JSON.stringify({ refresh_token: jwtRefreshToken }),
+        body: formData,
+        headers,
       });
-      if (response.ok) {
-        const data = await response.json();
+  
+      if (!response.ok) {
+        console.error("Erreur HTTP lors du rafraîchissement du token:", response.status, response.statusText);
+        return null;
+      }
+  
+      // Analysez la réponse JSON
+      const data = await response.json();
+  
+      if (data && data.access_token) {
         const newAccessToken = data.access_token;
         localStorage.setItem("access_token", newAccessToken);
         return newAccessToken;
       } else {
-        console.error("Erreur lors du rafraîchissement du token :", response.statusText);
+        console.error("Erreur lors du rafraîchissement du token:", data ? data.message : "Aucune réponse");
         return null;
       }
     } catch (error) {

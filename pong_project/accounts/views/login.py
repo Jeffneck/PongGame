@@ -59,7 +59,7 @@ class LoginView(View):
         if user is None or not user.is_active:
             logger.warning("Tentative d'authentification échouée pour l'utilisateur: %s", username)
             return JsonResponse(
-                {'status': 'error', 'message': error_message},
+                {'status': 'error', 'message': error_message, 'error_code': 'not_authenticated'},
                 status=401
             )
 
@@ -67,6 +67,7 @@ class LoginView(View):
             # Gestion de la 2FA
             if getattr(user, 'is_2fa_enabled', False):
                 request.session['auth_partial'] = True
+                request.session['user_id'] = user.id
                 return JsonResponse(
                     {'status': 'success', 'requires_2fa': True},
                     status=200

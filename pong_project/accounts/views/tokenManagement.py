@@ -26,14 +26,8 @@ class RefreshJwtView(View):
 
     def post(self, request):
         try:
-            # Tentative de décodage du corps JSON
-            try:
-                body = json.loads(request.body)
-            except json.JSONDecodeError:
-                logger.warning("Invalid JSON in request body")
-                return JsonResponse({'error': 'Invalid JSON'}, status=400)
-
-            refresh_token = body.get('refresh_token')
+            # Récupère le refresh token depuis le formulaire (FormData)
+            refresh_token = request.POST.get('refresh_token')
             if not refresh_token:
                 logger.warning("Refresh token not provided in request")
                 return JsonResponse({'error': 'Refresh token is required'}, status=400)

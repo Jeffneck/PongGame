@@ -7,33 +7,34 @@ import jwt
 logger = logging.getLogger(__name__)
 
 class JWTAuthenticationMiddleware:
-    """
-    Middleware d'authentification JWT.
-    
-    Extrait et décode le token JWT présent dans le header Authorization.
-    En cas d'erreur ou d'absence de token, request.user est défini sur AnonymousUser.
-    """
     def __init__(self, get_response):
         self.get_response = get_response
+        # Liste des chemins à exclure (peut être une liste de préfixes)
+        self.exempt_paths = [
+            '/accounts/2fa/login2fa/',  # Exclut la connexion 2FA
+            # Vous pouvez ajouter d'autres URL à exclure si nécessaire.
+        ]
 
     def __call__(self, request):
+        # Si le chemin de la requête est dans la liste des chemins exemptés,
+        # on ne traite pas le JWT et on laisse intacte la session.
+        if any(request.path.startswith(exempt) for exempt in self.exempt_paths):
+            return self.get_response(request)
+
         auth_header = request.headers.get('Authorization', '')
         if auth_header.startswith("Bearer "):
             token = auth_header[7:].strip()  # Extrait le token après "Bearer "
             try:
-                # Décode le token JWT en utilisant la clé secrète et l'algorithme HS256
                 payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
                 user_id = payload.get('user_id')
                 if not user_id:
                     raise jwt.InvalidTokenError("Le payload ne contient pas d'ID utilisateur")
-                
                 try:
                     user = CustomUser.objects.get(id=user_id)
                 except CustomUser.DoesNotExist:
                     logger.debug("Utilisateur introuvable pour l'ID : %s", user_id)
                     user = AnonymousUser()
                 request.user = user
-
             except jwt.ExpiredSignatureError:
                 logger.warning("Le jeton JWT a expiré.")
                 request.user = AnonymousUser()

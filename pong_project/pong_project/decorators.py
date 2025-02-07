@@ -22,7 +22,7 @@ def login_required_json(view_func):
             return JsonResponse({
                 'status': 'error',
                 'message': 'Utilisateur non authentifié',
-                "error_code": "not_authenticated",
+                "error_code": "forbidden",
                 'redirect': '/' # l'URL souhaitée
             }, status=401)
         return view_func(request, *args, **kwargs)

@@ -11,12 +11,12 @@
 
 import { requestPost } from '../api/index.js';
 import { createPowerupSVG, createBumperSVG } from './live_game_svg.js';
-import { isTouchDevice } from "../tools/index.js";
+
 
 export async function launchLiveGameWithOptions(gameId, userRole, urlStartButton) {
   const protocol = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
   const wsUrl = `${protocol}//${window.location.host}/ws/pong/${gameId}/`;
-  
+
   let startGameSelector = null;
   let onStartGame = null;
   
@@ -41,7 +41,7 @@ export async function launchLiveGameWithOptions(gameId, userRole, urlStartButton
   
       const response = await requestPost('game', url, formData);
       if (response.status !== 'success') {
-        alert("Erreur lors du démarrage : " + response.message);
+        return; 
       }
     };
   }
@@ -57,23 +57,23 @@ export async function launchLiveGameWithOptions(gameId, userRole, urlStartButton
 }
 
 
-// ========== initPowerupImages ==========
-
-function initPowerupImages(powerupImages) {
-  // Initialise la map de type => Image()
-  Object.keys(powerupImages).forEach(type => {
-    powerupImages[type].src = createPowerupSVG(type);
-  });
-}
-
-// ========== applyFlashEffect ==========
-
-function applyFlashEffect(gameState, duration = 300) {
-  gameState.flash_effect = true;
-  setTimeout(() => {
-    gameState.flash_effect = false;
-  }, duration);
-}
+  // ========== initPowerupImages ==========
+  
+  function initPowerupImages(powerupImages) {
+    // Initialise la map de type => Image()
+    Object.keys(powerupImages).forEach(type => {
+      powerupImages[type].src = createPowerupSVG(type);
+    });
+  }
+  
+  // ========== applyFlashEffect ==========
+  
+  function applyFlashEffect(gameState, duration = 300) {
+    gameState.flash_effect = true;
+    setTimeout(() => {
+      gameState.flash_effect = false;
+    }, duration);
+  }
 
 
 
@@ -88,24 +88,21 @@ function applyFlashEffect(gameState, duration = 300) {
  *    config.startGameSelector?: ID du bouton (ex: "#startGameBtn")
  *    config.onStartGame?: Function de callback pour lancer la partie 
  *                         (ex: faire un POST sur /start_online_game/ ou /start_local_game/)
-*/
+   */
 function initLiveGame(config) {
   return new Promise((resolve) => {
-    let gameEnded = false;
     // 1) Préparer les éléments HTML
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const startGameBtn = config.startGameSelector;
-    console.log("Appareil tactile ?", isTouchDevice());
-    cleanupGamePage();
-    setupGamePage();
+  
     // 2) Gérer le bouton "Start" (optionnel)
     if (startGameBtn && config.onStartGame) {
       // Débloquer le bouton après 3s (optionnel)
   //     setTimeout(() => { 
-    // 	startGameBtn.style.opacity = "0.7";
-    //       startGameBtn.disabled = false;
-    startGameBtn.classList.add("active");
+	// 	startGameBtn.style.opacity = "0.7";
+  //       startGameBtn.disabled = false;
+	    startGameBtn.classList.add("active");
 	
 	// }, 3000);
   
@@ -115,8 +112,6 @@ function initLiveGame(config) {
         // await startGameWithCountdown(startGameBtn, config.onStartGame, config.gameId);
       });
     }
-
-
 
 	// Draw visual effects / added
 	// ===========================
@@ -348,13 +343,13 @@ function initLiveGame(config) {
     const ORIGINAL_HEIGHT = 400;
     let scale = 1;
 
-	    // Const for visual effects on notifications / added
+	    // Const for visual effects on notifications /
 		const collisionEffects = [];
 		const EFFECT_DURATION = 300;
 		const SPAWN_EFFECT_DURATION = 500;
 		const EXPIRE_EFFECT_DURATION = 300;
 	  
-		// spawn visual effect / added
+		// spawn visual effect 
 		function createSpawnEffect(type, x, y, effectType, color) {
 		  const effect = {
 			  type,
@@ -375,7 +370,7 @@ function initLiveGame(config) {
 		  }, type.includes('spawn') ? SPAWN_EFFECT_DURATION : EXPIRE_EFFECT_DURATION);
 	  }
 	
-	  // collision visual effects / added
+	  // collision visual effects
 	  function createCollisionEffect(type, x, y, color) {
 		const effect = {
 			type,
@@ -396,37 +391,7 @@ function initLiveGame(config) {
 		}, EFFECT_DURATION);
 	  }
 
-    
-      // --- Pour gérer l'orientation sur mobile tactile ---
-    function onOrientationChange() {
-      // Petit délai si besoin pour que la taille soit bien mise à jour
-      setTimeout(handleresizeTactile, 200);
-    }
-
-    // --- Setup de la page de jeu ---
-   async function setupGamePage() {
-      if (isTouchDevice()) {
-        console.log("Mode tactile activé");
-        window.addEventListener('resize', handleresizeTactile);
-        window.addEventListener('orientationchange', onOrientationChange);
-        handleresizeTactile();
-      } else {
-        console.log("Mode non tactile activé");
-        window.addEventListener('resize', handleResize);
-        handleResize();
-      }
-    }
-
-    // --- Cleanup de la page de jeu ---
-    function cleanupGamePage() {
-      if (isTouchDevice()) {
-        window.removeEventListener('resize', handleresizeTactile);
-        window.removeEventListener('orientationchange', onOrientationChange);
-      } else {
-        window.removeEventListener('resize', handleResize);
-      }
-    }
-      
+  
     function handleResize() {
       const ORIGINAL_WIDTH = 800;
       const ORIGINAL_HEIGHT = 400;
@@ -487,155 +452,8 @@ function initLiveGame(config) {
           scoreDisplay.style.fontSize = (30 * s) + "px";
       }
   }
-
-
-  function handleresizeTactile() {
-    // Dimensions internes du canvas (logique du jeu inchangée)
-    const ORIGINAL_WIDTH = 800;   // Utilisé pour la hauteur du terrain (après rotation)
-    const ORIGINAL_HEIGHT = 400;  // Utilisé pour la largeur du terrain (après rotation)
-    const margin = 20;            // Marge interne dans la game-container
-    const horizontalExtra = 2 * margin; // 40px au total
-    const baseControlHeight = 100; // Hauteur de base des boutons pour s = 1
-
-    // Pour le calcul vertical total, on tient compte de :
-    // - La hauteur affichée du terrain : ORIGINAL_WIDTH * s + horizontalExtra
-    // - La hauteur du conteneur des boutons : baseControlHeight * s
-    // - Le padding vertical du conteneur principal (#livegame) : 20 top + 20 bottom = 40
-    // - Une marge fixe entre terrain et boutons : 5px
-    // Total vertical = 800*s + 40 + 100*s + 45 = 900*s + 85
-    const verticalExtra = 85;
-
-    // Pour le calcul horizontal, nous utilisons la largeur disponible dans la colonne Bootstrap.
-    const parentCol = document.getElementById('game-col');
-    const availableWidth = parentCol ? parentCol.clientWidth : window.innerWidth;
-
-    // Calcul de l'échelle horizontal : la largeur affichée du terrain sera ORIGINAL_HEIGHT * s + horizontalExtra
-    const s_h = (availableWidth - horizontalExtra) / ORIGINAL_HEIGHT;
-
-    // Calcul de l'échelle vertical : l'espace total requis verticalement est 900*s + 85, qui doit tenir dans window.innerHeight.
-    const s_v = (window.innerHeight - verticalExtra) / 900;
-
-    // On prend le facteur le plus contraignant
-    const computedS = Math.min(s_h, s_v);
-
-    // Calcul de l'échelle minimale pour que le terrain ait au moins 100px de largeur et 200px de hauteur.
-    const sMinWidth = (100 - horizontalExtra) / ORIGINAL_HEIGHT;   // (100 - 40)/400 = 0.15
-    const sMinHeight = (200 - horizontalExtra) / ORIGINAL_WIDTH;    // (200 - 40)/800 = 0.2
-    const sMin = Math.max(sMinWidth, sMinHeight); // ici sMin = 0.2
-
-    // On s'assure que l'échelle ne descend pas en dessous de sMin.
-    const s = Math.max(computedS, sMin);
-
-    // Mise à jour des dimensions du game-container (terrain)
-    const gameContainer = document.querySelector('.game-container');
-    if (!gameContainer) {
-      console.error("L'élément '.game-container' est introuvable dans le DOM.");
-      return;
-    }
-    gameContainer.style.width = (ORIGINAL_HEIGHT * s + horizontalExtra) + "px"; // 400*s + 40
-    gameContainer.style.height = (ORIGINAL_WIDTH * s + horizontalExtra) + "px";  // 800*s + 40
-
-    // Transformation du canvas pour le rendre vertical :
-    const canvas = document.getElementById('gameCanvas');
-    canvas.style.transform =
-      `translate(${margin}px, ${margin}px) translateY(${ORIGINAL_WIDTH * s}px) rotate(-90deg) scale(${s})`;
-
-    // Mise à jour de la hauteur du conteneur des boutons (touch-controls) en fonction de l'échelle.
-    const controls = document.getElementById('left_player');
-    const controlHeight = baseControlHeight * s;
-    if (controls) {
-      controls.style.height = controlHeight + "px";
-    }
-
-    // Transmet l'échelle aux boutons via la variable CSS --btn-scale pour qu'ils se redimensionnent proportionnellement.
-    document.documentElement.style.setProperty('--btn-scale', s);
-
-    // Mise à jour de la position de la zone de score pour l'accrocher entre le bord du game-container et celui du canvas (sans rotation)
-const scoreDisplay = document.getElementById("score-display");
-if (scoreDisplay) {
-    // On souhaite que le score soit positionné de sorte que son centre soit à mi-distance
-    // entre le bord gauche du game-container (0) et le bord gauche du canvas (qui est à "margin" pixels)
-    const posX = margin / 2;  // Ceci correspond au point milieu horizontal
-    // Pour le centrage vertical, on se base sur la hauteur actuelle du game-container.
-    const posY = gameContainer.clientHeight / 2;
-    
-    // Positionnement absolu dans le game-container :
-    scoreDisplay.style.left = posX + "px";
-    scoreDisplay.style.top = posY + "px";
-    
-    // Appliquer un translate(-50%, -50%) pour que le centre de la zone corresponde à ce point,
-    // sans aucune rotation (le texte reste dans son orientation normale)
-    scoreDisplay.style.transform = "translate(-50%, -50%)";
-    scoreDisplay.style.transformOrigin = "center";
-    
-    // Adaptez la taille de la police en fonction du scale, pour qu'elle reste proportionnelle
-    scoreDisplay.style.fontSize = (1.5 * s) + "rem";
-}
-
-}
-  
-
-// Seuil (en pixels) pour considérer qu'un glissement a eu lieu
-const SWIPE_THRESHOLD = 50;
-let touchStartY = null;
-
-document.addEventListener('touchstart', (e) => {
-  // Enregistrer la position verticale au début du toucher (si un seul doigt)
-  if (e.touches.length === 1) {
-    touchStartY = e.touches[0].clientY;
-  }
-}, { passive: true });
-
-document.addEventListener('touchend', (e) => {
-  if (touchStartY === null) return;
-  const touchEndY = e.changedTouches[0].clientY;
-  const deltaY = touchEndY - touchStartY;
-  
-  const navbar = document.getElementById('navbar');
-  if (!navbar) return;
-
-  // Si l'utilisateur glisse vers le bas (delta positif) et dépasse le seuil
-  if (deltaY > SWIPE_THRESHOLD) {
-    navbar.classList.remove('hidden');
-    // Optionnel : masquer la navbar de nouveau après quelques secondes
-    setTimeout(() => {
-      // Vérifier que l'écran est toujours en paysage
-      if (window.innerWidth > window.innerHeight) {
-        navbar.classList.add('hidden');
-      }
-    }, 3000);
-  }
-  
-  // Si l'utilisateur glisse vers le haut (delta négatif) et dépasse le seuil
-  if (deltaY < -SWIPE_THRESHOLD) {
-    navbar.classList.add('hidden');
-  }
-  
-  // Réinitialiser la valeur
-  touchStartY = null;
-});
-
-function adjustGlobalRotator() {
-	const rotator = document.getElementById('global-rotator');
-	if (!rotator) return;
-	
-	// Dans le cas d'une rotation forcée en portrait,
-	// on définit la largeur et la hauteur en fonction des dimensions de l'écran.
-	if (window.innerHeight > window.innerWidth) {
-	  rotator.style.width = window.innerHeight + 'px';
-	  rotator.style.height = window.innerWidth + 'px';
-	  rotator.style.transform = 'rotate(90deg)';
-	} else {
-	  rotator.style.width = window.innerWidth + 'px';
-	  rotator.style.height = window.innerHeight + 'px';
-	  rotator.style.transform = 'none';
-	}
-  }
-  
-  window.addEventListener('resize', adjustGlobalRotator);
-  window.addEventListener('orientationchange', adjustGlobalRotator);
-  adjustGlobalRotator();
-
+  window.addEventListener('resize', handleResize);
+  handleResize(); // initial
   
     // 4) Initialiser WebSocket
     const socket = new WebSocket(config.wsUrl);
@@ -644,16 +462,11 @@ function adjustGlobalRotator() {
     
     socket.onopen = () => {
       console.log("[live_game_utils] WebSocket connection opened:", config.wsUrl);
-      initializeTouchControls(config.userRole, socket);
     };
     socket.onclose = () => {
       console.log("[live_game_utils] WebSocket closed (maybe user left the page).");
-      if (!gameEnded) {
-        gameEnded = true;
-        console.log("[live_game_utils] WebSocket closed (maybe user left the page).");
-        resolve();
-      }
-     
+      // Si ce n’est pas un "game_over", on résout quand même la promesse
+      resolve(); 
     };
   
     // 5) Gérer l'état du jeu local
@@ -750,14 +563,11 @@ function adjustGlobalRotator() {
 			}
 		}
 		else if (data.type === 'game_over') {
-      if (!gameEnded) {
-        gameEnded = true;
         console.log("[live_game_utils] Game over detected");
-        // Vous pouvez afficher un message ou réaliser d'autres actions ici
+        // alert("Game Over! Winner = " + data.winner);
         socket.close();
-        resolve();  // Signale que la partie est terminée
+        resolve();  // 🔹 Signale à `runTournamentFlow()` que la partie est terminée
       }
-    }
       else if (data.type === 'powerup_applied') {
         // console.log(`[live_game_utils] Power-up applied to ${data.player}: ${data.effect}`);
         if (data.effect === 'flash') {
@@ -782,97 +592,7 @@ function adjustGlobalRotator() {
       }
     };
   
-    // 7) Gérer le clavier et les touches tactiles
-    function initializeTouchControls(userRole, socket) {
-      // On active les contrôles tactiles uniquement si on est en mode tactile
-      if (!isTouchDevice()) return; // Si pas tactile, on ne fait rien ici.
-    
-      // Gestion globale du double tap pour empêcher le zoom
-      let lastTouchEnd = 0;
-      document.addEventListener('touchend', function(e) {
-        const now = Date.now();
-        if (now - lastTouchEnd <= 300) {
-          // Si deux touchend se succèdent rapidement, on annule l'action par défaut
-          e.preventDefault();
-        }
-        lastTouchEnd = now;
-      }, { passive: false });
-    
-      // Sélectionnez les boutons par leur id
-      const btnUp = document.getElementById("touch1");
-      const btnDown = document.getElementById("touch2");
-    
-      // Vérifiez que les boutons existent
-      if (!btnUp || !btnDown) {
-        console.error("Les boutons tactiles ne sont pas définis dans le DOM.");
-        return;
-      }
-    
-      // Pour le bouton "up"
-      btnUp.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        socket.send(JSON.stringify({
-          action: "start_move",
-          player: userRole,
-          direction: "up"
-        }));
-      });
-      btnUp.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        socket.send(JSON.stringify({
-          action: "stop_move",
-          player: userRole
-        }));
-      });
-      // Optionnel pour le clic (au cas où)
-      btnUp.addEventListener('click', (e) => {
-        e.preventDefault();
-        socket.send(JSON.stringify({
-          action: "start_move",
-          player: userRole,
-          direction: "up"
-        }));
-        setTimeout(() => {
-          socket.send(JSON.stringify({
-            action: "stop_move",
-            player: userRole
-          }));
-        }, 200);
-      });
-    
-      // Pour le bouton "down"
-      btnDown.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        socket.send(JSON.stringify({
-          action: "start_move",
-          player: userRole,
-          direction: "down"
-        }));
-      });
-      btnDown.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        socket.send(JSON.stringify({
-          action: "stop_move",
-          player: userRole
-        }));
-      });
-      btnDown.addEventListener('click', (e) => {
-        e.preventDefault();
-        socket.send(JSON.stringify({
-          action: "start_move",
-          player: userRole,
-          direction: "down"
-        }));
-        setTimeout(() => {
-          socket.send(JSON.stringify({
-            action: "stop_move",
-            player: userRole
-          }));
-        }, 200);
-      });
-    }    
-
-    if (!isTouchDevice()) {
+    // 7) Gérer le clavier : en fonction de userRole
     const keysPressed = {};
   
     document.addEventListener('keydown', (evt) => {
@@ -880,8 +600,10 @@ function adjustGlobalRotator() {
       let action = "start_move";
       let player = null, direction = null;
   
-
-      if (config.userRole === 'both') {
+      // userRole = 'both' => local => on écoute W/S + flèches
+      // userRole = 'left' => seulement W/S
+      // userRole = 'right' => seulement flèches ↑/↓
+      if (config.userRole === 'both' || config.userRole === 'left') {
         switch(evt.key) {
           case 'w':
           case 'W':
@@ -893,36 +615,16 @@ function adjustGlobalRotator() {
             player = 'left';
             direction = 'down';
             break;
-          case 'ArrowUp':
-            player = 'right';
-            direction = 'up';
-            break;
-          case 'ArrowDown':
-            player = 'right';
-            direction = 'down';
-            break;
         }
       }
-	  else if (config.userRole === 'right') {
-        switch(evt.key) {
-			case 'ArrowUp':
-			  player = 'right';
-			  direction = 'up';
-			  break;
-			case 'ArrowDown':
-			  player = 'right';
-			  direction = 'down';
-			  break;
-		  }
-      }
-      else if (config.userRole === 'left') {
+      if ((config.userRole === 'both' || config.userRole === 'right') && !player) {
         switch(evt.key) {
           case 'ArrowUp':
-            player = 'left';
+            player = 'right';
             direction = 'up';
             break;
           case 'ArrowDown':
-            player = 'left';
+            player = 'right';
             direction = 'down';
             break;
         }
@@ -941,18 +643,16 @@ function adjustGlobalRotator() {
       let action = "stop_move";
       let player = null;
   
-      if (config.userRole === 'both') {
+      // userRole=both/left => check W,S
+      if (config.userRole === 'both' || config.userRole === 'left') {
         if (['w','W','s','S'].includes(evt.key)) {
           player = 'left';
         }
       }
-      
-      if ((config.userRole === 'both' || config.userRole === 'right' || config.userRole === 'left') && !player) {
+      // userRole=both/right => check ArrowUp, ArrowDown
+      if ((config.userRole === 'both' || config.userRole === 'right') && !player) {
         if (['ArrowUp','ArrowDown'].includes(evt.key)) {
-          if(config.userRole === 'both' || config.userRole === 'right')
-		  	player = 'right';
-		  else if(config.userRole === 'left')
-		  	player = 'left';
+          player = 'right';
         }
       }
   
@@ -964,10 +664,6 @@ function adjustGlobalRotator() {
         // console.log(`[live_game_utils] stop_move: ${player}`);
       }
     });
-  }
-
-
-    
   
     // 8) Préparer les images powerups/bumper
     const powerupImages = {

@@ -3,6 +3,7 @@ import { showFriendPopup, closePopupOnClickOutside, handleOptionPopup, handleAdd
 import { handleStatusChange } from './setupStatus.js';
 import { handleLogout } from '../auth/index.js';
 import { navigateTo } from '../router.js';
+import { acceptGameInvitation, declineGameInvitation } from '../game/index.js';
 
 export function eventsHandlerBurgerMenu() {
   console.debug('Initialisation des événements du burger menu...');

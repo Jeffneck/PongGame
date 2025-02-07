@@ -98,7 +98,7 @@ function attachGameMenuEvents() {
 
                 } catch (err) {
                     console.error('Erreur lors de la phase d\'invitation :', err);
-                    alert('Impossible d\'inviter un ami.');
+                    
                 }
             });
         }

@@ -706,6 +706,7 @@ class CheckGameInvitationStatusView(View):
 @method_decorator(csrf_protect, name='dispatch')
 @method_decorator(login_required_json, name='dispatch')
 class JoinOnlineGameAsLeftView(View):
+    
     def post(self, request, game_id):
         try:
             logger.debug("JoinOnlineGameAsLeftView")

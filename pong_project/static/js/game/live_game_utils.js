@@ -19,7 +19,7 @@ export async function launchLiveGameWithOptions(gameId, userRole, urlStartButton
         formData.append('userRole', userRole);
         const response = await requestPost('game', urlStartButton, formData);
         if (response.status !== 'success') {
-          alert("Erreur lors du démarrage : " + response.message);
+          console.log("Erreur lors du démarrage : " + response.message);
         }
       };
     }

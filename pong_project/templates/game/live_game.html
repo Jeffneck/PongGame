@@ -22,10 +22,6 @@
 
 
 <style>
-	body,
-	html {
-		overflow: auto;
-	}
 
 	.h-30 {
 		height: 30% !important;
@@ -172,6 +168,7 @@
 	justify-content: center; /* Répartir l'espace entre les boutons */
 	align-items: center;
 	gap: 5px;                      /* Espace fixe entre les boutons */
+	z-index: 51;
 	/* On ne fixe plus de hauteur ici, on la définira via JS */
 	}
 
@@ -206,4 +203,13 @@
 	.control-btn:active {
 		filter: brightness(0.9);
 	}
+
+	.rotate90 {
+  transform: rotate(90deg);
+  transform-origin: center center;
+  /* Vous pouvez, par exemple, forcer la largeur à 100vh et la hauteur à 100vw
+     (attention, dans ce cas, il faut ajuster la position pour compenser l'inversion) */
+  width: 100vh;
+  height: 100vw;
+}
 </style>

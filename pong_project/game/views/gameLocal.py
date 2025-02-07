@@ -13,6 +13,7 @@ from game.forms import GameParametersForm
 
 from game.manager import schedule_game  # Assurez-vous que vous avez un task qui gère le démarrage du jeu en background
 from pong_project.decorators import login_required_json
+from django.utils.translation import gettext_lazy as _
 
 # ---- Configuration ----
 logger = logging.getLogger(__name__)
@@ -31,7 +32,7 @@ class CreateGameLocalView(View):
             # Renvoyer une réponse JSON en cas d'erreurs dans le formulaire
             return JsonResponse({
                 'status': 'error',
-                'message': "Les paramètres du jeu sont invalides."
+                'message': _("Les paramètres du jeu sont invalides.")
             })
 
         # Créer une nouvelle GameSession pour une partie locale
@@ -89,21 +90,21 @@ class StartLocalGameView(View):
             if session.is_online:
                 return JsonResponse({
                     'status': 'error',
-                    'message': "La partie en ligne ne peut pas être lancée avec cette API. Cette API sert à lancer une partie locale."
+                    'message': _("La partie en ligne ne peut pas être lancée avec cette API. Cette API sert à lancer une partie locale.")
                 })
 
             # Vérifier que la partie n'est pas déjà en cours
             if session.status == 'running':
                 return JsonResponse({
                     'status': 'error',
-                    'message': f"La partie {game_id} est déjà en cours."
+                    'message': _(f"La partie {game_id} est déjà en cours.")
                 })
             
             # Vérifier que la partie n'est pas déjà terminée
             if session.status == 'finished':
                 return JsonResponse({
                     'status': 'error',
-                    'message': f"La partie {game_id} est déjà terminée et ne peut pas être relancée."
+                    'message': _(f"La partie {game_id} est déjà terminée et ne peut pas être relancée.")
                 })
 
 
@@ -118,12 +119,12 @@ class StartLocalGameView(View):
 
             return JsonResponse({
                 'status': 'success',
-                'message': f"Partie {game_id} lancée avec succès."
+                'message': _(f"Partie {game_id} lancée avec succès.")
             })
 
         except GameSession.DoesNotExist:
             # print(f"[DEBUG] StartLocalGameView la gameSession n'existe pas")  # Debug
             return JsonResponse({
                 'status': 'error',
-                'message': "La session de jeu spécifiée n'existe pas."
+                'message': _("La session de jeu spécifiée n'existe pas.")
             })

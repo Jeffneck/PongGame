@@ -9,6 +9,7 @@ from django.views.decorators.csrf import csrf_protect
 from django.contrib.auth import logout
 from accounts.models import RefreshToken
 from pong_project.decorators import login_required_json
+from django.utils.translation import gettext_lazy as _
 # ---- Configuration ----
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,6 @@ class LogoutView(View):
             logger.debug("Début de la déconnexion")
             refresh_token = request.POST.get('refresh_token')
             if not refresh_token:
-                logger.error("Aucun refresh token fourni")
                 return JsonResponse({'error': 'Refresh token is required'}, status=400)
 
             token = RefreshToken.objects.filter(token=refresh_token).first()
@@ -34,13 +34,11 @@ class LogoutView(View):
                 logger.debug("Token trouvé, suppression...")
                 token.delete()
             else:
-                logger.error("Refresh token invalide")
                 return JsonResponse({'error': 'Invalid refresh token'}, status=401)
 
             logout(request)
             logger.debug("Utilisateur déconnecté")
-            return JsonResponse({'status': 'success', 'message': 'Déconnexion réussie.'})
+            return JsonResponse({'status': 'success', 'message': _('Déconnexion réussie.')})
 
         except Exception as e:
-            logger.error(f"Erreur lors de la déconnexion : {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)

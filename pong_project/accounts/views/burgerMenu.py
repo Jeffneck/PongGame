@@ -11,6 +11,7 @@ from django.contrib.auth import get_user_model
 from django.shortcuts import render
 from django.template.loader import render_to_string
 from pong_project.decorators import login_required_json
+from django.utils.translation import gettext_lazy as _
 
 # ---- Imports locaux ----
 from accounts.models import FriendRequest
@@ -49,7 +50,6 @@ class BurgerMenuView(View):
             burger_menu_html = render_to_string('accounts/burger_menu.html', context)
             return JsonResponse({'status': 'success', 'html': burger_menu_html})
         except Exception as e:
-            logger.error(f"Erreur lors de la récupération des données du menu burger: {e}")
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 
@@ -70,11 +70,11 @@ class UpdateStatusView(View):
         # logger.info(f"--Requête de mise à jour du statut pour {user.username}: {status}")
 
         if status not in ['online', 'offline']:
-            return JsonResponse({'status': 'error', 'message': 'Statut non valide'}, status=400)
+            return JsonResponse({'status': 'error', 'message': _('Statut non valide')}, status=400)
 
         # Update the user's status
         user.is_online = (status == 'online')
         user.save()
 
         logger.info(f"Statut mis à jour pour {user.username}: {user.is_online}")
-        return JsonResponse({'status': 'success', 'message': 'Statut mis à jour avec succès', 'is_online': user.is_online})
+        return JsonResponse({'status': 'success', 'message': _('Statut mis à jour avec succès'), 'is_online': user.is_online})

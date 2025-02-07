@@ -9,6 +9,7 @@ from django.template.loader import render_to_string
 from django.shortcuts import get_object_or_404
 from django.templatetags.static import static  
 from pong_project.decorators import login_required_json
+from django.utils.translation import gettext_lazy as _
 
 from game.forms import TournamentParametersForm
 from game.models import (
@@ -52,7 +53,7 @@ class CreateTournamentView(View):
             logger.debug("FORM INVALIDE CREATE TOURNAMENT")
             return JsonResponse({
                 'status': 'error',
-                'message': 'Formulaire invalide.',
+                'message': _('Formulaire invalide.'),
                 'errors': form.errors,
             }, status=400)
         
@@ -63,7 +64,7 @@ class CreateTournamentView(View):
         return JsonResponse({
             'status': 'success',
             'tournament_id': str(tournament.id),
-            'message': f"Tournoi {tournament.name} créé avec succès.",
+            'message': _(f"Tournoi {tournament.name} créé avec succès."),
         }, status=201)
 
 
@@ -143,7 +144,7 @@ class TournamentNextGameView(View):
         if not next_match_type:
             return JsonResponse({
                 'status': 'error',
-                'message': f"Type de match invalide ou introuvable pour le statut : {tournament_status}",
+                'message': _(f"Type de match invalide ou introuvable pour le statut : {tournament_status}"),
             }, status=400)
         
         if next_match_type == 'finished':
@@ -203,7 +204,7 @@ class CreateTournamentGameSessionView(View):
         if not tournament.parameters:
             return JsonResponse({
                 'status': 'error',
-                'message': "Ce tournoi ne dispose pas de TournamentParameters.",
+                'message': _("Ce tournoi ne dispose pas de TournamentParameters."),
             }, status=400)
 
         # On choisit quels joueurs se retrouvent en left / right
@@ -222,13 +223,13 @@ class CreateTournamentGameSessionView(View):
             if not player_left_local or not player_right_local:
                 return JsonResponse({
                     'status': 'error',
-                    'message': "Impossible de créer la finale: gagnants des demi-finales non définis.",
+                    'message': _("Impossible de créer la finale: gagnants des demi-finales non définis."),
                 }, status=400)
             tournament.status = 'final_in_progress'
         else:
             return JsonResponse({
                 'status': 'error',
-                'message': f"Type de match invalide: {next_match_type}",
+                'message': _(f"Type de match invalide: {next_match_type}"),
             }, status=400)
         
         # Création de la GameSession "local" (pas online) 
@@ -274,7 +275,7 @@ class CreateTournamentGameSessionView(View):
 
         return JsonResponse({
             'status': 'success',
-            'message': f"{next_match_type} créée pour le tournoi {tournament.name}.",
+            'message': _(f"{next_match_type} créée pour le tournoi {tournament.name}."),
             'game_id': str(game_session.id),
             'html': rendered_html,
             'tournament_status': tournament.status,
@@ -293,26 +294,26 @@ class StartTournamentGameSessionView(View):
         except GameSession.DoesNotExist:
             return JsonResponse({
                 'status': 'error',
-                'message': "La session de jeu spécifiée n'existe pas.",
+                'message': _("La session de jeu spécifiée n'existe pas."),
             }, status=404)
 
         # On s'assure que c'est bien local (pas online)
         if session.is_online:
             return JsonResponse({
                 'status': 'error',
-                'message': "Cette session est en ligne, impossible de la lancer avec l'API locale.",
+                'message': _("Cette session est en ligne, impossible de la lancer avec l'API locale."),
             }, status=400)
 
         if session.status == 'running':
             return JsonResponse({
                 'status': 'error',
-                'message': f"La partie {game_id} est déjà en cours.",
+                'message': _(f"La partie {game_id} est déjà en cours."),
             }, status=400)
 
         if session.status == 'finished':
             return JsonResponse({
                 'status': 'error',
-                'message': f"La partie {game_id} est déjà terminée.",
+                'message': _(f"La partie {game_id} est déjà terminée."),
             }, status=400)
 
         # On lance la loop de jeu asynchrone
@@ -327,5 +328,5 @@ class StartTournamentGameSessionView(View):
 
         return JsonResponse({
             'status': 'success',
-            'message': f"Partie {game_id} lancée avec succès."
+            'message': _(f"Partie {game_id} lancée avec succès.")
         })

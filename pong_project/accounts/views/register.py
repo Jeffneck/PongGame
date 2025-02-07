@@ -8,6 +8,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_POST
 from django.template.loader import render_to_string
+from django.utils.translation import gettext_lazy as _
 
 # ---- Imports locaux ----
 from accounts.forms import RegistrationForm
@@ -47,7 +48,7 @@ class RegisterView(View):
             # Crée un nouvel utilisateur sans encore sauvegarder dans la base de données
             user = form.save()
             user.save()  # Sauvegarde l'utilisateur dans la base de données
-            return JsonResponse({'status': 'success', 'message': 'Inscription réussie.'})
+            return JsonResponse({'status': 'success', 'message': _('Inscription réussie.')})
         # Retourne les erreurs de validation du formulaire sous forme de JSON
         else:
             error_messages = []

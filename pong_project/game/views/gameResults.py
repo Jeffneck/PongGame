@@ -5,6 +5,7 @@ from django.views import View
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
 from game.models import GameSession, GameResult
+from django.utils.translation import gettext_lazy as _
 
 
 #affiche une page de resultats avec le winner le score et un bouton retour
@@ -20,7 +21,7 @@ class GameResultsView(View):
                 print(f"[ERROR] pas de finish")
                 return JsonResponse({
                 'status': 'error',
-                'message': "La session de jeu n' est pas terminée"
+                'message': _("La session de jeu n' est pas terminée")
             }, status=401)
 
             results = GameResult.objects.get(game=session)
@@ -48,7 +49,7 @@ class GameResultsView(View):
             
             return JsonResponse({
                 'status': 'error',
-                'message': "La session de jeu demandée n'existe pas"
+                'message': _("La session de jeu demandée n'existe pas")
             }, status=404)
 
         except GameResult.DoesNotExist:
@@ -56,12 +57,12 @@ class GameResultsView(View):
 
             return JsonResponse({
                 'status': 'error',
-                'message': "Les résultats pour cette session de jeu ne sont pas disponibles"
+                'message': _("Les résultats pour cette session de jeu ne sont pas disponibles")
             }, status=404)
 
         except Exception as e:
             print(f"[ERROR] {e}")
             return JsonResponse({
                 'status': 'error',
-                'message': "Une erreur est survenue lors de la récupération des résultats"
+                'message': _("Une erreur est survenue lors de la récupération des résultats")
             }, status=500)

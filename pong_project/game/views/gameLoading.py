@@ -8,6 +8,7 @@ from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
 from pong_project.decorators import login_required_json
+from django.utils.translation import gettext_lazy as _
 
 # ---- Configuration ----
 logger = logging.getLogger(__name__)
@@ -42,5 +43,5 @@ class LoadingView(View):
         logger.warning(f"Méthode non autorisée : {request.method} pour LoadingView")
         return JsonResponse({
             'status': 'error',
-            'message': 'Méthode non autorisée'
+            'message': _('Méthode non autorisée')
         }, status=405)

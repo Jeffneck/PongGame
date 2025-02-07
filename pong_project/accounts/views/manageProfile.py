@@ -11,6 +11,7 @@ from pong_project.decorators import login_required_json
 from django.db.models import Max
 from django.contrib.auth import update_session_auth_hash, logout
 from django.contrib.auth import get_user_model
+from django.utils.translation import gettext_lazy as _
 
 # ---- Imports locaux ----
 from accounts.forms import UserNameForm, PasswordChangeForm, AvatarUpdateForm, DeleteAccountForm
@@ -55,7 +56,7 @@ class ChangeUsernameView(View):
         form = UserNameForm(request.POST, instance=user)
         if form.is_valid():
             form.save()
-            return JsonResponse({'status': 'success', 'message': "Nom d'utilisateur mis à jour avec succès."})
+            return JsonResponse({'status': 'success', 'message': _("Nom d'utilisateur mis à jour avec succès.")})
         else:
             error_messages = []
             for field, errors in form.errors.items():
@@ -77,7 +78,7 @@ class DeleteAccountView(View):
         if form.is_valid():
             logout(request)
             user.delete()
-            return JsonResponse({'status': 'success', 'message': 'Votre compte a été supprimé avec succès.'})
+            return JsonResponse({'status': 'success', 'message': _('Votre compte a été supprimé avec succès.')})
         else:
             error_messages = []
             for field, errors in form.errors.items():
@@ -101,7 +102,7 @@ class ChangePasswordView(View):
             # Met à jour le mot de passe et hache automatiquement
             form.save()
             update_session_auth_hash(request, user)  # Maintient la session active après la mise à jour
-            return JsonResponse({'status': 'success', 'message': 'Mot de passe mis à jour avec succès.'})
+            return JsonResponse({'status': 'success', 'message': _('Mot de passe mis à jour avec succès.')})
         
         else:
             error_messages = []
@@ -124,7 +125,7 @@ class UpdateAvatarView(View):
             form.save()
             return JsonResponse({
                 'status': 'success', 
-                'message': 'Avatar mis à jour avec succès.'
+                'message': _('Avatar mis à jour avec succès.')
             })
         else:
             logger.error(form.errors)

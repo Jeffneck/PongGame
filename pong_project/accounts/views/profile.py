@@ -14,6 +14,7 @@ from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.contrib.auth.decorators import login_required
 from pong_project.decorators import login_required_json
+from django.utils.translation import gettext_lazy as _
 
 from game.models import GameResult  # Import du modèle mis à jour
 
@@ -80,5 +81,4 @@ class ProfileView(View):
             }, status=200)
 
         except Exception as e:
-            logger.error(f"Error loading user profile: {e}")
-            return JsonResponse({'status': 'error', 'message': 'An error occurred while loading the profile.'}, status=500)
+            return JsonResponse({'status': 'error', 'message': _('Une erreur s\'est produite lors du chargement du profil.')}, status=500)

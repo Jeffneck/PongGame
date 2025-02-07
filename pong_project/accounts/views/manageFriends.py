@@ -11,6 +11,7 @@ from django.db import transaction
 from django.views.decorators.csrf import csrf_protect
 from django.core.exceptions import ValidationError
 from pong_project.decorators import login_required_json
+from django.utils.translation import gettext_lazy as _
 # ---- Imports locaux ----
 from accounts.models import FriendRequest
 
@@ -68,19 +69,15 @@ class AddFriendView(BaseFriendView):
         try:
             friend = self.validate_friend(user, friend_username)
         except FriendValidationError as e:
-            logger.error(f"Error adding friend: {e}")
             return self.create_json_response('error', str(e))
 
         if friend in user.friends.all():
-            logger.error(f"Error adding friend: {user.username} is already friends with {friend.username}")
             return self.create_json_response('error', 'Vous êtes déjà ami avec cet utilisateur.')
 
         if FriendRequest.objects.filter(from_user=user, to_user=friend).exists():
-            logger.error(f"Error adding friend: Friend request already sent from {user.username} to {friend.username}")
             return self.create_json_response('error', 'Demande d\'ami déjà envoyée.')
 
         if FriendRequest.objects.filter(from_user=friend, to_user=user).exists():
-            logger.error(f"Error adding friend: Friend request already received from {friend.username} to {user.username}")
             return self.create_json_response('error', 'Cet utilisateur vous a déjà envoyé une demande d\'ami.')
 
         FriendRequest.objects.create(from_user=user, to_user=friend)
@@ -113,20 +110,19 @@ class HandleFriendRequestView(View):
                 # Delete the friend request
                 friend_request.delete()
                 logger.info(f"Demande d'ami acceptée entre {user.username} et {friend_request.from_user.username}.")
-                return JsonResponse({'status': 'success', 'message': 'Demande d\'ami acceptée'})
+                return JsonResponse({'status': 'success', 'message': _('Demande d\'ami acceptée')})
 
             elif action == 'decline':
                 # Delete the friend request
                 friend_request.delete()
                 logger.info(f"Demande d'ami refusée entre {user.username} et {friend_request.from_user.username}.")
-                return JsonResponse({'status': 'success', 'message': 'Demande d\'ami refusée'})
+                return JsonResponse({'status': 'success', 'message': _('Demande d\'ami refusée')})
 
             else:
-                return JsonResponse({'status': 'error', 'message': 'Action non valide'}, status=400)
+                return JsonResponse({'status': 'error', 'message': _('Action non valide')}, status=400)
 
         except Exception as e:
-            logger.error(f"Error handling friend request: {e}")
-            return JsonResponse({'status': 'error', 'message': 'Erreur lors de la gestion de la demande d\'ami'}, status=500)
+            return JsonResponse({'status': 'error', 'message': _('Erreur lors de la gestion de la demande d\'ami')}, status=500)
 
 @method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toutes les méthodes de la classe
 @method_decorator(login_required_json, name='dispatch')  # Restreint l'accès à la vue aux utilisateurs connectés

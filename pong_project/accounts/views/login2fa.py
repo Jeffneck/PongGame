@@ -20,6 +20,7 @@ from django.contrib.auth import login
 from django.shortcuts import get_object_or_404
 from accounts.utils import generate_jwt_token
 from pong_project.decorators import login_required_json, auth_partial_required
+from django.utils.translation import gettext_lazy as _
 
 from accounts.forms import TwoFactorLoginForm
 
@@ -56,7 +57,7 @@ class Enable2FAView(Base2FAView):
 
     def get(self, request):
         if request.user.is_2fa_enabled:
-            return JsonResponse({'status': 'error', 'message': '2FA is already enabled on your account.'}, status=400)
+            return JsonResponse({'status': 'error', 'message': _('2FA est déjà activé sur votre compte')}, status=400)
 
         # Génération du secret et du QR code
         secret = pyotp.random_base32()
@@ -88,11 +89,11 @@ class Check2FAView(View):
     def post(self, request):
         totp_secret = request.session.get('totp_secret')
         if not totp_secret:
-            return JsonResponse({'status': 'error', 'message': 'No 2FA setup in progress.'}, status=400)
+            return JsonResponse({'status': 'error', 'message': _('Aucune configuration 2FA en cours.')}, status=400)
 
         code = request.POST.get('code')
         if not code:
-            return JsonResponse({'status': 'error', 'message': 'Code is required.'}, status=400)
+            return JsonResponse({'status': 'error', 'message': _('Un code est requis.')}, status=400)
 
         totp = pyotp.TOTP(totp_secret)
         if totp.verify(code):
@@ -100,9 +101,9 @@ class Check2FAView(View):
             request.user.is_2fa_enabled = True
             request.user.save()
             del request.session['totp_secret']
-            return JsonResponse({'status': 'success', 'message': '2FA has been successfully enabled.'})
+            return JsonResponse({'status': 'success', 'message': _('2FA a été activé avec succès.')})
 
-        return JsonResponse({'status': 'error', 'message': 'Invalid 2FA code.'}, status=400)
+        return JsonResponse({'status': 'error', 'message': _('Code 2FA invalide.')}, status=400)
 
 
 
@@ -139,13 +140,13 @@ class Login2faView(View):
         auth_partial = request.session.get('auth_partial')
 
         if not user_id or not auth_partial:
-            return JsonResponse({'status': 'error', 'message': 'Unauthorized access.'}, status=403)
+            return JsonResponse({'status': 'error', 'message': _('Accès non autorisé.')}, status=403)
 
         user = get_object_or_404(User, id=user_id)
         code = request.POST.get('code')
 
         if not code:
-            return JsonResponse({'status': 'error', 'message': 'Code is required.'}, status=400)
+            return JsonResponse({'status': 'error', 'message': _('Un code est requis.')}, status=400)
 
         logger.debug(f"Received 2FA code: {code}")
 
@@ -165,9 +166,9 @@ class Login2faView(View):
                 'access_token': token_jwt['access_token'],
                 'refresh_token': token_jwt['refresh_token'],
                 'ís_authenticated': True,
-                'message': '2FA verified successfully. Login successful.'
+                'message': _('2FA vérifié avec succès. Connexion réussie.')
             })
-        return JsonResponse({'status': 'error', 'message': 'Invalid 2FA code.'}, status=400)
+        return JsonResponse({'status': 'error', 'message': _('Invalid 2FA code.')}, status=400)
 
 
 @method_decorator(csrf_protect, name='dispatch')  # Applique la protection CSRF à toutes les méthodes de la classe
@@ -179,7 +180,7 @@ class Disable2FAView(View):
 
     def get(self, request):
         if not request.user.is_2fa_enabled:
-            return JsonResponse({'status': 'error', 'message': '2FA is not enabled on your account.'}, status=400)
+            return JsonResponse({'status': 'error', 'message': _('2FA n\'est pas activé sur votre compte.')}, status=400)
 
         # Créez une instance de TwoFactorLoginForm
         disable_form = TwoFactorLoginForm()
@@ -195,17 +196,17 @@ class Disable2FAView(View):
 
     def post(self, request):
         if not request.user.is_2fa_enabled:
-            return JsonResponse({'status': 'error', 'message': '2FA is not enabled on your account.'}, status=400)
+            return JsonResponse({'status': 'error', 'message': _('2FA n\'est pas activé sur votre compte.')}, status=400)
 
         code = request.POST.get('code')
         if not code:
-            return JsonResponse({'status': 'error', 'message': 'Code is required.'}, status=400)
+            return JsonResponse({'status': 'error', 'message': _('Un code est requis.')}, status=400)
 
         totp = pyotp.TOTP(request.user.totp_secret)
         if totp.verify(code):
             request.user.totp_secret = ''
             request.user.is_2fa_enabled = False
             request.user.save()
-            return JsonResponse({'status': 'success', 'message': '2FA has been disabled.'})
+            return JsonResponse({'status': 'success', 'message': _('2FA a été désactivé.')})
 
-        return JsonResponse({'status': 'error', 'message': 'Invalid 2FA code.'}, status=400)
+        return JsonResponse({'status': 'error', 'message': _('Code 2FA invalide.')}, status=400)

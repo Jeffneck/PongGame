@@ -9,6 +9,7 @@ from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_POST
 from django.template.loader import render_to_string
 from django.contrib.auth import authenticate, login
+from django.utils.translation import gettext_lazy as _
 
 # ---- Imports locaux ----
 from accounts.utils import generate_jwt_token
@@ -56,7 +57,6 @@ class LoginView(View):
 
             if user is not None:
                 if user.is_active:
-                    logger.debug("User is active")
                     request.session['user_id'] = user.id
 
                     # Check if 2FA is enabled
@@ -81,10 +81,10 @@ class LoginView(View):
                         'ís_authenticated': True
                     })
                 else:
-                    return JsonResponse({'status': 'error', 'message': 'Compte désactivé'})
+                    return JsonResponse({'status': 'error', 'message': _('Compte désactivé')})
 
             # Invalid credentials
-            return JsonResponse({'status': 'error', 'message': 'Identifiants incorrects'})
+            return JsonResponse({'status': 'error', 'message': _('Identifiants incorrects')})
 
         # Return form validation errors
         return JsonResponse({'status': 'error', 'errors': form.errors})

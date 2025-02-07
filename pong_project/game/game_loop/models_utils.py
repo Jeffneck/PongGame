@@ -72,6 +72,9 @@ async def create_gameResults(game_id, gameSession_isOnline, endgame_infos):
         print(f"[create_gameResults] Creating GameResult for game {game_id}...")
         # Récupérer la session de jeu en mode async
         session = await sync_to_async(GameSession.objects.get)(pk=game_id)
+        if session.status == 'cancelled':
+            print("[create_gameResults] => The game was cancelled => skipping result creation.")
+            return
 
         # ✅ Regrouper la création de GameResult dans une fonction synchrone
         def save_game_result():

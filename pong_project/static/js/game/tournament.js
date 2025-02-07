@@ -103,6 +103,12 @@ async function runTournamentFlow(tournamentId) {
       break;
     }
     await launchLiveGameWithOptions(gameId, 'both', `start_tournament_game_session/${gameId}`);
+	// on vérifie le status côté serveur avant de continuer la loop
+	const statusResponse = await requestGet('game', `get_game_status/${gameId}`);
+	if (statusResponse.status === 'success' && statusResponse.session_status === 'cancelled') {
+		showStatusMessage('Un des joueurs s\'est deconnecte, tournoi annule ...', 'error');
+		break
+	}
   }
   sessionStorage.removeItem('tournamentparams');
   console.log("Fin du flux tournoi.");

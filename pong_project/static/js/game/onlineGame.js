@@ -112,13 +112,58 @@ export function startWaitingRoomPolling() {
 }
 
 function initializeFriendInvitationBtn(game_id) {
-  document.addEventListener('click', async (event) => {
-    const btn = event.target.closest('.invite-button');
-    if (!btn) return;
-    if (event.target.classList.contains('cancel-icon')) {
-      event.stopPropagation();
-      await cancelInvitation(btn);
-      return;
+    document.addEventListener('click', async (event) => {
+        const btn = event.target.closest('.invite-button');
+        if (!btn) return;
+
+        if (event.target.classList.contains('cancel-icon')) {
+            event.stopPropagation();
+            await cancelInvitation(btn);
+            return;
+        }
+
+        // Si pas déjà envoyé
+        if (!btn.classList.contains('sent')) {
+            await sendInvitation(btn, game_id);
+        }
+    });
+}
+
+
+// cette fonction est lancée par la fonction checkGameInvitation status quand le joueur right a accepté l'invitation
+// elle redirige le joueur left (celui qui a envoyé l'invitation) vers la page de jeu
+// sur la page de jeu le joueur pourra cliquer sur un bouton qui lancera le jeu en arrière plan (cf.live_online_game_left.js)
+async function joinOnlineGameAsLeft(game_id){
+    try {
+        const response = await requestGet('game', `join_online_game_as_left/${game_id}`); 
+        if (response.status === 'success') {
+            // afficher le html de la page de jeu
+            updateHtmlContent('#content', response.html);
+            // afficher le front du jeu au joueur left & transmettre les inputs du joueur left au jeu
+            // le button startGame de live_online_game_as_left.html permettra de lancer l'algo du jeu en back depuis le js de liveOnlineGameLeft()
+            await launchLiveGameWithOptions(game_id, 'left', `start_online_game/${game_id}`);
+            const statusResponse = await requestGet('game', `get_game_status/${gameId}`);
+            if (statusResponse.status === 'success' && statusResponse.session_status === 'cancelled') {
+                showStatusMessage('Un des joueurs s\'est deconnecte, partie annulee ...', 'error');
+                return
+            }
+            if (statusResponse.status === 'error' ) {
+                showStatusMessage('Vous avez ete deconnecte de la partie en ligne', 'error');
+                return
+            }
+            await showResults(game_id);
+            
+            //IMPROVE afficher une page présentant le winner et looser une fois la game terminee
+        } else {
+            showStatusMessage(response.message, 'error');
+        }
+    } catch (error) {
+        if (error instanceof HTTPError) {
+            showStatusMessage(error.message, 'error');
+        } else {
+            showStatusMessage('Une erreur est survenue.', 'error');
+        }
+        console.error('Erreur joinOnlineGameAsLeft :', error);
     }
     if (!btn.classList.contains('sent')) {
       await sendInvitation(btn, game_id);
@@ -166,18 +211,35 @@ export async function acceptGameInvitation(invitationId, action) {
 }
 
 async function joinOnlineGameAsRight(sessionId) {
-  try {
-    const tactile = isTouchDevice();
-    const formData = new FormData();
-    formData.append('is_touch', tactile);
-    const url = `join_online_game_as_left/${sessionId}`;
-    const response = await requestPost('game', url, formData);
-    if (response.status === 'success') {
-      updateHtmlContent('#content', response.html);
-      await launchLiveGameWithOptions(response.game_id, 'right', `start_online_game/${response.game_id}`);
-      await showResults(response.game_id);
-    } else {
-      showStatusMessage(response.message, 'error');
+    try {
+        // Récupérer les données pour rejoindre la partie
+        const response = await requestGet('game', `join_online_game_as_right/${sessionId}`);
+
+        // Gestion des erreurs renvoyées par le serveur
+        if (response.status === 'error') {
+            console.error("Erreur lors de la tentative de rejoindre le jeu :", response.message);
+            showStatusMessage(response.message, 'error');
+            return;
+        }
+        // Si succès, afficher la page de jeu 
+        updateHtmlContent('#content', response.html);
+        await launchLiveGameWithOptions(response.game_id, 'right', `start_online_game/${response.game_id}`);
+        // on vérifie le status côté serveur avant de continuer la loop
+        const statusResponse = await requestGet('game', `get_game_status/${gameId}`);
+        if (statusResponse.status === 'success' && statusResponse.session_status === 'cancelled') {
+            showStatusMessage('Un des joueurs s\'est deconnecte, partie annulee ...', 'error');
+            return
+        }
+        if (statusResponse.status === 'error' ) {
+            showStatusMessage('Vous avez ete deconnecte de la partie en ligne', 'error');
+            return
+        }
+        await showResults(response.game_id);
+
+
+    } catch (error) {
+        console.error('Erreur réseau lors de la connexion au jeu en tant que joueur Right:', error);
+        showStatusMessage('Une erreur réseau est survenue. Veuillez réessayer.', 'error');
     }
   } catch (error) {
     console.error('Erreur dans joinOnlineGameAsRight:', error);

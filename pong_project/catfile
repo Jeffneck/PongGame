@@ -1,0 +1,1462 @@
+# game/game_loop/ball_utils.py
+from .redis_utils import get_key, set_key, delete_key
+from .dimensions_utils import get_terrain_rect
+import time
+import math
+import random
+import asyncio
+from game.tasks import register_subtask
+
+BALL_MIN_SPEED = 1
+BALL_MAX_SPEED = 20
+# -------------- BALL : UPDATE OBJECTS  --------------------
+def move_ball(game_id, ball):
+    ball.x = float(get_key(game_id, "ball_x")) + float(get_key(game_id, "ball_vx"))
+    ball.y = float(get_key(game_id, "ball_y")) + float(get_key(game_id, "ball_vy"))
+    update_ball_redis(game_id, ball)
+
+
+# async def reset_ball(game_id, ball):
+#     terrain_rect = get_terrain_rect(game_id)
+#     center_x = terrain_rect['left'] + terrain_rect['width'] // 2
+#     center_y = terrain_rect['top'] + terrain_rect['height'] // 2
+
+#     # Get the initial ball speed multiplier from Redis / added
+#     speed_multiplier = float(get_key(game_id, "initial_ball_speed_multiplier"))
+#     initial_speed_x = random.choice([-3, 3]) * speed_multiplier  # Base speed * multiplier / modified
+#     initial_speed_y = random.choice([-3, 3]) * speed_multiplier
+
+#     ball.reset(center_x, center_y, initial_speed_x, initial_speed_y) #modified
+#     update_ball_redis(game_id, ball)
+
+#     print(f"[game_loop.py] Ball reset to ({ball.x}, {ball.y}) with speed ({ball.speed_x}, {ball.speed_y})")
+
+
+def reset_ball(game_id, ball):
+    terrain_rect = get_terrain_rect(game_id)
+    center_x = terrain_rect['left'] + terrain_rect['width'] // 2
+    center_y = terrain_rect['top'] + terrain_rect['height'] // 2
+    # Réinitialiser la balle en position centrale avec vitesse nulle
+    ball.reset(center_x, center_y, 0, 0)
+    update_ball_redis(game_id, ball)
+    print(f"[game_loop.py] Ball reset to ({ball.x}, {ball.y}) with speed (0, 0)")
+    # Lancer une tâche asynchrone qui, après 1 seconde, démarre la balle
+    # Lancer une tâche asynchrone qui, après 1 seconde, démarre la balle
+    subtask = asyncio.create_task(start_ball_after_delay(game_id, ball))
+    register_subtask(game_id, subtask)  
+    
+async def start_ball_after_delay(game_id, ball):
+    """
+    Coroutine asynchrone qui attend 1s avant de démarrer la balle.
+    On gère CancelledError pour sortir proprement si le jeu est stoppé avant.
+    """
+    try:
+        await asyncio.sleep(1)
+    except asyncio.CancelledError:
+        print(f"[start_ball_after_delay] => CANCELLED for game_id={game_id}")
+        return
+
+    # Ici, vous pouvez définir les vitesses de départ souhaitées
+    speed_multiplier = float(get_key(game_id, "initial_ball_speed_multiplier") or 1.0)
+    initial_speed_x = random.choice([-3, 3]) * speed_multiplier
+    initial_speed_y = random.choice([-3, 3]) * speed_multiplier
+    ball.speed_x = initial_speed_x
+    ball.speed_y = initial_speed_y
+    update_ball_redis(game_id, ball)
+    print(f"[game_loop.py] Ball started with speed ({ball.speed_x}, {ball.speed_y})")
+
+def move_ball_sticky(game_id, paddle_left, paddle_right, ball):
+    stuck_side = get_key(game_id, "ball_stuck_side").decode('utf-8')  # 'left' ou 'right'
+    
+    # Récupérer la raquette correspondante
+    if stuck_side == 'left':
+        current_paddle = paddle_left
+    else:
+        current_paddle = paddle_right
+
+    # Calculer y en fonction de sticky_relative_pos_<side>
+    rel_pos = float(get_key(game_id, f"sticky_relative_pos_{stuck_side}") or 0)
+
+    # Mettre la balle à la nouvelle position
+    # X = collée contre la raquette
+    if stuck_side == 'left':
+        ball.x = current_paddle.x + current_paddle.width + ball.size
+    else:
+        ball.x = current_paddle.x - ball.size
+
+    # Y = (paddle.y + rel_pos)
+    ball.y = current_paddle.y + rel_pos
+
+    # Vérifier si on doit la relâcher (ex: après 1s)
+    start_t = float(get_key(game_id, f"sticky_start_time_{stuck_side}") or 0)
+    if time.time() - start_t >= 1.0:
+        # Relâcher la balle avec un petit boost
+        release_ball_sticky(game_id, current_paddle, stuck_side, ball)
+
+
+
+# -------------- BALL : UPDATE REDIS KEYS  --------------------
+def stick_ball_to_paddle(game_id, stuck_side, current_paddle, ball):
+    """
+    Colle la balle sur la raquette <stuck_side>.
+    """
+    print(f"[sticky] stick ball to {stuck_side} paddle")
+    # Calcul de la position relative
+    relative_pos = ball.y - current_paddle.y
+
+    # Stocker la vitesse originale de la balle pour la remettre plus tard (facultatif)
+    set_key(game_id, "ball_original_vx", ball.speed_x)
+    set_key(game_id, "ball_original_vy", ball.speed_y)
+
+    # Indiquer en Redis que la balle est collée à cette raquette
+    set_key(game_id, "ball_stuck", 1)
+    set_key(game_id, "ball_stuck_side", stuck_side)
+    set_key(game_id, f"sticky_relative_pos_{stuck_side}", relative_pos)
+    set_key(game_id, f"sticky_start_time_{stuck_side}", time.time())
+
+    # Mettre la balle immobile
+    ball.speed_x = 0
+    ball.speed_y = 0
+
+    # Positionner la balle contre la raquette
+    if stuck_side == 'left':
+        ball.x = current_paddle.x + current_paddle.width + ball.size
+    else:
+        ball.x = current_paddle.x - ball.size
+
+def release_ball_sticky(game_id, current_paddle, stuck_side, ball):
+    print(f"[sticky] Releasing ball from {stuck_side} paddle")
+    # on conserve l'ancienne
+
+    # On récupère la vitesse originale (si on l'avait stockée)
+    ball.speed_x = float(get_key(game_id, "ball_original_vx") or BALL_MIN_SPEED)
+    ball.speed_y = float(get_key(game_id, "ball_original_vy") or BALL_MIN_SPEED)
+
+    # on donne le status speed boosted pour la rendre plus rapide lors de la prochaine collision avec le paddle
+    set_key(game_id, "ball_speed_boosted", 1)
+    # manage_ball_speed_and_angle(game_id, current_paddle, stuck_side, ball)
+
+    # Nettoyage des cles ayant permis a la balle de stuck
+    delete_key(game_id, "ball_stuck")
+    delete_key(game_id, "ball_stuck_side")
+    delete_key(game_id, f"sticky_relative_pos_{stuck_side}")
+    delete_key(game_id, f"sticky_start_time_{stuck_side}")
+    delete_key(game_id, "ball_original_vx")
+    delete_key(game_id, "ball_original_vy")
+
+    # Nettoyer le flag sticky de la raquette
+    delete_key(game_id, f"paddle_{stuck_side}_sticky")
+
+# -------------- BALL : UPDATE REDIS GENERAL KEYS --------------------
+
+def manage_ball_speed_and_angle(game_id, current_paddle, paddle_side, ball):
+    
+    ball_already_boosted = get_key(game_id, "ball_speed_already_boosted")
+    ball_speed_boosted = get_key(game_id, "ball_speed_boosted")
+    if ball_already_boosted and ball_already_boosted.decode('utf-8') == '1':
+        ball.speed_x = float(get_key(game_id, "ball_speed_x_before_boost") or BALL_MIN_SPEED)
+        ball.speed_y = float(get_key(game_id, "ball_speed_y_before_boost") or BALL_MIN_SPEED)
+        delete_key(game_id, "ball_speed_x_before_boost")
+        delete_key(game_id, "ball_speed_y_before_boost")
+        delete_key(game_id, "ball_speed_already_boosted")
+    
+    if ball_speed_boosted and ball_speed_boosted.decode('utf-8') == '1':
+        set_key(game_id, "ball_speed_x_before_boost", ball.speed_x)
+        set_key(game_id, "ball_speed_y_before_boost", ball.speed_y)
+        set_key(game_id, "ball_speed_already_boosted", 1)
+        delete_key(game_id, "ball_speed_boosted")
+        tmp_speed = math.hypot(ball.speed_x, ball.speed_y) * 2
+    else :
+        tmp_speed = math.hypot(ball.speed_x, ball.speed_y) + 0.3
+    
+    #calculer la vitesse de renvoi de la balle
+    new_speed = max(BALL_MIN_SPEED, min(BALL_MAX_SPEED, tmp_speed)) 
+
+    # calculer l'angle de renvoi de la balle
+    relative_y = (ball.y - (current_paddle.y + current_paddle.height / 2)) / (current_paddle.height / 2)
+    relative_y = max(-1, min(1, relative_y))  # Limiter à l'intervalle [-1, 1]
+    angle = relative_y * (math.pi / 4)  # Max 45 degrés
+
+    # definir la speed_x et y grace à la vitesse generale et l'angle de renvoi calculé
+    new_speed_x = new_speed * math.cos(angle)
+    if paddle_side == 'left':
+        ball.speed_x = new_speed_x
+    else:
+        ball.speed_x = -new_speed_x
+
+    ball.speed_y = new_speed * math.sin(angle)
+
+
+
+def update_ball_redis(game_id, ball):
+    set_key(game_id, "ball_x", ball.x)
+    set_key(game_id, "ball_y", ball.y)
+    set_key(game_id, "ball_vx", ball.speed_x)
+    set_key(game_id, "ball_vy", ball.speed_y)# game/game_loop/broadcast.py
+
+from channels.layers import get_channel_layer
+from .redis_utils import get_key
+
+
+# --------- GAME STATE : NOTIFICATIONS -----------
+async def broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right, ball, powerup_orbs, bumpers):
+    """
+    Envoie l'état actuel du jeu aux clients via WebSocket.
+    """
+    # Récupérer les états des power-ups
+    powerups_data = []
+    for powerup_orb in powerup_orbs:
+        active = get_key(game_id, f"powerup_{powerup_orb.effect_type}_active" or 0)
+        if active and active.decode('utf-8') == '1':
+            x = float(get_key(game_id, f"powerup_{powerup_orb.effect_type}_x") or 0)
+            y = float(get_key(game_id, f"powerup_{powerup_orb.effect_type}_y") or 0)
+            powerups_data.append({
+                'type': powerup_orb.effect_type,
+                'x': x,
+                'y': y,
+                'color': list(powerup_orb.color)  # Convertir en liste pour JSON
+            })
+
+    # Récupérer les états des bumpers
+    # print(f"[game_loop.py] bumpers to send: {bumpers}")
+    bumpers_data = []
+    for bumper in bumpers:
+        active = get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_active" or 0)
+        if active and active.decode('utf-8') == '1':
+            x = float(get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_x") or 0)
+            y = float(get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_y") or 0)
+            bumpers_data.append({
+                'x': x,
+                'y': y,
+                'size': bumper.size,
+                'color': list(bumper.color)  # Convertir en liste pour JSON
+            })
+
+    data = {
+        'type': 'game_state',
+        'ball_x': ball.x,
+        'ball_y': ball.y,
+        'ball_size': ball.size,
+        'ball_speed_x': ball.speed_x,
+        'ball_speed_y': ball.speed_y,
+        'paddle_left_y': paddle_left.y,
+        'paddle_right_y': paddle_right.y,
+        'paddle_width': paddle_left.width,
+        'paddle_left_height': paddle_left.height,
+        'paddle_right_height': paddle_right.height,
+        'score_left': int(get_key(game_id, "score_left") or 0),
+        'score_right': int(get_key(game_id, "score_right") or 0),
+        'powerups': powerups_data,
+        'bumpers': bumpers_data,
+        'flash_effect': bool(get_key(game_id, f"flash_effect"))
+    }
+    # IMPROVE le flash effect peut etre renvoye en notif powerup applied
+
+    await channel_layer.group_send(f"pong_{game_id}", {
+        'type': 'broadcast_game_state',
+        'data': data
+    })
+    # print(f"[game_loop.py] Broadcast game_state for game_id={game_id}")
+
+
+
+
+# --------- POWER UPS : NOTIFICATIONS -----------
+async def notify_powerup_spawned(game_id, powerup_orb):
+    channel_layer = get_channel_layer()
+    await channel_layer.group_send(
+        f"pong_{game_id}",
+        {
+            'type': 'powerup_spawned',
+            'powerup': {
+                'type': powerup_orb.effect_type,
+                'x': powerup_orb.x,
+                'y': powerup_orb.y,
+                'color': list(powerup_orb.color)
+            }
+        }
+    )
+
+async def notify_countdown(game_id, countdown_nb):
+    channel_layer = get_channel_layer()
+    await channel_layer.group_send(
+        f"pong_{game_id}",
+        {
+            'type': 'countdown',
+            'countdown_nb': countdown_nb
+        }
+    )
+
+# async def notify_start_game(game_id):
+#     channel_layer = get_channel_layer()
+#     await channel_layer.group_send(
+#         f"pong_{game_id}",
+#         {
+#             'type': 'start_game',
+#         }
+#     )
+
+async def notify_powerup_applied(game_id, player, effect, effect_duration):
+    channel_layer = get_channel_layer()
+    await channel_layer.group_send(
+        f"pong_{game_id}",
+        {
+            'type': 'powerup_applied',
+            'player': player,
+            'effect': effect,
+            'duration': effect_duration
+        }
+    )
+
+async def notify_powerup_expired(game_id, powerup_orb):
+    channel_layer = get_channel_layer()
+    await channel_layer.group_send(
+        f"pong_{game_id}",
+        {
+            'type': 'powerup_expired',
+            'powerup': {
+                'type': powerup_orb.effect_type,
+                'x': powerup_orb.x,
+                'y': powerup_orb.y
+            }
+        }
+    )
+
+# --------- BUMPERS : NOTIFICATIONS -----------
+async def notify_bumper_spawned(game_id, bumper):
+    channel_layer = get_channel_layer()
+    await channel_layer.group_send(
+        f"pong_{game_id}",
+        {
+            'type': 'bumper_spawned',
+            'bumper': {
+                'x': bumper.x,
+                'y': bumper.y,
+            }
+        }
+    )
+
+
+async def notify_bumper_expired(game_id, bumper):
+    channel_layer = get_channel_layer()
+    await channel_layer.group_send(
+        f"pong_{game_id}",
+        {
+            'type': 'bumper_expired',
+            'bumper': {
+                'x': bumper.x,
+                'y': bumper.y
+            }
+        }
+    )
+
+# --------- COLLISIONS : NOTIFICATIONS -----------
+async def notify_collision(game_id, collision_info):
+    channel_layer = get_channel_layer()
+    await channel_layer.group_send(
+        f"pong_{game_id}",
+        {
+            'type': 'collision_event',
+            'collision': collision_info
+        }
+    )
+
+async def notify_paddle_collision(game_id, paddle_side, ball):
+    collision_info = {
+        'type': 'paddle_collision',
+        'paddle_side': paddle_side,
+        'new_speed_x': ball.speed_x,
+        'new_speed_y': ball.speed_y,
+    }
+    await notify_collision(game_id, collision_info)
+
+    print(f"[collisions.py] Ball collided with {paddle_side} paddle. New speed: ({ball.speed_x}, {ball.speed_y})")
+
+async def notify_border_collision(game_id, border_side, ball):
+    collision_info = {
+        'type': 'border_collision',
+        'border_side': border_side,
+        'coor_x_collision': ball.x,
+    }
+    await notify_collision(game_id, collision_info)
+
+    print(f"[collisions.py] Ball collided with {border_side} border at coor x = {ball.x}.")
+
+async def notify_bumper_collision(game_id, bumper, ball):
+    collision_info = {
+        'type': 'bumper_collision',
+        'bumper_x': bumper.x,
+        'bumper_y': bumper.y,
+        'new_speed_x': ball.speed_x,
+        'new_speed_y': ball.speed_y,
+    }
+    await notify_collision(game_id, collision_info)
+
+
+
+# --------- END GAME : NOTIFICATIONS  -----------
+
+async def notify_game_finished(game_id, tournament_id, winner, looser):
+    # Si winner et looser sont des objets CustomUser, on récupère leur username,
+    # sinon on les laisse tels quels (cas d'un match en mode local, où ce sont déjà des chaînes)
+    winner_serializable = winner.username if hasattr(winner, 'username') else winner
+    looser_serializable = looser.username if hasattr(looser, 'username') else looser
+
+    print(f"[broadcast.py] notify_game_finished winner: {winner_serializable} looser: {looser_serializable} tournament_id: {tournament_id}")
+    channel_layer = get_channel_layer()
+    await channel_layer.group_send(
+        f"pong_{game_id}",
+        {
+            'type': 'game_over',
+            'tournament_id': str(tournament_id),
+            'winner': winner_serializable,
+            'looser': looser_serializable
+        }
+    )# game/game_loop/bumpers_utils.py
+
+import time
+from .redis_utils import get_key, set_key, delete_key
+from .dimensions_utils import get_terrain_rect
+from .broadcast import notify_bumper_spawned, notify_bumper_expired
+import random
+
+MAX_ACTIVE_BUMPERS = 2
+SPAWN_INTERVAL_BUMPERS = 10
+# -------------- BUMPERS --------------------
+async def handle_bumpers_spawn(game_id, bumpers, current_time):
+    # Initialisation de last_bumper_spawn_time si elle n'est pas déjà définie
+    if not hasattr(handle_bumpers_spawn, "last_bumper_spawn_time"):
+        handle_bumpers_spawn.last_bumper_spawn_time = current_time  # Initialisation lors du premier appel
+
+    # Utilisation de la variable statique pour vérifier l'intervalle de temps
+    if current_time - handle_bumpers_spawn.last_bumper_spawn_time >= SPAWN_INTERVAL_BUMPERS:
+        active_bumpers = count_active_bumpers(game_id, bumpers)
+        if active_bumpers < MAX_ACTIVE_BUMPERS:
+            # S'assurer qu'on ne génère qu'un seul bumper à la fois
+            bumper = random.choice(bumpers)
+            if not bumper.active:
+                terrain = get_terrain_rect(game_id)
+                spawned = await spawn_bumper(game_id, bumper, terrain)
+                if spawned:
+                    # Mettre à jour le temps de spawn du bumper pour éviter les doubles spawns
+                    handle_bumpers_spawn.last_bumper_spawn_time = current_time
+                    print(f"[game_loop.py] game_id={game_id} - Bumper spawned at ({bumper.x}, {bumper.y}).")
+
+
+async def spawn_bumper(game_id, bumper, terrain_rect):
+    if bumper.spawn(terrain_rect):
+        set_bumper_redis(game_id, bumper)
+        print(f"[game_loop.py] Bumper spawned at ({bumper.x}, {bumper.y})")
+        await notify_bumper_spawned(game_id, bumper)
+        return True
+    return False
+
+def count_active_bumpers(game_id, bumpers):
+    count = 0
+    for bumper in bumpers:
+        # active = int(get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_active") or 0)
+        active = get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_active") or 0
+        if active and active.decode('utf-8') == '1':
+        # if active :
+            count += 1
+    print(f"[loop.py] count_active_bumpers ({count})")
+    return count
+
+async def handle_bumper_expiration(game_id, bumpers):
+    current_time = time.time()
+    for bumper in bumpers:
+        active = get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_active") or 0
+        # active = int(get_key(game_id, f"bumper_{bumper.x}_{bumper.y}_active") or 0)
+        if active and active.decode('utf-8') == '1'and current_time - bumper.spawn_time >= bumper.duration:
+        # if active and current_time - bumper.spawn_time >= bumper.duration:
+            delete_bumper_redis(game_id, bumper)
+            print(f"[loop.py] Bumper at ({bumper.x}, {bumper.y}) expired")
+            await notify_bumper_expired(game_id, bumper)
+
+# -------------- BUMPERS : UPDATE REDIS DATA --------------------
+def set_bumper_redis(game_id, bumper):
+    bumper.activate()
+    set_key(game_id, f"bumper_{bumper.x}_{bumper.y}_active", 1)
+    set_key(game_id, f"bumper_{bumper.x}_{bumper.y}_x", bumper.x)
+    set_key(game_id, f"bumper_{bumper.x}_{bumper.y}_y", bumper.y)
+
+
+def delete_bumper_redis(game_id, bumper):
+    bumper.deactivate()
+    delete_key(game_id, f"bumper_{bumper.x}_{bumper.y}_active")
+    delete_key(game_id, f"bumper_{bumper.x}_{bumper.y}_x")
+    delete_key(game_id, f"bumper_{bumper.x}_{bumper.y}_y")# game/game_loop/collisions.py
+
+import math
+import random
+import time
+from asgiref.sync import sync_to_async
+from .ball_utils import  stick_ball_to_paddle, manage_ball_speed_and_angle, update_ball_redis
+from .redis_utils import get_key, set_key, delete_key
+from .powerups_utils import apply_powerup
+from .broadcast import notify_paddle_collision, notify_border_collision, notify_bumper_collision, notify_powerup_applied
+
+MIN_SPEED = 1.0
+
+# async def handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right, ball):
+#     """
+#     Gère le fait qu'on marque un point ou qu'on ait juste un rebond sur la raquette.
+#     Retourne 'score_left', 'score_right' ou None si on continue le jeu.
+#     """
+    
+#     # 1) Vérifier si la balle sort à gauche => point pour la droite
+#     if ball.x - ball.size <= paddle_left.x + paddle_left.width:
+#     # if ball.x - ball.size  <= paddle_left.x:
+#         # Soit on a collision, soit c'est un but
+#         if paddle_left.y <= ball.y <= paddle_left.y + paddle_left.height:
+#             # Collision raquette gauche
+#             # Vérifier sticky
+#             is_sticky = bool(get_key(game_id, "paddle_left_sticky") or 0)
+#             if is_sticky : 
+#                 is_already_stuck = bool(get_key(game_id, "ball_stuck") or 0)
+#                 if not is_already_stuck:
+#                     # On "colle" la balle
+#                     stick_ball_to_paddle(game_id, 'left', paddle_left, ball)
+#                     # set_key(game_id, "paddle_left_already_stuck", 1)
+#                 return None
+#             else:
+
+#                 # Rebond classique
+#                 ball.last_player = 'left'
+#                 await process_paddle_collision(game_id, 'left', paddle_left, ball)
+#                 return None
+#         else:
+#             # Balle sortie côté gauche => score pour la droite
+#             return 'score_right'
+
+#     # 2) Vérifier si la balle sort à droite => point pour la gauche
+#     if ball.x + ball.size >= paddle_right.x - paddle_right.width :
+#     # if ball.x  >= paddle_right.x:
+#         if paddle_right.y <= ball.y <= paddle_right.y + paddle_right.height:
+#             # Collision raquette droite
+#             is_sticky = bool(get_key(game_id, "paddle_right_sticky") or 0)
+#             if is_sticky:
+#                 is_already_stuck = bool(get_key(game_id, "ball_stuck") or 0)
+#                 if not is_already_stuck:
+#                     # On "colle" la balle
+#                     stick_ball_to_paddle(game_id, 'right', paddle_right, ball)
+#                     # set_key(game_id, "paddle_right_already_stuck", 1)
+#                 return None
+#             else:
+#                 ball.last_player = 'right'
+#                 await process_paddle_collision(game_id, 'right', paddle_right, ball)
+#                 return None
+#         else:
+#             return 'score_left'
+
+#     return None
+
+async def handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right, ball):
+    """
+    Gère le fait qu'on marque un point ou qu'on ait juste un rebond sur la raquette.
+    Retourne 'score_left', 'score_right' ou None si on continue le jeu.
+    """
+    # 1) Vérifier si la balle est passée suffisamment pour être considérée comme un but
+    # Ici, on utilise le centre de la balle (ball.x) pour déterminer le score.
+    if ball.x + ball.size <= paddle_left.x + paddle_left.width and not (paddle_left.y <= ball.y <= paddle_left.y + paddle_left.height):
+        return 'score_right'
+    if ball.x - ball.size >= paddle_right.x - paddle_right.width and not (paddle_right.y <= ball.y <= paddle_right.y + paddle_right.height):
+        return 'score_left'
+    
+    # 2) Vérifier la collision avec la raquette gauche
+    # Ici, on détecte la collision dès que le bord gauche de la balle touche la raquette.
+    if ball.speed_x < 0 and (ball.x - ball.size) <= (paddle_left.x + paddle_left.width):
+        if paddle_left.y <= ball.y <= paddle_left.y + paddle_left.height:
+            # Si la balle touche la raquette, réaligner la balle sur le bord de la raquette
+            ball.x = paddle_left.x + paddle_left.width + ball.size
+            await process_paddle_collision(game_id, 'left', paddle_left, ball)
+            return None
+
+    # 3) Vérifier la collision avec la raquette droite
+    # Ici, on détecte la collision dès que le bord droit de la balle touche la raquette.
+    if ball.speed_x > 0 and (ball.x + ball.size) >= (paddle_right.x - paddle_right.width):
+        if paddle_right.y <= ball.y <= paddle_right.y + paddle_right.height:
+            # Réaligner la balle sur le bord de la raquette
+            ball.x = paddle_right.x - paddle_right.width - ball.size
+            await process_paddle_collision(game_id, 'right', paddle_right, ball)
+            return None
+
+    return None
+
+#ball
+async def process_paddle_collision(game_id, paddle_side, current_paddle, ball):
+    """
+    Gère la logique de collision entre la balle et une raquette.
+    Ajuste la vitesse et la direction de la balle, met à jour Redis et notifie les clients.
+    """
+    print("process_paddle_collision")
+
+
+    # speed = math.hypot(ball.speed_x, ball.speed_y) * 1.03  # Augmenter la vitesse
+    speed = manage_ball_speed_and_angle(game_id, current_paddle, paddle_side, ball)
+
+
+
+
+    # Mettre à jour la balle dans Redis
+    update_ball_redis(game_id, ball)
+
+    # Notifier la collision via WebSocket
+    await notify_paddle_collision(game_id, paddle_side, ball)
+    
+
+async def handle_border_collisions(game_id, ball):
+    """
+    Gère les collisions avec les bords supérieur et inférieur.
+    Ajuste la vitesse de la balle en conséquence.
+    """
+    if ball.y - ball.size <= 50:
+        border_side = "up"
+        ball.speed_y = abs(ball.speed_y)  # Rebond vers le bas
+        update_ball_redis(game_id, ball)
+        await notify_border_collision(game_id, border_side, ball)
+
+    elif ball.y + ball.size >= 350:
+        border_side = "down"
+        ball.speed_y = -abs(ball.speed_y)  # Rebond vers le haut
+        update_ball_redis(game_id, ball)
+        await notify_border_collision(game_id, border_side, ball)
+
+
+async def handle_bumper_collision(game_id, ball, bumpers):
+    """
+    Gère les collisions entre la balle et les bumpers.
+    Ajuste la vitesse et la direction de la balle, met à jour Redis et notifie les clients.
+    """
+    current_time = time.time()
+    for bumper in bumpers:
+        if bumper.active:
+            dist = math.hypot(ball.x - bumper.x, ball.y - bumper.y)
+            if dist <= ball.size + bumper.size:
+                # if current_time - bumper.last_collision_time >= COOLDOWN_TIME:
+                angle = math.atan2(ball.y - bumper.y, ball.x - bumper.x)
+                speed = math.hypot(ball.speed_x, ball.speed_y)
+                ball.speed_x = speed * math.cos(angle)
+                ball.speed_y = speed * math.sin(angle)
+
+                # Mettre à jour la balle dans Redis
+                update_ball_redis(game_id, ball)
+
+                # IMPROVE (inutile ?) Mettre à jour le temps de la dernière collision
+                bumper.last_collision_time = current_time
+
+                # Notifier la collision via WebSocket
+                await notify_bumper_collision(game_id, bumper, ball)
+                    
+
+async def handle_powerup_collision(game_id, ball, powerup_orbs):
+    """
+    Vérifie si la balle a ramassé un power-up en dehors des collisions avec les paddles.
+    Applique l'effet du power-up au joueur concerné, met à jour Redis et notifie les clients.
+    """
+    for powerup_orb in powerup_orbs:
+        if powerup_orb.active:
+            dist = math.hypot(ball.x - powerup_orb.x, ball.y - powerup_orb.y)
+            if dist <= ball.size + powerup_orb.size:
+                # Associer le power-up au dernier joueur qui a touché la balle
+                last_player = ball.last_player
+                if last_player:
+                    await apply_powerup(game_id, last_player, powerup_orb)
+# game/game_loop/dimensions_utils.py
+def get_terrain_rect(game_id):
+    """
+    Retourne les dimensions du terrain. Peut être ajusté pour récupérer les dimensions dynamiquement.
+    """
+    return {
+        'left': 50,
+        'top': 50,
+        'width': 700,
+        'height': 300
+    }
+# game/game_loop/initialize_game.py
+
+from .redis_utils import set_key
+from ..game_objects import Paddle, Ball, PowerUpOrb, Bumper
+from .dimensions_utils import get_terrain_rect
+
+
+FIELD_HEIGHT = 300
+
+#------------- INITIALIZE : CREATE ALL GAME OBJECTS WITH THEIR INITIAL VALUES --------------
+def initialize_game_objects(game_id, parameters):
+    paddle_size = {1: 30, 2: 60, 3: 90}[parameters.paddle_size]
+    paddle_speed = 6  # Peut être ajusté si nécessaire
+    ball_speed_multiplier = parameters.ball_speed
+
+    # Obtenir les dimensions du terrain
+    terrain_rect = get_terrain_rect(game_id)
+
+    # Initialiser les raquettes
+    paddle_left = Paddle('left', paddle_size, paddle_speed)
+    paddle_right = Paddle('right', paddle_size, paddle_speed)
+
+    # Initialiser la balle
+    initial_ball_speed_x = 4 * ball_speed_multiplier
+    initial_ball_speed_y = 4 * ball_speed_multiplier
+    ball = Ball(
+        terrain_rect['left'] + terrain_rect['width'] // 2,
+        terrain_rect['top'] + terrain_rect['height'] // 2,
+        initial_ball_speed_x,
+        initial_ball_speed_y
+    )
+
+    # Initialiser les power-ups et bumpers
+    powerup_orbs = [
+        PowerUpOrb(game_id, 'invert', terrain_rect, color=(255, 105, 180)),  # Rose pour inverser
+        PowerUpOrb(game_id, 'shrink', terrain_rect, color=(255, 0, 0)),      # Rouge pour rétrécir
+        PowerUpOrb(game_id, 'ice', terrain_rect, color=(0, 255, 255)),       # Cyan pour glace
+        PowerUpOrb(game_id, 'speed', terrain_rect, color=(255, 215, 0)),     # Or pour vitesse
+        PowerUpOrb(game_id, 'flash', terrain_rect, color=(255, 255, 0)),     # Jaune pour flash
+        PowerUpOrb(game_id, 'sticky', terrain_rect, color=(50, 205, 50))     # Vert lime pour collant
+    ]
+
+    bumpers = []
+    if parameters.obstacles_enabled:
+        bumpers = [Bumper(game_id, terrain_rect) for _ in range(3)]  # Ajuster le nombre si nécessaire
+
+    return paddle_left, paddle_right, ball, powerup_orbs, bumpers
+
+
+
+#------------- INITIALIZE : UPDATE REDIS DATABASE WITH OBJECTS VALUES--------------
+def initialize_redis(game_id, paddle_left, paddle_right, ball, parameters):
+    # Positions initiales des raquettes
+    set_key(game_id, "paddle_left_y", paddle_left.y)
+    set_key(game_id, "paddle_right_y", paddle_right.y)
+
+    # Vélocités initiales des raquettes (0 => immobiles)
+    set_key(game_id, "paddle_left_velocity", 0)
+    set_key(game_id, "paddle_right_velocity", 0)
+
+    # Store initial paddle heights from parameters / added
+    initial_height = {1: 60, 2: 80, 3: 100}[parameters.paddle_size]
+    set_key(game_id, "initial_paddle_height", initial_height)
+    set_key(game_id, "paddle_left_height", initial_height)
+    set_key(game_id, "paddle_right_height", initial_height)
+
+    # Balle
+    set_key(game_id, "ball_x", ball.x)
+    set_key(game_id, "ball_y", ball.y)
+    set_key(game_id, "ball_vx", ball.speed_x)
+    set_key(game_id, "ball_vy", ball.speed_y)
+
+    # Store initial ball speed multiplier from parameters / added
+    initial_speed = {1: 1, 2: 1.5, 3: 2}[parameters.ball_speed]
+    set_key(game_id, "initial_ball_speed_multiplier", initial_speed)# game/game_loop/loop.py
+
+import asyncio
+import time
+from django.conf import settings
+from channels.layers import get_channel_layer
+
+from .redis_utils import get_key
+from .models_utils import get_gameSession_status, get_gameSession, is_online_gameSession, get_gameSession_parameters, set_gameSession_status
+from .initialize_game import initialize_game_objects, initialize_redis
+from .paddles_utils import move_paddles
+from .ball_utils import move_ball, move_ball_sticky, reset_ball
+from .collisions import (
+    handle_scoring_or_paddle_collision,
+    # make_paddle_sticky,
+    handle_border_collisions,
+    handle_bumper_collision,
+    handle_powerup_collision
+)
+from .score_utils import handle_score, winner_detected, finish_game
+from .bumpers_utils import handle_bumpers_spawn, handle_bumper_expiration
+from .powerups_utils import handle_powerups_spawn, handle_powerup_expiration
+from .broadcast import broadcast_game_state, notify_countdown
+
+class WaitForPlayersTimeout(Exception):
+    """Exception levée lorsqu'un délai d'attente est dépassé avant que les joueurs ne soient prêts."""
+    pass
+
+async def wait_for_players(game_id):
+    print(f"[game_loop.py] wait_for_players {game_id}.")
+    timeout = 30  # Durée maximale d'attente en secondes.
+    start_time = time.time()
+    
+    # Boucle d'attente pour vérifier si les joueurs sont prêts
+    while time.time() - start_time < timeout:
+        gs = await get_gameSession(game_id)
+        if gs.ready_left and gs.ready_right:
+            print(f"[game_loop.py] wait_for_players Everyone is READY {game_id}.")
+            return True
+        await asyncio.sleep(0.1)  # Petite pause pour éviter une boucle trop chargée
+    
+    # Si le timeout est dépassé, on lève une exception
+    raise WaitForPlayersTimeout(f"Délai d'attente de {timeout} secondes dépassé pour game_id {game_id}.")
+
+
+async def countdown_before_game(game_id):
+    for countdown_nb in range(3, 0, -1):
+        await notify_countdown(game_id, countdown_nb)
+        await asyncio.sleep(1)
+
+# async def countdown_between_goals(game_id):
+#     for countdown_nb in range(3, 0, -1):
+#         await notify_countdown(game_id, countdown_nb)
+#         await asyncio.sleep(1)
+
+async def game_loop(game_id):
+    """
+    Boucle principale pour UNE partie identifiée par game_id.
+    Tourne ~90 fois/s tant que la partie n'est pas 'finished'.
+    """
+    channel_layer = get_channel_layer()
+    dt = 1/90
+    print(f"[game_loop.py] Starting loop for game_id={game_id}.")
+    try:
+        await wait_for_players(game_id)
+        await countdown_before_game(game_id)
+        # Récupérer/charger les paramètres
+        parameters = await get_gameSession_parameters(game_id)
+
+
+        # Construire les objets (raquettes, balle, powerups, bumpers)
+        paddle_left, paddle_right, ball, powerup_orbs, bumpers = initialize_game_objects(game_id, parameters)
+        initialize_redis(game_id, paddle_left, paddle_right, ball, parameters)
+        print(f"[game_loop] Game objects initialisés pour game_id={game_id}")
+
+        
+        await set_gameSession_status(game_id, "running")
+        
+        # 2) Lancer la boucle ~90fps 
+        while True:
+            
+            try :
+                # Vérifier si la partie est encore 'running' ou si on l'a terminée
+                session_status = await get_gameSession_status(game_id)
+                if session_status != 'running':
+                    print(f"[game_loop] game_id={game_id} => statut={session_status}. Fin de la boucle.")
+                    break
+
+                current_time = time.time()
+
+                # 2.1 - Mouvements
+                move_paddles(game_id, paddle_left, paddle_right)
+
+                #creer fonction is_sticky dans powerup utils ou ball utils
+                stuck_flag = get_key(game_id, "ball_stuck")
+                if stuck_flag and stuck_flag.decode('utf-8') == '1':
+                    move_ball_sticky(game_id, paddle_left, paddle_right, ball)
+                else :
+                    move_ball(game_id, ball)
+                # print(f"1")#debug
+                # 2.2 - Collisions
+                await handle_border_collisions(game_id, ball)
+                await handle_bumper_collision(game_id, ball, bumpers)
+                await handle_powerup_collision(game_id, ball, powerup_orbs)
+                # print(f"2")#debug
+
+                # 2.3 - Paddles / Score
+                scorer = await handle_scoring_or_paddle_collision(game_id, paddle_left, paddle_right, ball)
+                if scorer in ['score_left', 'score_right']:
+                    handle_score(game_id, scorer)
+
+                    # Vérifier si on a un gagnant
+                    if winner_detected(game_id):
+                        await finish_game(game_id)
+                        break
+                    else:
+                        # Sinon reset de la balle
+                        reset_ball(game_id, ball)
+
+                # print(f"3")#debug
+                # 2.4 - Powerups & Bumpers
+                if parameters.bonus_enabled:
+                    await handle_powerups_spawn(game_id, powerup_orbs, current_time)
+                    await handle_powerup_expiration(game_id, powerup_orbs)
+
+                if parameters.obstacles_enabled:
+                    await handle_bumpers_spawn(game_id, bumpers, current_time)
+                    await handle_bumper_expiration(game_id, bumpers)
+                # print(f"4")#debug
+
+                # 2.5 - Broadcast de l'état
+                await broadcast_game_state(game_id, channel_layer, paddle_left, paddle_right, ball, powerup_orbs, bumpers)
+
+                # print(f"5")#debug
+                # 2.6 - Attendre ~16ms
+                await asyncio.sleep(dt)
+            except asyncio.CancelledError:
+                await set_gameSession_status(game_id, "cancelled")
+                return
+
+    except asyncio.CancelledError:
+        print(f"[game_loop] => CANCELLED => on arrête la game {game_id}")
+        # Vous pouvez forcer le statut "cancelled" si ce n’est pas déjà fait
+        await set_gameSession_status(game_id, "cancelled")
+        return  # On sort de la fonction
+    
+    except Exception as e:
+        print(f"[game_loop] Exception pour game_id={game_id} : {e}")
+
+    finally:
+        print(f"[game_loop] Fin du game_loop pour game_id={game_id}.")# game/game_loop/models_utils.py
+from django.apps import apps  # Import retardé pour éviter les conflits d'import
+from asgiref.sync import sync_to_async
+
+class GameSessionNotFound(Exception):
+    """Exception personnalisée pour le cas où la session n'existe pas."""
+    pass
+
+class GameParametersNotFound(Exception):
+    """Exception levée lorsqu'aucun GameParameters n'est défini dans la GameSession."""
+    pass
+
+async def get_gameSession(game_id):
+    # print("get_gamesession")
+    GameSession = apps.get_model('game', 'GameSession')
+    try:
+        session = await sync_to_async(GameSession.objects.get)(pk=game_id)
+        return session
+    except GameSession.DoesNotExist as e:
+        raise GameSessionNotFound(f"La GameSession avec l'ID {game_id} n'existe pas.") from e
+
+async def get_gameSession_status(game_id):
+    # print("get_gameSession_status")
+    session = await get_gameSession(game_id)
+    return session.status
+
+async def is_online_gameSession(game_id):
+    # print("is_online_gameSession")
+    session = await get_gameSession(game_id)
+    return session.is_online
+
+async def set_gameSession_status(game_id, status):
+    # print("set_gameSession_status")
+    GameSession = apps.get_model('game', 'GameSession')
+    try:
+        # Précharger player_left et player_right pour éviter des appels ORM en mode lazy
+        session = await sync_to_async(
+            GameSession.objects.select_related('player_left', 'player_right').get
+        )(pk=game_id)
+        session.status = status
+        await sync_to_async(session.save)()
+        return session
+    except GameSession.DoesNotExist as e:
+        raise GameSessionNotFound(f"La GameSession avec l'ID {game_id} n'existe pas.") from e
+
+async def get_gameSession_parameters(game_id):
+    GameSession = apps.get_model('game', 'GameSession')
+    try:
+        session = await sync_to_async(GameSession.objects.get)(pk=game_id)
+        parameters = await sync_to_async(getattr)(session, 'parameters', None)
+    except parameters is None:
+        raise GameParametersNotFound(f"La GameSession avec l'ID {game_id} n'a pas de paramètres définis.")
+    return parameters
+
+async def get_LocalTournament(game_id, phase):
+    # print("get_LocalTournament")
+    LocalTournament = apps.get_model('game', 'LocalTournament')
+    if phase == "semifinal1":
+        tournament = await sync_to_async(LocalTournament.objects.filter(semifinal1__id=game_id).first)()
+    elif phase == "semifinal2":
+        tournament = await sync_to_async(LocalTournament.objects.filter(semifinal2__id=game_id).first)()
+    else:
+        tournament = await sync_to_async(LocalTournament.objects.filter(final__id=game_id).first)()
+    return tournament
+
+async def create_gameResults(game_id, gameSession_isOnline, endgame_infos):
+    """Crée un GameResult après la fin d'un match."""
+    GameSession = apps.get_model('game', 'GameSession')
+    GameResult = apps.get_model('game', 'GameResult')
+
+    try:
+        print(f"[create_gameResults] Creating GameResult for game {game_id}...")
+        # Récupérer la session de jeu en mode async
+        session = await sync_to_async(GameSession.objects.get)(pk=game_id)
+        if session.status == 'cancelled':
+            print("[create_gameResults] => The game was cancelled => skipping result creation.")
+            return
+
+        # ✅ Regrouper la création de GameResult dans une fonction synchrone
+        def save_game_result():
+            print(f"[create_gameResults] GameResult CREATED")
+            GameResult.objects.create(
+                game=session,
+                winner=endgame_infos['winner'],
+                looser=endgame_infos['looser'],
+                winner_local=endgame_infos['winner_local'],
+                looser_local=endgame_infos['looser_local'],
+                score_left=endgame_infos['score_left'],
+                score_right=endgame_infos['score_right']
+            )
+
+        # ✅ Exécuter la sauvegarde dans un thread synchrone sécurisé
+        await sync_to_async(save_game_result, thread_sensitive=True)()
+
+    except GameSession.DoesNotExist:
+        print(f"[create_gameResults] GameSession {game_id} does not exist.")
+    except Exception as e:
+        print(f"[create_gameResults] Error creating GameResult: {e}")# game/game_loop/paddles_utils.py
+from .redis_utils import get_key, set_key
+from .dimensions_utils import get_terrain_rect
+# FIELD_HEIGHT = 400
+
+# -------------- PADDLES --------------------
+def move_paddles(game_id, paddle_left, paddle_right):
+    # 1) Lire les infos depuis Redis
+    left_vel = float(get_key(game_id, "paddle_left_velocity") or 0)
+    right_vel = float(get_key(game_id, "paddle_right_velocity") or 0)
+
+    # Hauteurs
+    new_left_height = float(get_key(game_id, "paddle_left_height") or paddle_left.height)
+    new_right_height = float(get_key(game_id, "paddle_right_height") or paddle_right.height)
+
+    # Effets
+    is_left_inverted = bool(get_key(game_id, "paddle_left_inverted"))
+    is_right_inverted = bool(get_key(game_id, "paddle_right_inverted"))
+    is_left_on_ice = bool(get_key(game_id, "paddle_left_ice_effect"))
+    is_right_on_ice = bool(get_key(game_id, "paddle_right_ice_effect"))
+    has_left_speed_boost = bool(get_key(game_id, "paddle_left_speed_boost"))
+    has_right_speed_boost = bool(get_key(game_id, "paddle_right_speed_boost"))
+
+    # 2) Appliquer la hauteur
+    paddle_left.height = new_left_height
+    paddle_right.height = new_right_height
+
+    # 3) Calculer la direction effective
+    #    si invert => inverser le signe
+    if is_left_inverted:
+        left_vel = -left_vel
+    if is_right_inverted:
+        right_vel = -right_vel
+
+    #    si speed_boost => multiplier la vitesse
+    if has_left_speed_boost:
+        left_vel *= 1.5
+    if has_right_speed_boost:
+        right_vel *= 1.5
+
+    # 4) Déduire direction ou laisser en “velocity”
+    #    si on préfère la “direction” => -1,0,+1
+    #    ou rester en “velocity” direct
+    #    Dans le Paddle, on a la logique : if is_on_ice => friction etc.
+    direction_left = 0
+    if left_vel > 0: direction_left = 1
+    elif left_vel < 0: direction_left = -1
+
+    direction_right = 0
+    if right_vel > 0: direction_right = 1
+    elif right_vel < 0: direction_right = -1
+
+    # 5) Appeler la méthode move(...) de la classe Paddle
+    terrain_top = 50
+    terrain_bottom = 350
+
+    # On peut éventuellement passer “speed_boost” dans la signature.
+    # Ou, comme ci-dessous, vous appliquez la friction/glace directement dedans.
+    paddle_left.move(direction_left, is_left_on_ice, terrain_top, terrain_bottom, speed_boost=has_left_speed_boost)
+    paddle_right.move(direction_right, is_right_on_ice, terrain_top, terrain_bottom, speed_boost=has_right_speed_boost)
+
+    # 6) Sauvegarder la position finale dans Redis
+    set_key(game_id, "paddle_left_y", paddle_left.y)
+    set_key(game_id, "paddle_right_y", paddle_right.y)
+    # Ici, on peut aussi sauvegarder la velocity si on veut la persister.
+
+# -------------- PADDLES : UPDATE REDIS--------------------
+# def update_paddles_redis(game_id, paddle_left, paddle_right):
+#     """Updates paddle positions considering active effects."""
+#     left_vel = float(get_key(game_id, f"paddle_left_velocity") or 0)
+#     right_vel = float(get_key(game_id, f"paddle_right_velocity") or 0)
+
+#     # Apply speed boost if active
+#     if get_key(game_id, f"paddle_left_speed_boost"):
+#         left_vel *= 1.5  # 50% speed increase
+#     if get_key(game_id, f"paddle_right_speed_boost"):
+#         right_vel *= 1.5  # 50% speed increase
+
+#     # Convert velocity to direction
+#     left_direction = 0 if left_vel == 0 else (1 if left_vel > 0 else -1)
+#     right_direction = 0 if right_vel == 0 else (1 if right_vel > 0 else -1)
+
+#     # Apply inverted controls first
+#     if get_key(game_id, f"paddle_left_inverted"):
+#         left_direction *= -1
+#         left_vel *= -1
+#     if get_key(game_id, f"paddle_right_inverted"):
+#         right_direction *= -1
+#         right_vel *= -1
+
+#     # Check ice effects
+#     left_on_ice = bool(get_key(game_id, f"paddle_left_ice_effect"))
+#     right_on_ice = bool(get_key(game_id, f"paddle_right_ice_effect"))
+
+#     # Get current paddle heights from Redis
+#     left_height = float(get_key(game_id, f"paddle_left_height") or paddle_left.height)
+#     right_height = float(get_key(game_id, f"paddle_right_height") or paddle_right.height)
+
+#     # Define boundaries
+#     TOP_BOUNDARY = 50
+#     BOTTOM_BOUNDARY = 350  # This is the bottom border of the play area
+
+#     # Move paddles with ice physics if active, otherwise normal movement
+#     if left_on_ice:
+#         paddle_left.move(left_direction, left_on_ice, TOP_BOUNDARY, BOTTOM_BOUNDARY)
+#     else:
+#         # Update position
+#         paddle_left.y += left_vel
+#         # Constrain movement using current height
+#         # Bottom boundary is the maximum y position where the paddle can be placed
+#         paddle_left.y = max(TOP_BOUNDARY, min(BOTTOM_BOUNDARY - left_height, paddle_left.y))
+
+#     if right_on_ice:
+#         paddle_right.move(right_direction, right_on_ice, TOP_BOUNDARY, BOTTOM_BOUNDARY)
+#     else:
+#         # Update position
+#         paddle_right.y += right_vel
+#         # Constrain movement using current height
+#         paddle_right.y = max(TOP_BOUNDARY, min(BOTTOM_BOUNDARY - right_height, paddle_right.y))
+#     set_key(game_id, f"paddle_left_y", paddle_left.y)
+#     set_key(game_id, f"paddle_right_y", paddle_right.y)import time
+from .dimensions_utils import get_terrain_rect
+from .redis_utils import set_key, get_key, delete_key
+from .broadcast import notify_powerup_applied, notify_powerup_spawned, notify_powerup_expired
+import asyncio
+import math
+import random
+from game.tasks import register_subtask
+
+
+MAX_ACTIVE_POWERUPS = 2
+SPAWN_INTERVAL_POWERUPS = 7
+DURATION_EFFECT_POWERUPS = 5
+
+# -------------- POWER UP --------------------
+async def handle_powerups_spawn(game_id, powerup_orbs, current_time):
+    # Initialisation de last_powerup_spawn_time si elle n'est pas déjà définie
+    if not hasattr(handle_powerups_spawn, "last_powerup_spawn_time"):
+        handle_powerups_spawn.last_powerup_spawn_time = current_time  # Initialisation lors du premier appel
+
+    # Utilisation de la variable statique pour vérifier l'intervalle de temps
+    if current_time - handle_powerups_spawn.last_powerup_spawn_time >= SPAWN_INTERVAL_POWERUPS:
+        active_powerups = count_active_powerups(game_id, powerup_orbs)
+        if active_powerups < MAX_ACTIVE_POWERUPS:
+            # S'assurer qu'on ne génère qu'un seul powerup à la fois
+            powerup_orb = random.choice(powerup_orbs)
+            if not powerup_orb.active:
+                terrain = get_terrain_rect(game_id)
+                spawned = await spawn_powerup(game_id, powerup_orb, terrain)
+                if spawned:
+                    # Mettre à jour le temps de spawn du powerup pour éviter les doubles spawns
+                    handle_powerups_spawn.last_powerup_spawn_time = current_time
+                    print(f"[game_loop.py] game_id={game_id} - PowerUp {powerup_orb.effect_type} spawned.")
+
+
+
+async def spawn_powerup(game_id, powerup_orb, terrain_rect):
+    # Ne pas faire spawn 2 fois le même powerup sur le terrain
+    if powerup_orb.active:
+        print(f"[powerups.py] PowerUp {powerup_orb.effect_type} is already active, skipping spawn.")
+        return False
+
+    if (powerup_orb.spawn)(terrain_rect):
+        set_powerup_redis(game_id, powerup_orb)
+        print(f"[powerups.py] PowerUp {powerup_orb.effect_type} spawned at ({powerup_orb.x}, {powerup_orb.y})")
+        await notify_powerup_spawned(game_id, powerup_orb)
+        return True
+    return False
+
+
+
+async def apply_powerup(game_id, player, powerup_orb):
+    print(f"[powerups.py] Applying power-up {powerup_orb.effect_type} to {player}")
+    # Create task for handling effect duration
+    subtask = asyncio.create_task(handle_powerup_duration(game_id, player, powerup_orb))
+    register_subtask(game_id, subtask)
+    print(f"[game_loop.py] Creating duration task for {powerup_orb.effect_type}")
+    delete_powerup_redis(game_id, powerup_orb)
+    await notify_powerup_applied(game_id, player, powerup_orb.effect_type, DURATION_EFFECT_POWERUPS)
+
+
+async def handle_powerup_duration(game_id, player, powerup_orb): 
+    """Handles the duration of a power-up effect asynchronously."""
+    effect_type = powerup_orb.effect_type
+    effect_duration = 5  # 5 seconds for all effects
+
+    print(f"[game_loop.py] Starting effect {effect_type} for {player}")
+
+    # Apply effect
+    #IMPROVE => utiliser shown_size de paddle pour original_height
+    
+
+    print("handle_powerup_duration")
+    if effect_type == 'flash':
+        set_key(game_id, f"flash_effect", 1)
+        try:
+            await asyncio.sleep(0.3)
+        except asyncio.CancelledError:
+            print(f"[flash effect] => CANCELLED for game_id={game_id}")
+            return
+        #await asyncio.sleep(0.3) # Flash lasts 300ms
+
+        delete_key(game_id, f"flash_effect")
+
+    elif effect_type == 'shrink':
+        opponent = 'left' if player == 'right' else 'right'
+        print(f"[game_loop.py] Applying shrink to {opponent}")  # Debug log
+        
+        # Get current height and store it as original
+        current_height = float(get_key(game_id, f"paddle_{opponent}_height") or 60)
+        print(f"[game_loop.py] Original height: {current_height}")  # Debug log
+        
+        # Store original height for restoration
+        set_key(game_id, f"paddle_{opponent}_original_height", current_height)
+        
+        # Calculate and set new height
+        new_height = current_height * 0.5
+        set_key(game_id, f"paddle_{opponent}_height", new_height)
+        print(f"[game_loop.py] New height set to: {new_height}")  # Debug log
+        
+        # Wait for duration
+        try:
+            await asyncio.sleep(effect_duration)
+        except asyncio.CancelledError:
+            return
+    
+        # Restore original height
+        original_height = float(get_key(game_id, f"paddle_{opponent}_original_height") or 60)
+        set_key(game_id, f"paddle_{opponent}_height", original_height)
+        delete_key(game_id, f"paddle_{opponent}_original_height")
+        print(f"[game_loop.py] Height restored to: {original_height}")  # Debug log
+
+    elif effect_type == 'speed':
+        # Set paddle speed multiplier
+        set_key(game_id, f"paddle_{player}_speed_boost", 1)  # Flag for speed boost
+        print(f"[game_loop.py] Speed boost applied to {player} paddle")
+        
+        try:
+            await asyncio.sleep(effect_duration)
+        except asyncio.CancelledError:
+            return
+        
+        # Remove speed boost
+        delete_key(game_id, f"paddle_{player}_speed_boost")
+        print(f"[game_loop.py] Speed boost removed from {player} paddle")
+
+    elif effect_type == 'ice':
+        opponent = 'left' if player == 'right' else 'right'
+        set_key(game_id, f"paddle_{opponent}_ice_effect", 1)
+        try:
+            await asyncio.sleep(effect_duration)
+        except asyncio.CancelledError:
+            return
+        delete_key(game_id, f"paddle_{opponent}_ice_effect")
+
+    elif effect_type == 'sticky':
+        set_key(game_id, f"paddle_{player}_sticky", 1)
+        try:
+            await asyncio.sleep(effect_duration)
+        except asyncio.CancelledError:
+            return
+        delete_key(game_id, f"paddle_{player}_sticky")
+
+    elif effect_type == 'invert':
+        opponent = 'left' if player == 'right' else 'right'
+        set_key(game_id, f"paddle_{opponent}_inverted", 1)
+        try:
+            await asyncio.sleep(effect_duration)
+        except asyncio.CancelledError:
+            return
+        delete_key(game_id, f"paddle_{opponent}_inverted")
+    print("END handle_powerup_duration")
+
+
+
+
+
+def count_active_powerups(game_id, powerup_orbs):
+    count = 0
+    for powerup_orb in powerup_orbs:
+        active = get_key(game_id, f"powerup_{powerup_orb.effect_type}_active") or 0
+        if active and active.decode('utf-8') == '1':
+            count += 1
+    # print(f"[loop.py] count_active_powerups ({count})")
+    return count
+
+async def handle_powerup_expiration(game_id, powerup_orbs):
+    current_time = time.time()
+    for powerup_orb in powerup_orbs:
+        if powerup_orb.active and current_time - powerup_orb.spawn_time >= powerup_orb.duration:
+            delete_powerup_redis(game_id, powerup_orb)
+            print(f"[game_loop.py] PowerUp {powerup_orb.effect_type} expired at ({powerup_orb.x}, {powerup_orb.y})")
+            await notify_powerup_expired(game_id, powerup_orb)
+
+
+# -------------- POWER UP : UPDATE REDIS DATA --------------------
+def set_powerup_redis(game_id, powerup_orb):
+    powerup_orb.activate()
+    set_key(game_id, f"powerup_{powerup_orb.effect_type}_active", 1)
+    set_key(game_id, f"powerup_{powerup_orb.effect_type}_x", powerup_orb.x)
+    set_key(game_id, f"powerup_{powerup_orb.effect_type}_y", powerup_orb.y)
+
+def delete_powerup_redis(game_id, powerup_orb):
+    powerup_orb.deactivate()
+    delete_key(game_id, f"powerup_{powerup_orb.effect_type}_active")
+    delete_key(game_id, f"powerup_{powerup_orb.effect_type}_x")
+    delete_key(game_id, f"powerup_{powerup_orb.effect_type}_y")
+# game/game_loop/redis_utils.py
+
+import redis
+from django.conf import settings
+
+r = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=0)
+
+def set_key(game_id, key, value):
+    r.set(f"{game_id}:{key}", value)
+
+def get_key(game_id, key):
+    return r.get(f"{game_id}:{key}")
+
+def delete_key(game_id, key):
+    r.delete(f"{game_id}:{key}")
+
+def scan_and_delete_keys(game_id):
+    keys = list(r.scan_iter(f"{game_id}:*"))
+    for key in keys:
+        r.delete(key)
+
+# game/game_loop/score_utils.py
+
+from channels.layers import get_channel_layer
+from asgiref.sync import sync_to_async
+from .broadcast import notify_game_finished, notify_powerup_expired, notify_bumper_expired
+from .redis_utils import set_key, get_key, scan_and_delete_keys, delete_key
+from .models_utils import is_online_gameSession, set_gameSession_status, create_gameResults, get_LocalTournament
+
+from .powerups_utils import handle_powerups_spawn, delete_powerup_redis
+from .bumpers_utils import handle_bumpers_spawn, delete_bumper_redis
+# transformer en parametre ajustable GameParameters?
+WIN_SCORE = 6 
+
+
+async def reset_all_objects(game_id, powerup_orbs, bumpers): # / added
+    """Reset all active powerups and bumpers when a point is scored."""
+    # Reset all powerups
+    for powerup in powerup_orbs:
+        if powerup.active:
+            delete_powerup_redis(game_id, powerup)
+            powerup.deactivate()
+            await notify_powerup_expired(game_id, powerup)
+
+    # Reset all bumpers
+    for bumper in bumpers:
+        if bumper.active:
+            delete_bumper_redis(game_id, bumper)
+            bumper.deactivate()
+            await notify_bumper_expired(game_id, bumper)
+
+    # Reset any active effects
+    keys_to_delete = [
+        "paddle_left_sticky", "paddle_right_sticky",
+        "paddle_left_inverted", "paddle_right_inverted",
+        "paddle_left_ice_effect", "paddle_right_ice_effect",
+        "paddle_left_speed_boost", "paddle_right_speed_boost",
+        "flash_effect"
+    ]
+    for key in keys_to_delete:
+        delete_key(game_id, key)
+
+    # Reset paddle heights to initial values
+    initial_height = float(get_key(game_id, "initial_paddle_height"))
+    set_key(game_id, "paddle_left_height", initial_height)
+    set_key(game_id, "paddle_right_height", initial_height)
+
+
+def handle_score(game_id, scorer):
+    if scorer == 'score_left':
+        score_left = int(get_key(game_id, "score_left") or 0) + 1
+        set_key(game_id, "score_left", score_left)
+        print(f"[loop.py] Player Left scored. Score: {score_left} - {get_key(game_id, 'score_right')}")            
+
+    else :
+        score_right = int(get_key(game_id, "score_right") or 0) + 1
+        set_key(game_id, "score_right", score_right)
+        print(f"[loop.py] Player Right scored. Score: {get_key(game_id, 'score_left')} - {score_right}")
+
+
+
+def winner_detected(game_id):
+
+    score_left = int(get_key(game_id, "score_left") or 0)
+    score_right = int(get_key(game_id, "score_right") or 0)
+
+    if (score_left == WIN_SCORE or score_right == WIN_SCORE):
+        return True
+    return False
+
+async def finish_game(game_id):
+    # Récupérer les scores depuis Redis
+    score_left = int(get_key(game_id, "score_left") or 0)
+    score_right = int(get_key(game_id, "score_right") or 0)
+
+    # Marquer la session comme terminée et récupérer ses informations
+    gameSession = await set_gameSession_status(game_id, "finished")
+    if not gameSession:
+        print(f"[finish_game] GameSession {game_id} does not exist.")
+        return
+
+    # Pour être sûr que les attributs player_left et player_right sont préchargés,
+    # vérifiez qu'ils ne déclenchent pas de requête additionnelle.
+    # Ici, ils ont été chargés grâce au select_related dans set_gameSession_status.
+
+    # Si la GameSession est Online, créer un enregistrement des gameResults
+    if score_left > score_right:
+        winner = gameSession.player_left
+        winner_local = gameSession.player_left_local
+        looser = gameSession.player_right
+        looser_local = gameSession.player_right_local
+    else:
+        winner = gameSession.player_right
+        winner_local  = gameSession.player_right_local
+        looser = gameSession.player_left
+        looser_local = gameSession.player_left_local
+
+    endgame_infos = {
+        'winner': winner,
+        'looser': looser,
+        'winner_local': winner_local,
+        'looser_local': looser_local,
+        'score_left': score_left,
+        'score_right': score_right,
+    }
+    gameSession_isOnline = await is_online_gameSession(game_id)
+    await create_gameResults(game_id, gameSession_isOnline, endgame_infos)
+
+    # Gestion du tournoi (inchangé)
+    tournament = await get_LocalTournament(game_id, "semifinal1")
+    if tournament:
+        print(f"[finish_game] this game was semifinal1 from tournament game_id={game_id}")
+        tournament.status = 'semifinal1_done'
+        tournament.winner_semifinal_1 = winner_local
+        await sync_to_async(tournament.save)()
+    else:
+        tournament = await get_LocalTournament(game_id, "semifinal2")
+        if tournament:
+            tournament.status = 'semifinal2_done'
+            tournament.winner_semifinal_2 = winner_local
+            await sync_to_async(tournament.save)()
+        else:
+            tournament = await get_LocalTournament(game_id, "final")
+            if tournament:
+                tournament.status = 'finished'
+                tournament.winner_final = winner_local
+                await sync_to_async(tournament.save)()
+            else:
+                print(f"[finish_game] No tournament found for game_id={game_id}")
+
+    tournament_id = gameSession.tournament_id
+    print(f"[finish_game] tournament_id={tournament_id}")
+    if gameSession_isOnline:
+        await notify_game_finished(game_id, tournament_id, winner, looser)
+    else :
+        await notify_game_finished(game_id, tournament_id, winner_local, looser_local)
+
+    scan_and_delete_keys(game_id)
+    print(f"[loop.py] Redis keys deleted for game_id={game_id}")

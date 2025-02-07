@@ -1,56 +1,63 @@
 <!--fichiers live_game.html-->
 
-<div id="livegame" class="container-fluid d-flex flex-column align-items-center justify-content-center position-fixed">
+<div id="livegame" class="container-fluid d-flex align-items-center justify-content-center position-fixed">
 	<!-- Bouton de lancement -->
 	<div class="game-container d-flex justify-content-center align-items-center">
-		 <!-- Zone de score positionnée en haut du terrain -->
-		 <div id="score-display" class="score-display text-center">
+		<!-- Zone de score positionnée en haut du terrain -->
+		<div id="score-display" class="score-display text-center">
 			<span class="player-name left">{{ player_left_name|default:"Joueur 1" }}</span>
 			<span id="score-nb"> | 0 - 0 | </span>
 			<span class="player-name right">{{ player_right_name|default:"Joueur 2" }}</span>
-		  </div>
+		</div>
 		<button id="startGameBtn" class="btn starting-btn">PLAY</button>
 		<canvas id="gameCanvas"></canvas>
-	</div>
-	<!-- Boutons de contrôle -->
-	<div class="touch-controls">
-		<button id="touch1" class="control-btn" >&#x25C0;</button>  <!-- Flèche gauche -->
-		<button id="touch2" class="control-btn" >&#x25B6;</button>  <!-- Flèche droite -->
+		 <!-- Boutons de contrôle positionnés à droite du canvas -->
+		 <div class="touch-controls" style="position: absolute; top: 0; right: 0; height: 100%;">
+			<button id="touch1" class="control-btn h-30">&#x25B2;</button> <!-- Flèche vers le haut -->
+			<button id="touch2" class="control-btn h-30">&#x25BC;</button> <!-- Flèche vers le bas -->
+		  </div>
 	</div>
 </div>
-  
-  
+
+
 
 <style>
-	body, html {
+	body,
+	html {
 		overflow: auto;
 	}
 
+	.h-30 {
+		height: 30% !important;
+	}
+
 	/* Styles globaux */
-body, html {
-  margin: 0;
-  padding: 0;
-  overflow: auto;
-}
-.mask {
-  display: none;
-  z-index: 0;
-}
+	body,
+	html {
+		margin: 0;
+		padding: 0;
+		overflow: auto;
+	}
 
-#ground-game {
-  display: none !important;
-  height: 0 !important;
-  top : 0 !important;
-}
+	.mask {
+		display: none;
+		z-index: 0;
+	}
+
+	#ground-game {
+		display: none !important;
+		height: 0 !important;
+		top: 0 !important;
+	}
 
 
-.hidden {
-  display: none;
-}
+	.hidden {
+		display: none;
+	}
 
-.navbar {
-  transition: all 0.5s ease;
-}
+	.navbar {
+		transition: all 0.5s ease;
+	}
 
 
 	#startGameBtn {
@@ -66,7 +73,6 @@ body, html {
 		margin: 0;
 		height: 100vh;
 		width: 100%;
-		padding-top: 50px;
 		color: white;
 		overflow: auto;
 	}
@@ -76,16 +82,16 @@ body, html {
 		width: max(80vw, 400px);
 		aspect-ratio: 2 / 1;
 		position: relative;
-		top :0;
+		top: 0;
 	}
 
 	#gameCanvas {
-		position: absolute; 
+		position: absolute;
 		z-index: 50;
 		display: block;
 		margin: 0 auto;
 		width: 100%;
-		height: auto; 
+		height: auto;
 		border: 1px solid white;
 		border-radius: 1em;
 		background-color: #101A32;
@@ -93,96 +99,111 @@ body, html {
 	}
 
 	.starting-btn {
-    font-family: "Jersey 10", sans-serif; /* Garde uniquement la police que tu utilises */
-	width: 30%;
-    height: 40%;
-    color: rgba(45, 180, 243, 0.4); /* Couleur atténuée au début */
-    background: none; /* Pas de fond pour un effet propre */
-    border: none;
-    z-index: 60;
-	opacity: 0.1;
-    transition: opacity 0.5s ease-in-out, text-shadow 0.5s ease-in-out;
+		font-family: "Jersey 10", sans-serif;
+		/* Garde uniquement la police que tu utilises */
+		width: 30%;
+		height: 40%;
+		color: rgba(45, 180, 243, 0.4);
+		/* Couleur atténuée au début */
+		background: none;
+		/* Pas de fond pour un effet propre */
+		border: none;
+		z-index: 60;
+		opacity: 0.1;
+		transition: opacity 0.5s ease-in-out, text-shadow 0.5s ease-in-out;
 
-	font-size: clamp(2rem, 20vw, 15vh); /* Adapte le texte à la taille du bouton */
-    
-    /* Centrer le texte dans le bouton */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
+		font-size: clamp(2rem, 20vw, 15vh);
+		/* Adapte le texte à la taille du bouton */
 
-	min-width: 100px;
-}
+		/* Centrer le texte dans le bouton */
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		text-align: center;
 
-
-
-/* Clignotement normal */
-@keyframes blink {
-    0%, 100% { opacity: 0; }
-    50% { opacity: 1; }
-}
-
-/* Effet de lumière rétro autour du texte sans flou */
-
-
-/* Activation du clignotement normal après le lent */
-.starting-btn.active {
-    color: #2DB4F3; /* Couleur vive */
-    animation: blink 2s infinite;
-}
-
-.score-display {
-  position: absolute;
-  transform: translateX(-50%);
-  color: white;
-  font-family:  "Jersey 10", sans-serif;
-  /* font-size: 1.5rem;     Ajustez la taille de la police selon vos besoins */
-  z-index: 60;           /* Au-dessus du canvas et du bouton PLAY */
-}
-
-.player-name.left, .player-name.right{
-		color: rgba(45, 180, 243, 1);  /* Par exemple, rouge pour le joueur de gauche */
+		min-width: 100px;
 	}
 
-	/* Conteneur des boutons tactiles : largeur exactement adaptée au contenu */
-.touch-controls {
-  display: inline-flex;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 5px;          /* Espace fixe entre les boutons */
-  margin-top: 1vh;   /* Distance fixe entre le terrain et les boutons */
-  height: 5vh !important;
-}
 
-/* Nouveau design des boutons avec min et max imposés */
-.control-btn {
-	font-family: "Jersey 10", sans-serif;
-	/* Appliquer le facteur d'échelle directement aux valeurs */
-	font-size: calc(clamp(1rem, 6vw, 1.3rem) * var(--btn-scale, 1));
-	/* Réduire la hauteur (vertical) et allonger la largeur (horizontal) */
-	padding: calc(8px * var(--btn-scale, 1)) calc(40px * var(--btn-scale, 1));
-	border: none;
-	border-radius: 0.75em;
-	background: linear-gradient(145deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
-	color: #fff;
-	box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.4);
-	transition: all 0.2s ease;
-	/* Imposer des tailles minimum et maximum pour que le bouton reste cliquable */
-    width: 30vw;
-    height: 5vh;
-    min-width: 60px;
-    min-height: 10px;
-    max-width: 150px;
-    max-height: 60px;
-}
 
-.control-btn:hover {
-  background: linear-gradient(145deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1));
-  box-shadow: 3px 3px 7px rgba(0, 0, 0, 0.6);
-}
+	/* Clignotement normal */
+	@keyframes blink {
 
-.control-btn:active {
-  filter: brightness(0.9);
-}
-  
+		0%,
+		100% {
+			opacity: 0;
+		}
+
+		50% {
+			opacity: 1;
+		}
+	}
+
+	/* Effet de lumière rétro autour du texte sans flou */
+
+
+	/* Activation du clignotement normal après le lent */
+	.starting-btn.active {
+		color: #2DB4F3;
+		/* Couleur vive */
+		animation: blink 2s infinite;
+	}
+
+	.score-display {
+		position: absolute;
+		transform: translateX(-50%);
+		color: white;
+		font-family: "Jersey 10", sans-serif;
+		/* font-size: 1.5rem;     Ajustez la taille de la police selon vos besoins */
+		z-index: 60;
+		/* Au-dessus du canvas et du bouton PLAY */
+	}
+
+	.player-name.left,
+	.player-name.right {
+		color: rgba(45, 180, 243, 1);
+		/* Par exemple, rouge pour le joueur de gauche */
+	}
+
+		/* Conteneur des boutons tactiles affiché verticalement */
+	.touch-controls {
+	display: flex;
+	flex-direction: column;        /* Disposition verticale */
+	justify-content: center; /* Répartir l'espace entre les boutons */
+	align-items: center;
+	gap: 5px;                      /* Espace fixe entre les boutons */
+	/* On ne fixe plus de hauteur ici, on la définira via JS */
+	}
+
+	/* Adaptation des boutons tactiles */
+	.control-btn {
+		font-family: "Jersey 10", sans-serif;
+		/* Réduction de la taille de la police */
+		font-size: calc(clamp(0.4rem, 4vw, 1.1rem) * var(--btn-scale, 1));
+		/* Ajustement du padding si nécessaire */
+		padding: calc(4px * var(--btn-scale, 1)) calc(6px * var(--btn-scale, 1));
+		border: none;
+		border-radius: 0.75em;
+		background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+		color: #fff;
+		box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.4);
+		transition: all 0.2s ease;
+		/* Pour que les boutons ne dépassent pas la largeur du conteneur */
+		width: 80%;
+		min-height: 40px;
+		/* Ajout des propriétés Flexbox pour centrer le contenu */
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+
+	.control-btn:hover {
+		background: linear-gradient(145deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1));
+		box-shadow: 3px 3px 7px rgba(0, 0, 0, 0.6);
+	}
+
+	.control-btn:active {
+		filter: brightness(0.9);
+	}
 </style>

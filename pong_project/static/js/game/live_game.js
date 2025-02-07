@@ -91,6 +91,14 @@ export async function launchLiveGameWithOptions(gameId, userRole, urlStartButton
    */
 function initLiveGame(config) {
   return new Promise((resolve) => {
+	// Masquer les boutons tactiles si l'appareil n'est pas tactile.
+    if (!isTouchDevice()) {
+		const touchControls = document.querySelector('.touch-controls');
+		if (touchControls) {
+		  // Ici, on masque simplement l'élément
+		  touchControls.style.display = 'none';
+		}
+	  }
     // 1) Préparer les éléments HTML
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
@@ -373,7 +381,13 @@ function initLiveGame(config) {
   
       // Calcul du scale en fonction de l'espace disponible
       let scale = Math.min(containerWidth / ORIGINAL_WIDTH, windowHeight * 0.7 / ORIGINAL_HEIGHT);
-  
+	  // Met à jour la hauteur du conteneur des boutons pour qu'elle corresponde à la hauteur affichée du canvas
+	  const touchControls = document.querySelector('.touch-controls');
+	  // Si les boutons tactiles sont présents
+	  if (touchControls) {
+	  	// On utilise ici la hauteur affichée du canvas (qui est ORIGINAL_HEIGHT * scale)
+	  	touchControls.style.height = (ORIGINAL_HEIGHT * scale) + 'px';
+	  }
       // Appliquer le scale sur le canvas (dimension affichée)
       canvas.style.width = (ORIGINAL_WIDTH * scale) + 'px';
       canvas.style.height = (ORIGINAL_HEIGHT * scale) + 'px';
@@ -419,7 +433,29 @@ function initLiveGame(config) {
           // On fixe la taille de la police en pixels pour éviter les fluctuations liées aux unités rem
           scoreDisplay.style.fontSize = (30 * s) + "px";
       }
+
+	    // **Mise à jour de la position et de la hauteur des boutons tactiles**
+	
+		if (touchControls) {
+		
+		  const canvasRect = canvas.getBoundingClientRect();
+		  const containerRect = container.getBoundingClientRect();
+		  const gap = canvasRect.width* 0.01;
+		  console.log('gap', gap);
+		  // Calculer la position relative du bord droit du canvas dans le container
+		  const relativeCanvasRight = canvasRect.right - containerRect.left;
+		  // Positionner le conteneur des boutons à droite du canvas avec l'écart défini
+		  touchControls.style.position = 'absolute';
+		  touchControls.style.left = (relativeCanvasRight + gap) + 'px';
+		  // Aligner verticalement en haut du canvas
+		  const relativeCanvasTop = canvasRect.top - containerRect.top;
+		  touchControls.style.top = relativeCanvasTop + 'px';
+		  // Faire en sorte que la hauteur du conteneur des boutons soit égale à celle du canvas
+		  touchControls.style.height = canvasRect.height + 'px';
+		  touchControls.style.width = (canvasRect.width * 0.07) + 'px';
+		}
   }
+  
 
   window.addEventListener('resize', handleResize);
 handleResize();

@@ -81,13 +81,13 @@ export function liveLocalGame(options) {
     const ORIGINAL_HEIGHT = 400;
     let scale = 1;
 
-    // Const for visual effects on notifications / added
+    // Const for visual effects on notifications 
     const collisionEffects = [];
     const EFFECT_DURATION = 300;
     const SPAWN_EFFECT_DURATION = 500;
     const EXPIRE_EFFECT_DURATION = 300;
   
-    // spawn visual effect / added
+    // spawn visual effect 
     function createSpawnEffect(type, x, y, effectType, color) {
       const effect = {
           type,

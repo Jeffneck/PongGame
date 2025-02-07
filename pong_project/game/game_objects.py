@@ -4,7 +4,7 @@ import random
 import math
 import time
 
-class Paddle: #added
+class Paddle: 
     def __init__(self, position, size, speed):
         """
         position: 'left' ou 'right'

@@ -4,6 +4,7 @@ import { navigateTo } from '../router.js';
 import { showStatusMessage } from '../tools/displayInfo.js';
 import { attachProfileEvents } from './events.js';
 import { handleNavbar } from '../navbar/index.js';
+import { handleLogout } from '../auth/logout.js';
 
 async function handleFormSubmit(form, app, view, successMessage, successSelector) {
   const formData = new FormData(form);
@@ -19,13 +20,13 @@ async function handleFormSubmit(form, app, view, successMessage, successSelector
         }, 3000);
       }
       form.reset();
-      // Si c'est un changement d'avatar, mettre à jour la navbar
       if (successSelector === '#change-avatar-success') {
         await handleNavbar();
       }
       // Pour changement de pseudo, par exemple, déconnecter l'utilisateur
       else if (successSelector === '#change-username-success') {
-        // On peut appeler la fonction handleLogout si nécessaire
+        handleLogout();
+        return;
       }
       navigateTo('/account');
     } else {

@@ -19,7 +19,7 @@ def generate_jwt_token(user, include_refresh=True):
     access_payload = {
         'user_id': user.id,
         'username': user.username,
-        'exp': current_time + timedelta(minutes=6),
+        'exp': current_time + timedelta(hours=1),
     }
     access_token = jwt.encode(access_payload, settings.SECRET_KEY, algorithm='HS256')
     if isinstance(access_token, bytes):

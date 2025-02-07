@@ -2,16 +2,12 @@
 import { navigateTo } from '../router.js';
 import { HTTPError, ContentTypeError, NetworkError } from './apiErrors.js';
 import { showStatusMessage } from '../tools/displayInfo.js';
+import { clearSessionAndUI } from '../tools/clearSession.js';
 
 // Fonction utilitaire pour forcer la déconnexion de l'utilisateur
 function forceLogout(message) {
-  // Effacez les tokens stockés
-  localStorage.removeItem("access_token");
-  localStorage.removeItem("refresh_token");
-  // Affichez un message d'erreur (facultatif)
   showStatusMessage(message, "error");
-  // Redirigez vers la page de login
-  navigateTo("/login");
+  setTimeout(() => { clearSessionAndUI(); }, 1000);
 }
 
 const Api = {
@@ -176,6 +172,7 @@ const Api = {
       });
   
       if (!response.ok) {
+        forceLogout("Impossible de rafraîchir le token, veuillez vous reconnecter.");
         console.error("Erreur HTTP lors du rafraîchissement du token:", response.status, response.statusText);
         return null;
       }

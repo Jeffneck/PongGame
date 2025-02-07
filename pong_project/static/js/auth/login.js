@@ -3,6 +3,7 @@ import { requestGet, requestPost } from '../api/index.js';
 import { handleNavbar } from '../navbar/index.js';
 import { updateHtmlContent, showStatusMessage } from '../tools/index.js';
 import { navigateTo } from '../router.js';
+import { HTTPError } from '../api/index.js';
 
 async function handleLoginResponse(response) {
   if (response.status === 'success') {
@@ -56,6 +57,11 @@ async function initializeLoginForm() {
       });
     }
   } catch (error) {
+    if (error instanceof HTTPError && error.status === 403) {
+      showStatusMessage('Vous êtes déjà connecté. Redirection...', 'error');
+      navigateTo('/home');
+      return;
+    }
     console.error('Erreur dans initializeLoginForm :', error);
     showStatusMessage('Impossible de charger la vue de connexion. Veuillez réessayer.', 'error');
   }

@@ -173,7 +173,7 @@ CSRF_TRUSTED_ORIGINS = [
 	'https://10.13.6.5:8443',
 	'https://10.192.177.51:8443',
 	'https://172.20.10.2:8443',
-	'https://10.11.2.3:8443',
+	'https://10.11.2.2:8443',
     # 'https://votre-domaine.com',  # Ajoutez votre domaine en production
 ]
 CSRF_COOKIE_SAMESITE = 'Lax'

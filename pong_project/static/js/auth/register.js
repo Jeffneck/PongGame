@@ -2,6 +2,7 @@
 import { requestPost, requestGet } from '../api/index.js';
 import { updateHtmlContent, showStatusMessage } from '../tools/index.js';
 import { navigateTo } from '../router.js';
+import { HTTPError } from '../api/index.js';
 
 function handleRegisterResponse(response) {
   if (response.status === 'success') {
@@ -42,6 +43,11 @@ export async function initializeRegisterView() {
       });
     }
   } catch (error) {
+    if (error instanceof HTTPError && error.status === 403) {
+      showStatusMessage('Vous êtes déjà connecté. Redirection...', 'error');
+      navigateTo('/home');
+      return;
+    }
     console.error('Erreur dans initializeRegisterView :', error);
     showStatusMessage('Impossible de charger la vue d\'inscription. Veuillez réessayer.', 'error');
   }

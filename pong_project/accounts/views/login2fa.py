@@ -17,6 +17,7 @@ from django.shortcuts import get_object_or_404
 from accounts.utils import generate_jwt_token
 from pong_project.decorators import login_required_json, auth_partial_required
 from accounts.forms import TwoFactorLoginForm
+from pong_project.decorators import user_not_authenticated
 
 # ---- Configuration ----
 logger = logging.getLogger(__name__)
@@ -133,6 +134,7 @@ class Check2FAView(View):
 
 
 @method_decorator(csrf_protect, name='dispatch')
+@method_decorator(user_not_authenticated, name='dispatch')
 @method_decorator(auth_partial_required, name='dispatch')
 class Login2faView(View):
     """

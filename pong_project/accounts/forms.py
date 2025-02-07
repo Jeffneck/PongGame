@@ -113,7 +113,7 @@ class AvatarUpdateForm(forms.ModelForm):
 class DeleteAccountForm(forms.Form):
     password = forms.CharField(
         max_length=128,
-        widget=forms.PasswordInput(attrs={'placeholder': 'Entrez votre mot de passe'}),
+        widget=forms.PasswordInput(attrs={'placeholder': _("Entrez votre mot de passe")}),
         label="Mot de passe"
     )
 
@@ -124,5 +124,5 @@ class DeleteAccountForm(forms.Form):
     def clean_password(self):
         password = self.cleaned_data['password']
         if not authenticate(username=self.user.username, password=password):
-            raise forms.ValidationError("Mot de passe incorrect.")
+            raise forms.ValidationError(_("Mot de passe incorrect."))
         return password

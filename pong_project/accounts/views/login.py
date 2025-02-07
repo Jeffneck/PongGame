@@ -7,6 +7,7 @@ from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_POST, require_GET
 from django.template.loader import render_to_string
 from django.contrib.auth import authenticate, login
+from django.utils.translation import gettext as _  # Import pour la traduction
 
 from accounts.utils import generate_jwt_token
 from accounts.forms import LoginForm
@@ -53,7 +54,7 @@ class LoginView(View):
         user = authenticate(request, username=username, password=password)
 
         # Message d'erreur générique pour éviter l'énumération d'utilisateurs
-        error_message = "Nom d'utilisateur ou mot de passe invalide"
+        error_message = _("Nom d'utilisateur ou mot de passe invalide")
 
         # Vérification de l'existence et de l'activité du compte
         if user is None or not user.is_active:
@@ -92,6 +93,6 @@ class LoginView(View):
         except Exception as e:
             logger.exception("Erreur lors de l'authentification pour l'utilisateur: %s", username)
             return JsonResponse(
-                {'status': 'error', 'message': "Erreur interne du serveur"},
+                {'status': 'error', 'message': _("Erreur interne du serveur")},
                 status=500
             )

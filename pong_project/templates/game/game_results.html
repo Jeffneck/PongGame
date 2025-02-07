@@ -1,12 +1,12 @@
 <div id="results-container" class="container d-flex flex-column align-items-center justify-content-center col-12 col-sm-10 col-md-8 col-lg-6 col-xl-4 col-xxl-4">
     <!-- Titre agrandi et centré -->
-    <h1 id="results-title" class="text-center text-white">Résultats du jeu</h1>
+    <h1 id="results-title" class="text-center text-white mb-4">Résultats du jeu</h1>
     
     <!-- Bloc des résultats dimensionné en fonction de l'écran -->
     <div class="statistics d-flex flex-column align-items-center justify-content-center">
-      <p class="d-flex flex-column  text-center"><strong class="stat-title">Winner:</strong> {{ winner }}</p>
-      <p class="d-flex flex-column  text-center"><strong class="stat-title">Looser:</strong> {{ looser }}</p>
-      <p class="d-flex flex-column  text-center"><strong class="stat-title">Score:</strong> {{ score_left }} - {{ score_right }}</p>
+      <p class="d-flex flex-column  text-center"><strong class="stat-title">Winner</strong> {{ winner }}</p>
+      <p class="d-flex flex-column  text-center"><strong class="stat-title">Looser</strong> {{ looser }}</p>
+      <p class="d-flex flex-column  text-center"><strong class="stat-title">Score</strong> {{ score_left }} - {{ score_right }}</p>
     </div>
   </div>
 
@@ -16,18 +16,17 @@
       color: white;
       margin: 0;
       padding: 0;
-      overflow: hidden;
+      overflow: auto;
     }
     /* Conteneur principal qui prend toute la hauteur de la page */
     #results-container {
-		z-index: 30;
+		z-index: 25;
       min-height: 100vh;
       padding-top: 20px;
     }
     /* Style du titre agrandi et centré */
     #results-title {
-      font-size: 3.5em;
-      margin-bottom: 1.5em;
+      font-size: 3.3em;
       font-family: "Jersey 10", sans-serif;
     }
     /* Bloc des résultats */
@@ -40,10 +39,10 @@
     }
     .statistics p {
       margin: 15px 0;
-      font-size: xx-large;
+      font-size: 1.6em;
     }
     .stat-title {
       color: #2DB4F3;
-	  font-size: xxx-large;
+	  font-size: 1.3em;
     }
   </style>

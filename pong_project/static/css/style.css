@@ -383,7 +383,7 @@ h1, h2, h3, h4, h5, h6 {
 	height: var(--burger-height); /* Prend toute la hauteur sous la navbar */
 	border-radius: 8px 8px 8px 8px;
 	display: none; /* Caché par défaut */
-	z-index: 98; /* Plus haut que l'overlay pour rester visible */
+	z-index: 200; /* Plus haut que l'overlay pour rester visible */
 	background-color: #141b2e;
 	overflow-y: auto;
 }

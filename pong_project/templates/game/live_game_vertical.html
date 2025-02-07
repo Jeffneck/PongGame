@@ -1,5 +1,3 @@
-<div id="global-rotator">
-
 <!-- Conteneur principal Bootstrap -->
 <div id="livegame" class="container">
 	<div class="row justify-content-center">
@@ -16,49 +14,20 @@
 		  <button id="startGameBtn" class="starting-btn">PLAY</button>
 		</div>
 		<!-- Boutons de contrôle -->
-		<div class="touch-controls">
-		  <button id="touch1" class="control-btn" >&#x25C0;</button>  <!-- Flèche gauche -->
-		  <button id="touch2" class="control-btn" >&#x25B6;</button>  <!-- Flèche droite -->
+		<div id="left_player" class="touch-controls">
+		  <button class="control-btn">&#x25C0;</button>  <!-- Flèche gauche -->
+		  <button class="control-btn">&#x25B6;</button>  <!-- Flèche droite -->
 		</div>
 	  </div>
 	</div>
   </div>
-</div>
+
   <style>
-
-	/* Pour forcer la rotation de tout le contenu */
-	#global-rotator {
-  position: fixed;  /* fixed permet de le coller à la fenêtre */
-  top: 50px;
-  left: 0;
-  width: 100vh;
-  height: 100vw;
-}
-
-@media (orientation: landscape) {
-  #global-rotator {
-	transform: rotate(90deg) !important;
-        transform-origin: center;
-        width: 100vw !important;
-        height: 100vh !important;
-  }
-}
-
 /* Styles globaux */
 body, html {
   margin: 0;
   padding: 0;
   overflow: auto;
-}
-.mask {
-  display: none;
-  z-index: 0;
-}
-
-#ground-game {
-  display: none !important;
-  height: 0 !important;
-  top : 0 !important;
 }
 
 #livegame {
@@ -70,8 +39,13 @@ body, html {
 }
 
 .navbar {
-  transition: all 0.5s ease;
+  transition: all 0.3s ease;
 }
+.mask {
+  display: none;
+  z-index: 0;
+}
+
 .score-display {
   position: absolute;
   top: 10px;           /* Distance depuis le haut du game-container (ajustez selon vos préférences) */
@@ -91,6 +65,7 @@ body, html {
   background-color: #101A32;
   border: 1px solid white;
   border-radius: 1em;
+  overflow: hidden;
   /* Les dimensions seront définies dynamiquement par JS */
   min-width: 100px;
   min-height: 200px;
@@ -100,7 +75,12 @@ body, html {
 #gameCanvas {
   position: absolute;
   transform-origin: top left;
-  overflow: hidden !important;
+}
+
+.ground-game {
+  display: none;
+  height: 0;
+  top : 0;
 }
 
 /* Bouton PLAY, centré sur le terrain */
@@ -203,11 +183,5 @@ body, html {
 .player-name.left, .player-name.right{
 		color: rgba(45, 180, 243, 1);  /* Par exemple, rouge pour le joueur de gauche */
 	}
-
-  .touch-controls button {
-  pointer-events: auto;
-  z-index: 9999;
-  background: red; /* pour voir s'ils s'affichent */
-}
 	
   </style>

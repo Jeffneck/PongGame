@@ -539,6 +539,69 @@ if (scoreDisplay) {
 
 }
   
+
+// Seuil (en pixels) pour considérer qu'un glissement a eu lieu
+const SWIPE_THRESHOLD = 50;
+let touchStartY = null;
+
+document.addEventListener('touchstart', (e) => {
+  // Enregistrer la position verticale au début du toucher (si un seul doigt)
+  if (e.touches.length === 1) {
+    touchStartY = e.touches[0].clientY;
+  }
+}, { passive: true });
+
+document.addEventListener('touchend', (e) => {
+  if (touchStartY === null) return;
+  const touchEndY = e.changedTouches[0].clientY;
+  const deltaY = touchEndY - touchStartY;
+  
+  const navbar = document.getElementById('navbar');
+  if (!navbar) return;
+
+  // Si l'utilisateur glisse vers le bas (delta positif) et dépasse le seuil
+  if (deltaY > SWIPE_THRESHOLD) {
+    navbar.classList.remove('hidden');
+    // Optionnel : masquer la navbar de nouveau après quelques secondes
+    setTimeout(() => {
+      // Vérifier que l'écran est toujours en paysage
+      if (window.innerWidth > window.innerHeight) {
+        navbar.classList.add('hidden');
+      }
+    }, 3000);
+  }
+  
+  // Si l'utilisateur glisse vers le haut (delta négatif) et dépasse le seuil
+  if (deltaY < -SWIPE_THRESHOLD) {
+    navbar.classList.add('hidden');
+  }
+  
+  // Réinitialiser la valeur
+  touchStartY = null;
+});
+
+function adjustGlobalRotator() {
+	const rotator = document.getElementById('global-rotator');
+	if (!rotator) return;
+	
+	// Dans le cas d'une rotation forcée en portrait,
+	// on définit la largeur et la hauteur en fonction des dimensions de l'écran.
+	if (window.innerHeight > window.innerWidth) {
+	  rotator.style.width = window.innerHeight + 'px';
+	  rotator.style.height = window.innerWidth + 'px';
+	  rotator.style.transform = 'rotate(90deg)';
+	} else {
+	  rotator.style.width = window.innerWidth + 'px';
+	  rotator.style.height = window.innerHeight + 'px';
+	  rotator.style.transform = 'none';
+	}
+  }
+  
+  window.addEventListener('resize', adjustGlobalRotator);
+  window.addEventListener('orientationchange', adjustGlobalRotator);
+  adjustGlobalRotator();
+
+  
     // 4) Initialiser WebSocket
     const socket = new WebSocket(config.wsUrl);
     
